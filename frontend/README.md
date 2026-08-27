@@ -1,21 +1,38 @@
-# React + TypeScript + Vite + shadcn/ui
+# phisheye frontend
 
-This is a template for a new Vite project with React, TypeScript, and shadcn/ui.
+React + TypeScript + Vite Frontend für phisheye.
 
-## Adding components
+## Voraussetzungen
 
-To add components to your app, run the following command:
+Node muss installiert sein (siehe `docs/setup.md`).
+
+## Installieren
 
 ```bash
-npx shadcn@latest add button
+npm install
 ```
 
-This will place the ui components in the `src/components` directory.
+## Ausführen (Dev-Server)
 
-## Using components
-
-To use the components in your app, import them as follows:
-
-```tsx
-import { Button } from "@/components/ui/button"
+```bash
+npm run dev
 ```
+
+Läuft dann unter `http://localhost:5173`.
+
+## Build
+
+```bash
+npm run build
+```
+
+## Lint
+
+```bash
+npm run lint
+```
+
+## Stand
+
+Grundgerüst via Vite aufgesetzt, shadcn/ui eingerichtet (`components.json`).
+Noch keine Anbindung ans Backend.
