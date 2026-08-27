@@ -6,7 +6,7 @@ Ziel: 4 Punkte pro Mitglied — bei einem 3er-Team **12 Punkte**.
 |---|---------|--------|------------------------|
 | 1 | KI-Integration | 2 | LLM bewertet die Analyse-Ergebnisse und erstellt den Bericht im Klartext |
 | 2 | Team-Feature inkl. Rollenverwaltung | 2 | Teams mit Rollen (Admin / Analyst), geteilte Analyse-Historie |
-| 3 | Benachrichtigungs-System (Glocke + Web-Push) | 2 | Hinweis, sobald eine Analyse abgeschlossen ist |
+| 3 | Benachrichtigungs-System (Glocke) | 2 | Hinweis in der App, sobald eine Analyse abgeschlossen ist |
 | 4 | Such-System (Suchfunktion) | 2 | Suche über Absender, Domains, Hashes und frühere Analysen |
 | 5 | Background-Jobs / asynchrone Verarbeitung | 1 | Analyse läuft über arq + Redis, nicht im Request |
 | 6 | Anbindung an externe APIs | 1 | VirusTotal-API für Hash- und Datei-Reputation |
@@ -51,7 +51,6 @@ Zusätzlich verpflichtend für jedes Team:
 ### Benachrichtigungen
 - Glocke im Header
 - Benachrichtigungs-Dropdown
-- Web-Push-Erlaubnis abfragen
 
 ### Admin
 - Monitoring-Dashboard (Queue-Status, Auslastung, Fehler)
