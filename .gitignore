@@ -1,0 +1,45 @@
+# --- Python / Backend ---
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# --- Node / Frontend (Vite) ---
+node_modules/
+frontend/dist/
+frontend/.vite/
+*.tsbuildinfo
+
+# --- Env / Secrets ---
+.env
+.env.*
+!.env.example
+
+# --- DB / lokale Daten ---
+*.db
+*.sqlite3
+postgres-data/
+redis-data/
+
+# --- Docker ---
+docker/volumes/
+
+# --- IDE / OS ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# --- Logs ---
+*.log
+logs/
