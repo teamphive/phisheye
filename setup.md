@@ -17,3 +17,17 @@ node --version
 aws --version
 tofu -version
 ```
+
+## AWS / Tofu
+
+IAM-User (nicht Root!) verwenden, Access Key erstellen:
+
+IAM -> Users -> dein User -> "Security credentials" -> "Access keys" -> "Create access key" (CLI-Use-Case) -> ID + Secret sichern.
+
+```bash
+aws configure
+# Access Key ID, Secret Access Key, eu-central-1, json
+
+# prüft ob's klappt
+aws sts get-caller-identity
+```
