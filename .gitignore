@@ -43,3 +43,14 @@ Thumbs.db
 # --- Logs ---
 *.log
 logs/
+
+# --- OpenTofu / Terraform ---
+**/.terraform/
+**/.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfvars
+!*.tfvars.example
+crash.log
+crash.*.log
