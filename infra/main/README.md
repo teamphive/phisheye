@@ -20,9 +20,9 @@ tofu apply
 ## Stand
 
 - [x] Network (VPC, öffentliche/private Subnets, Internet Gateway, NAT Gateway, Route Tables)
-- [ ] Security Groups
-- [ ] RDS (Postgres)
-- [ ] ElastiCache (Redis)
+- [x] Security Groups
+- [x] RDS (Postgres)
+- [x] ElastiCache (Redis)
 - [ ] ECS Cluster + IAM Roles
 - [ ] Task Definitions + Services (Backend, Worker)
 - [ ] Application Load Balancer + ACM
