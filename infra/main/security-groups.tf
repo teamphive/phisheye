@@ -4,7 +4,7 @@
 
 resource "aws_security_group" "alb" {
   name        = "${var.project_name}-alb-sg"
-  description = "ALB: HTTP/HTTPS von überall erreichbar"
+  description = "ALB: HTTP/HTTPS von ueberall erreichbar"
   vpc_id      = aws_vpc.main.id
 
   ingress {
@@ -64,7 +64,7 @@ resource "aws_security_group" "backend" {
 
 resource "aws_security_group" "worker" {
   name        = "${var.project_name}-worker-sg"
-  description = "arq-Worker: kein eingehender Traffic nötig, nur ausgehend"
+  description = "arq-Worker: kein eingehender Traffic noetig, nur ausgehend"
   vpc_id      = aws_vpc.main.id
 
   egress {
