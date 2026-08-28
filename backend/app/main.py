@@ -1,20 +1,53 @@
-from fastapi import FastAPI
+from email import policy
+from email.parser import BytesParser
+from xmlrpc import client
+from fastapi import FastAPI, File, UploadFile
 import os
 import vt
 import load_dotenv
+import hashlib
 
 load_dotenv.load_dotenv()
 
 app = FastAPI(title="phisheye")
-client = vt.Client(os.getenv("VT_API_KEY"))
-
+    
 @app.get("/health")
 def health():
     return {"status": "ok"}
 
-@app.get("/email_check")
-async def virus_check():
-    file = await client.get_object_async(
-        "/files/44d88612fea8a8f36de82e1278abb02f"
-    )
-    return {"status": file.last_analysis_results}
+@app.post("/analyze")
+async def analyze_email(file: UploadFile = File(...)):
+    content = await file.read()
+
+    msg = BytesParser(policy=policy.default).parsebytes(content)
+    attachments = {}
+    results = []
+
+    # extract attachment information
+    for part in msg.iter_attachments():
+        file_bytes = part.get_payload(decode=True)
+        sha256 = hashlib.sha256(file_bytes).hexdigest()
+
+        attachments[part.get_filename()] = sha256
+
+    # virustotal analysis
+    for filename, sha256 in attachments.items():
+
+        async with vt.Client(os.getenv("VT_API_KEY")) as client:
+            try:
+                vt_result = await client.get_object_async(f"/files/{sha256}")
+            except vt.APIError as e:
+                if e.code == "NotFoundError":
+                    vt_result = None
+                else:
+                    raise
+
+        results.append({
+            "filename": filename,
+            "sha256": sha256,
+            "vt_results": vt_result.last_analysis_results if vt_result else None,
+        })
+
+    return {"attachments": results}
+
+
