@@ -9,11 +9,12 @@ erste Version.
 - `[D]` deterministisch, direkt in Code prüfbar
 - `[KI]` Einschätzung durch das Sprachmodell
 - Gesetzte Checkbox bedeutet: implementiert
+- `(v1)` für die erste Ausbaustufe eingeplant, siehe unten
 
 ## Header
 
-- [ ] From und Reply-To weichen voneinander ab `[D]`
-- [ ] Return-Path passt nicht zum From-Header `[D]`
+- [ ] From und Reply-To weichen voneinander ab `[D]` **(v1)**
+- [ ] Return-Path passt nicht zum From-Header `[D]` **(v1)**
 - [ ] Display-Name nennt eine Marke, Adresse passt nicht dazu `[D]`
 - [ ] `Re:` oder `AW:` ohne `In-Reply-To` und `References` `[D]`
 - [ ] Message-ID-Domain passt nicht zur Absenderdomain `[D]`
@@ -26,9 +27,9 @@ erste Version.
 
 ## Authentifizierung
 
-- [ ] SPF-Ergebnis ist fail oder softfail `[D]`
-- [ ] DKIM-Signatur fehlt oder ist ungültig `[D]`
-- [ ] DMARC-Ergebnis ist fail `[D]`
+- [ ] SPF-Ergebnis ist fail oder softfail `[D]` **(v1)**
+- [ ] DKIM-Signatur fehlt oder ist ungültig `[D]` **(v1)**
+- [ ] DMARC-Ergebnis ist fail `[D]` **(v1)**
 - [ ] DMARC-Policy steht auf none statt quarantine oder reject `[D]`
 - [ ] SPF-Record endet auf `+all` `[D]`
 
@@ -45,10 +46,10 @@ erste Version.
 
 ## Links
 
-- [ ] Anzeigetext des Links weicht vom tatsächlichen Ziel ab `[D]`
+- [ ] Anzeigetext des Links weicht vom tatsächlichen Ziel ab `[D]` **(v1)**
 - [ ] Empfängeradresse ist in der Ziel-URL enthalten `[D]`
 - [ ] Auffällig viele Subdomains im Hostnamen `[D]`
-- [ ] IP-Adresse statt Domainname `[D]`
+- [ ] IP-Adresse statt Domainname `[D]` **(v1)**
 - [ ] Userinfo-Trick mit `@` in der URL `[D]`
 - [ ] Open-Redirect-Parameter wie `url=` oder `redirect=` `[D]`
 - [ ] URL-Shortener im Einsatz `[D]`
@@ -57,11 +58,11 @@ erste Version.
 
 ## Anhänge
 
-- [ ] Hash bei VirusTotal als schädlich bekannt `[D]`
-- [ ] Echter Dateityp passt nicht zur Dateiendung `[D]`
+- [ ] Hash bei VirusTotal als schädlich bekannt `[D]` **(v1, externe Abfrage)**
+- [ ] Echter Dateityp passt nicht zur Dateiendung `[D]` **(v1)**
 - [ ] HTML-Anhang mit obfuskiertem JavaScript `[D]`
 - [ ] Passwortgeschütztes Archiv, Passwort steht im Mailtext `[D]`
-- [ ] Doppelte Dateiendung wie rechnung.pdf.exe `[D]`
+- [ ] Doppelte Dateiendung wie rechnung.pdf.exe `[D]` **(v1)**
 - [ ] RTL-Override im Dateinamen, Unicode U+202E `[D]`
 - [ ] Containerformat wie iso, img, lnk oder OneNote `[D]`
 - [ ] SVG mit eingebettetem Script `[D]`
@@ -86,21 +87,35 @@ erste Version.
 - [ ] Kette endet an einem Bot-Gate oder CAPTCHA `[D]`
 - [ ] Mehrere Weiterleitungen bis zur eigentlichen Zielseite `[D]`
 
-## Empfehlung für die erste Ausbaustufe
+## Erste Ausbaustufe (v1)
 
-Nicht alle Kriterien auf einmal umsetzen. Diese Auswahl deckt einen
-Großteil der realen Fälle ab und ist in überschaubarer Zeit machbar:
+Stand 28.08.2026. Für die erste Version sind bewusst nur vier Prüfungen vorgesehen. Sie decken die vier Stellen ab, an denen eine Phishing-Mail auffällt: Absenderidentität, Header, Link und Anhang. Alles Weitere in diesem Dokument bleibt Roadmap und ist oben mit `(v1)` von der ersten Ausbaustufe abgegrenzt.
 
-- From und Reply-To weichen ab
-- Return-Path passt nicht zum From-Header
-- Display-Name-Spoofing
-- SPF, DKIM und DMARC auswerten
-- Domain-Alter über RDAP
-- Anzeigetext des Links weicht vom Ziel ab
-- Punycode und Homoglyphen
-- Echter Dateityp passt nicht zur Endung
-- HTML-Anhang mit obfuskiertem JavaScript
-- Hash-Abgleich über VirusTotal
+Priorität ist, dass die Anwendung als Ganzes funktioniert. Die Anzahl der umgesetzten Kriterien fließt nicht in die Bewertung ein.
+
+| # | Prüfung | Kriterien aus der Liste | Gewicht |
+|---|---------|-------------------------|---------|
+| 1 | Authentifizierung fehlgeschlagen | SPF, DKIM, DMARC | 40 |
+| 2 | Link-Anzeigetext weicht vom Ziel ab | Anzeigetext ungleich Ziel, IP statt Domain | 30 |
+| 3 | Anhang-Typ passt nicht zur Endung | Magic Bytes ungleich Endung, doppelte Endung | 30 |
+| 4 | From weicht von Reply-To oder Return-Path ab | Reply-To, Return-Path | 20 |
+
+Die gewichtete Summe wird bei 100 gekappt. Vorläufige Schwellen: 0 bis 39 sauber, 40 bis 74 verdächtig, 75 bis 100 Phishing. Ein einzelnes Signal ergibt damit noch kein Phishing-Verdikt, zwei Signale landen im Bereich verdächtig, drei ergeben Phishing. Die Schwellen werden nach dem ersten Testdurchlauf mit echten Mails nachjustiert und kommen aus der API, nicht aus dem Frontend.
+
+### Umsetzungshinweise
+
+- Die Authentifizierung wird **nicht selbst nachgerechnet**. DKIM zu verifizieren bedeutet Canonicalization und RSA-Prüfung, SPF bedeutet DNS-Include-Ketten und Makros. Der empfangende Mailserver hat das bereits erledigt und schreibt das Ergebnis in den Header `Authentication-Results`. Geparst wird nur diese Zeile. Fehlt der Header, gilt das Kriterium als nicht bewertbar und ausdrücklich nicht als bestanden.
+- Der From-Vergleich läuft auf **Domain-Ebene**, nicht auf der vollen Adresse. Newsletter und Ticketsysteme haben legitim ein abweichendes Reply-To.
+- Anhänge werden über **Magic Bytes** geprüft, zusätzlich wird auf doppelte Endungen geachtet.
+- Der **VirusTotal-Hash-Abgleich** bleibt bestehen, zählt aber als externe Abfrage und nicht als deterministisches Kriterium. Er deckt in `features.md` das Wahlpflicht-Feature "Anbindung an externe APIs" ab.
+
+### Testmaterial
+
+Vor der Umsetzung exportiert jedes Teammitglied fünf bis zehn echte Phishing-Mails sowie einige harmlose Mails als `.eml`. Dieser Satz dient gleichzeitig als Datengrundlage für die Tests der Kernfunktionen und zeigt, ob die Gewichte sinnvoll gewählt sind.
+
+### Nächster Kandidat
+
+Domain-Alter über RDAP, falls am Ende Zeit bleibt. Homoglyphen und Levenshtein-Distanz zu bekannten Marken brauchen eine gepflegte Markenliste und bleiben vorerst außen vor.
 
 ## Umsetzung des Scorings
 

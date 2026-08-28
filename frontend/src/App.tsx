@@ -12,7 +12,7 @@ function App() {
       <CardHeader>
         <CardTitle>Project Overview</CardTitle>
         <CardDescription>
-          Track progress and recent activity for your Vite app.
+          test
         </CardDescription>
       </CardHeader>
       <CardContent>
