@@ -95,3 +95,92 @@
 | message | string | |
 | read | bool | |
 | created_at | timestamp | |
+
+## Entity-Relationship-Modell
+
+```mermaid
+erDiagram
+  USERS ||--o{ TEAM_MEMBERS : has
+  TEAMS ||--o{ TEAM_MEMBERS : has
+  TEAMS ||--o{ TEAM_INVITATIONS : has
+  USERS ||--o{ TEAM_INVITATIONS : invites
+  TEAMS ||--o{ MAIL_ANALYSES : owns
+  USERS ||--o{ MAIL_ANALYSES : submits
+  MAIL_ANALYSES ||--o{ MAIL_ATTACHMENTS : has
+  MAIL_ANALYSES ||--o{ VT_RESULTS : has
+  MAIL_ATTACHMENTS ||--o{ VT_RESULTS : has
+  USERS ||--o{ NOTIFICATIONS : receives
+  MAIL_ANALYSES ||--o{ NOTIFICATIONS : triggers
+
+  USERS {
+    int id PK
+    string email
+    string password_hash
+    string name
+    string role
+    string totp_secret
+    bool totp_enabled
+    timestamp created_at
+  }
+  TEAMS {
+    int id PK
+    string name
+    timestamp created_at
+  }
+  TEAM_MEMBERS {
+    int id PK
+    int team_id FK
+    int user_id FK
+    timestamp joined_at
+  }
+  TEAM_INVITATIONS {
+    int id PK
+    int team_id FK
+    string email
+    int invited_by FK
+    string status
+    string token
+    timestamp created_at
+  }
+  MAIL_ANALYSES {
+    int id PK
+    int team_id FK
+    int submitted_by FK
+    string source
+    string subject
+    string sender
+    text raw_headers
+    string status
+    string verdict
+    float confidence_score
+    text llm_report
+    timestamp created_at
+    timestamp completed_at
+  }
+  MAIL_ATTACHMENTS {
+    int id PK
+    int mail_analysis_id FK
+    string filename
+    string file_hash
+    string mime_type
+    timestamp created_at
+  }
+  VT_RESULTS {
+    int id PK
+    int attachment_id FK
+    int mail_analysis_id FK
+    string indicator_type
+    string indicator_value
+    string vt_verdict
+    json vt_raw_response
+    timestamp checked_at
+  }
+  NOTIFICATIONS {
+    int id PK
+    int user_id FK
+    int mail_analysis_id FK
+    string message
+    bool read
+    timestamp created_at
+  }
+```
