@@ -30,5 +30,5 @@ output "nat_gateway_id" {
 
 output "internet_gateway_id" {
   description = "ID des Internet Gateways"
-  value       = aws_internet_gateway.igw.id
+  value       = aws_internet_gateway.main.id
 }
