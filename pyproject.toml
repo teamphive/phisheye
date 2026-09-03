@@ -3,7 +3,10 @@ name = "phisheye"
 version = "0.1.0"
 requires-python = ">=3.13"
 dependencies = [
+    "aiosqlite>=0.22.1",
+    "alembic>=1.19.1",
     "fastapi[standard]>=0.141.1",
-    "vt-py"
+    "sqlalchemy>=2.0.52",
+    "vt-py",
 ]
 
