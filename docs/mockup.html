@@ -3214,7 +3214,7 @@ job analyse:c41f8a &#183; Versuch 3 von 3 &#183; 03.09.2026 08:13:41</div>
     applyTeam(item.dataset.team, item.dataset.name, item.dataset.count, item.dataset.initials);
   }
 
-  /* Erstanmeldung: Konto angelegt, noch kein Team */
+  /* First sign-in: account created, no team yet */
   function startOnboarding() {
     document.body.classList.add("no-team");
     applyTeam("none", "Kein Team", 0, "\u2014");
@@ -3321,7 +3321,7 @@ job analyse:c41f8a &#183; Versuch 3 von 3 &#183; 03.09.2026 08:13:41</div>
     );
   }
 
-  /* Navigation, Chips, Schalter */
+  /* Navigation, chips, switches */
   document.addEventListener("click", function (e) {
     var opener = e.target.closest("[data-search]");
     if (opener) { e.preventDefault(); openSearch(opener.dataset.search); return; }
@@ -3397,7 +3397,7 @@ job analyse:c41f8a &#183; Versuch 3 von 3 &#183; 03.09.2026 08:13:41</div>
     }
   });
 
-  /* Suche als aufklappendes Fenster */
+  /* Search as an expanding panel */
   var searchWrap = document.getElementById("topSearch");
   var searchInput = document.getElementById("searchInput");
   var searchPanel = document.getElementById("searchPanel");
@@ -3494,7 +3494,7 @@ job analyse:c41f8a &#183; Versuch 3 von 3 &#183; 03.09.2026 08:13:41</div>
     closeSearch();
   });
 
-  /* Benachrichtigungen und Profil-Menue */
+  /* Notifications menu */
   function menuClick(e) {
     e.stopPropagation();
     var go = e.target.closest("[data-go]");
@@ -3513,7 +3513,7 @@ job analyse:c41f8a &#183; Versuch 3 von 3 &#183; 03.09.2026 08:13:41</div>
 
   document.addEventListener("click", closeMenus);
 
-  /* Einladen-Dialog */
+  /* Invite dialog */
   inviteBtn.addEventListener("click", function () {
     if (!inviteBtn.disabled) { overlay.classList.add("open"); }
   });

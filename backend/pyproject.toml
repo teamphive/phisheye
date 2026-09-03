@@ -27,5 +27,23 @@ dev = [
     "ruff>=0.16.4",
 ]
 
+[tool.ruff.lint]
+# pinned explicitly so a ruff update cannot silently enable new rules
+select = ["E4", "E7", "E9", "F", "I", "B"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI requires calls in argument defaults, this is not a bug
+extend-immutable-calls = [
+    "fastapi.Body",
+    "fastapi.Cookie",
+    "fastapi.Depends",
+    "fastapi.File",
+    "fastapi.Form",
+    "fastapi.Header",
+    "fastapi.Path",
+    "fastapi.Query",
+    "fastapi.Security",
+]
+
 [tool.pytest.ini_options]
 pythonpath = ["."]

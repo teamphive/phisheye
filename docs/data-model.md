@@ -100,19 +100,91 @@
 
 ## Entity-Relationship-Modell
 
-Nur die Beziehungen. Die Spalten stehen in den Tabellen oben.
-
 ```mermaid
 erDiagram
-  USERS ||--o{ TEAM_MEMBERS : "gehört zu"
-  TEAMS ||--o{ TEAM_MEMBERS : hat
-  TEAMS ||--o{ TEAM_INVITATIONS : hat
-  USERS ||--o{ TEAM_INVITATIONS : lädt_ein
-  TEAMS ||--o{ MAIL_ANALYSES : besitzt
-  USERS ||--o{ MAIL_ANALYSES : reicht_ein
-  MAIL_ANALYSES ||--o{ MAIL_ATTACHMENTS : hat
-  MAIL_ANALYSES ||--o{ VT_RESULTS : hat
-  MAIL_ATTACHMENTS ||--o{ VT_RESULTS : hat
-  USERS ||--o{ NOTIFICATIONS : erhält
-  MAIL_ANALYSES ||--o{ NOTIFICATIONS : "löst aus"
+  USERS ||--o{ TEAM_MEMBERS : has
+  TEAMS ||--o{ TEAM_MEMBERS : has
+  TEAMS ||--o{ TEAM_INVITATIONS : has
+  USERS ||--o{ TEAM_INVITATIONS : invites
+  TEAMS ||--o{ MAIL_ANALYSES : owns
+  USERS ||--o{ MAIL_ANALYSES : submits
+  MAIL_ANALYSES ||--o{ MAIL_ATTACHMENTS : has
+  MAIL_ANALYSES ||--o{ VT_RESULTS : has
+  MAIL_ATTACHMENTS ||--o{ VT_RESULTS : has
+  USERS ||--o{ NOTIFICATIONS : receives
+  MAIL_ANALYSES ||--o{ NOTIFICATIONS : triggers
+
+  USERS {
+    int id PK
+    string email
+    string password_hash
+    string name
+    string totp_secret
+    bool totp_enabled
+    bool is_operator
+    timestamp created_at
+  }
+  TEAMS {
+    int id PK
+    string name
+    timestamp created_at
+  }
+  TEAM_MEMBERS {
+    int id PK
+    int team_id FK
+    int user_id FK
+    string role
+    timestamp joined_at
+  }
+  TEAM_INVITATIONS {
+    int id PK
+    int team_id FK
+    string email
+    int invited_by FK
+    string status
+    string token
+    timestamp created_at
+  }
+  MAIL_ANALYSES {
+    int id PK
+    int team_id FK
+    int submitted_by FK
+    string subject
+    string sender
+    text raw_headers
+    string status
+    string verdict
+    float confidence_score
+    string decided_verdict
+    int decided_by FK
+    timestamp decided_at
+    timestamp created_at
+    timestamp completed_at
+  }
+  MAIL_ATTACHMENTS {
+    int id PK
+    int mail_analysis_id FK
+    string filename
+    string file_hash
+    string mime_type
+    timestamp created_at
+  }
+  VT_RESULTS {
+    int id PK
+    int attachment_id FK
+    int mail_analysis_id FK
+    string indicator_type
+    string indicator_value
+    string vt_verdict
+    json vt_raw_response
+    timestamp checked_at
+  }
+  NOTIFICATIONS {
+    int id PK
+    int user_id FK
+    int mail_analysis_id FK
+    string message
+    bool read
+    timestamp created_at
+  }
 ```
