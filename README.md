@@ -29,8 +29,9 @@ jeweils im README von `backend/`, `frontend/` und `infra/main/`.
 ## Dokumentation
 
 - [Projektidee](docs/project-proposal.md)
-- [Konzept](docs/concept.md)
 - [Datenmodell](docs/data-model.md)
 - [Prüfkriterien](docs/detection-criteria.md)
+- [Seitenstruktur](docs/site-structure.md)
+- [UI-Mockup](docs/mockup.html)
 - [Features](docs/features.md)
 - [Infrastruktur-Entscheidungen](docs/infrastructure.md)
