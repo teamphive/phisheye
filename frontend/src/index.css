@@ -1,13 +1,16 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/inter";
+@import "@fontsource-variable/instrument-sans";
+@import "@fontsource-variable/jetbrains-mono";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+    --font-sans: 'Instrument Sans Variable', ui-sans-serif, system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono Variable', ui-monospace, SFMono-Regular, Menlo, monospace;
     --font-heading: var(--font-sans);
-    --font-sans: 'Inter Variable', sans-serif;
+
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -39,6 +42,17 @@
     --color-card: var(--card);
     --color-foreground: var(--foreground);
     --color-background: var(--background);
+
+    /* verdict colours, kept separate from the brand colour on purpose */
+    --color-clean: var(--clean);
+    --color-clean-soft: var(--clean-soft);
+    --color-suspicious: var(--suspicious);
+    --color-suspicious-soft: var(--suspicious-soft);
+    --color-phishing: var(--phishing);
+    --color-phishing-soft: var(--phishing-soft);
+    --color-faint: var(--faint);
+    --color-surface-strong: var(--surface-strong);
+
     --radius-sm: calc(var(--radius) * 0.6);
     --radius-md: calc(var(--radius) * 0.8);
     --radius-lg: var(--radius);
@@ -48,73 +62,116 @@
     --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* ---------------------------------------------------------------
+   Light theme. Every colour in the app comes from here.
+   --primary is the brand colour, --accent is shadcn's subtle
+   hover background. Do not mix those two up.
+   --------------------------------------------------------------- */
 :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
     --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
+
+    --background: #f5f7fa;
+    --foreground: #0f1724;
+
+    --card: #ffffff;
+    --card-foreground: #0f1724;
+    --popover: #ffffff;
+    --popover-foreground: #0f1724;
+
+    --primary: #2b5ce6;
+    --primary-foreground: #ffffff;
+
+    --secondary: #edf0f6;
+    --secondary-foreground: #0f1724;
+    --muted: #edf0f6;
+    --muted-foreground: #5c687f;
+    --accent: #e7edfd;
+    --accent-foreground: #1e48c4;
+
+    --destructive: #c42e3b;
+
+    --border: #dde3ec;
+    --input: #c6cfdd;
+    --ring: #2b5ce6;
+
+    --surface-strong: #e4e9f2;
+    --faint: #8a94a8;
+
+    --clean: #0e8f63;
+    --clean-soft: #dcf3e9;
+    --suspicious: #b06a00;
+    --suspicious-soft: #fbeeda;
+    --phishing: #c42e3b;
+    --phishing-soft: #fbe4e6;
+
+    --chart-1: #2b5ce6;
+    --chart-2: #0e8f63;
+    --chart-3: #b06a00;
+    --chart-4: #c42e3b;
+    --chart-5: #5c687f;
+
+    --sidebar: #ffffff;
+    --sidebar-foreground: #0f1724;
+    --sidebar-primary: #2b5ce6;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: #e7edfd;
+    --sidebar-accent-foreground: #1e48c4;
+    --sidebar-border: #dde3ec;
+    --sidebar-ring: #2b5ce6;
 }
 
+/* ---------------------------------------------------------------
+   Dark theme. Same tokens, different values.
+   --------------------------------------------------------------- */
 .dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
+    --background: #090d14;
+    --foreground: #e7ecf5;
+
+    --card: #111825;
+    --card-foreground: #e7ecf5;
+    --popover: #111825;
+    --popover-foreground: #e7ecf5;
+
+    --primary: #6f9bff;
+    --primary-foreground: #0b1220;
+
+    --secondary: #18202e;
+    --secondary-foreground: #e7ecf5;
+    --muted: #18202e;
+    --muted-foreground: #8b98ad;
+    --accent: #17223d;
+    --accent-foreground: #9dbaff;
+
+    --destructive: #ff6b72;
+
+    --border: #232c3c;
+    --input: #354155;
+    --ring: #6f9bff;
+
+    --surface-strong: #1f2937;
+    --faint: #6b778c;
+
+    --clean: #34c88f;
+    --clean-soft: #12291f;
+    --suspicious: #e0a33a;
+    --suspicious-soft: #2b2110;
+    --phishing: #ff6b72;
+    --phishing-soft: #2d1416;
+
+    --chart-1: #6f9bff;
+    --chart-2: #34c88f;
+    --chart-3: #e0a33a;
+    --chart-4: #ff6b72;
+    --chart-5: #8b98ad;
+
+    --sidebar: #111825;
+    --sidebar-foreground: #e7ecf5;
+    --sidebar-primary: #6f9bff;
+    --sidebar-primary-foreground: #0b1220;
+    --sidebar-accent: #17223d;
+    --sidebar-accent-foreground: #9dbaff;
+    --sidebar-border: #232c3c;
+    --sidebar-ring: #6f9bff;
 }
 
 @layer base {

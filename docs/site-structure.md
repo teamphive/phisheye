@@ -135,10 +135,17 @@ Keine eigene Adresse, kein Router-Eintrag: Suchfenster (`Cmd/Strg + K`), Glocken
 - Die Fortschrittsanzeige zeigt Status, aktuellen Schritt als Text und verstrichene Zeit. Kein Prozentwert, keine Schrittnummern, keine Zeiten je Schritt. Die API braucht dafür nur `status`, `step` und `started_at`.
 - Die Rolle hängt an der Verknüpfung Nutzer–Team, nicht am Nutzer.
 - Jeder Nutzer gehört mindestens einem Team an. Das Verlassen des letzten Teams lehnt die API ab.
-- Der letzte Admin eines Teams kann sich weder herabstufen noch entfernen lassen.
+- Jedes Team hat immer mindestens einen Admin. Der letzte Admin kann sich weder herabstufen noch entfernen lassen.
 - Das Monitoring zeigt systemweite Werte über alle Teams hinweg. Der Endpunkt ist deshalb nicht unter einem Team eingehängt, sondern `GET /monitoring`, und die Fehlerliste enthält keine Mailinhalte.
+- **Der Team-Kontext kommt aus der Sitzung, nicht aus dem Pfad.** Die Endpunkte heißen `/analyses`, nicht `/teams/{id}/analyses`. Der Umschalter ändert den serverseitigen Kontext, nicht die Adresse.
+- **`.eml` und `.msg` werden beide unterstützt.**
+- **Löschen ist immer weich.** Teams und Analysen werden als gelöscht markiert und erst nach 10 Tagen endgültig entfernt. Dafür braucht es einen Aufräum-Job.
+- **Zeiten liefert die API als ISO 8601 in UTC.** Das Frontend formatiert in die Zeitzone des Browsers.
+- **Fehler kommen als einheitliches Objekt**, nicht als FastAPIs Standard-`detail`.
+- **Der erste Admin wird beim Initialisieren des Backends angelegt**, nicht über die Oberfläche.
 
 ## Offen
 
-- Was beim Löschen eines Teams mit dessen Analysen passiert.
+- Authentifizierung: Cookie oder Bearer-Token. Betrifft jeden Endpunkt und den gesamten API-Client.
+- IDs: UUID oder laufende Nummer. Betrifft das Datenmodell, nicht das Routing.
 - Ladezustände für Detailseite, Team und Monitoring. Entstehen beim Bau in React.
