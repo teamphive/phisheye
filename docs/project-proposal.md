@@ -2,13 +2,13 @@
 
 ## Problem
 
-Mitarbeiter melden vermeintliche Phishing-Mails, die Cyber Security Abteilung bekommt diese als Ticket bzw. Weiterleitung und muss sie manuell prüfen. Es gibt keinen zentralen Ort im Unternehmen, an dem diese Prüfungen dokumentiert und nachvollziehbar gemacht werden.
+Mitarbeiter melden vermeintliche Phishing-Mails, die Cyber Security Abteilung bekommt diese als Ticket bzw. Weiterleitung. Die Prüfung erfolgt aktuell manuell: Header und Anhänge müssen von Hand analysiert werden, was Zeit kostet und bei hohem Meldeaufkommen zum Flaschenhals wird.
 
 ## Idee
 
 phisheye ist eine Web-App, in die eine verdächtige Mail hochgeladen wird. Header und Metadaten werden mit deterministischen Regeln geprüft, die Anhang-Hashes gegen die VirusTotal-API. Das Ergebnis ist ein Verdikt mit Score: sauber, verdächtig oder Phishing.
 
-Die App läuft im Unternehmenskontext mit Teamverwaltung, sodass die Cyber Security Abteilung zentral und nachvollziehbar arbeiten kann statt Prüfungen manuell im Ticket-System zu dokumentieren.
+Die App automatisiert damit den bisher manuellen Prüfschritt und läuft im Unternehmenskontext mit Teamverwaltung, sodass die Cyber Security Abteilung die Ergebnisse zentral einsehen und weiterbearbeiten kann.
 
 ## Zielgruppe
 
