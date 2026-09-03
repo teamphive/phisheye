@@ -8,9 +8,9 @@
 | email | string, unique | |
 | password_hash | string | |
 | name | string | |
-| role | enum (admin, analyst) | |
 | totp_secret | string, nullable | für 2FA |
 | totp_enabled | bool | |
+| is_operator | bool | systemweit, nur für das Monitoring |
 | created_at | timestamp | |
 
 ## teams
@@ -28,6 +28,7 @@
 | id | PK | |
 | team_id | FK -> teams | |
 | user_id | FK -> users | |
+| role | enum (admin, analyst, audit) | gilt nur in diesem Team |
 | joined_at | timestamp | |
 | | unique constraint | (team_id, user_id) |
 
@@ -50,14 +51,15 @@
 | id | PK | |
 | team_id | FK -> teams | |
 | submitted_by | FK -> users | |
-| source | enum (upload, imap, forward) | |
 | subject | string | |
 | sender | string | |
 | raw_headers | text/JSON | |
 | status | enum (pending, processing, completed, failed) | |
 | verdict | enum (phishing, clean, suspicious), nullable | bis Analyse fertig |
 | confidence_score | float, nullable | |
-| llm_report | text, nullable | |
+| decided_verdict | enum (phishing, clean), nullable | vom Analysten bestätigt oder als falsch-positiv gemeldet |
+| decided_by | FK -> users, nullable | |
+| decided_at | timestamp, nullable | zurücknehmbar, dann wieder null |
 | created_at | timestamp | |
 | completed_at | timestamp, nullable | |
 
@@ -98,89 +100,19 @@
 
 ## Entity-Relationship-Modell
 
+Nur die Beziehungen. Die Spalten stehen in den Tabellen oben.
+
 ```mermaid
 erDiagram
-  USERS ||--o{ TEAM_MEMBERS : has
-  TEAMS ||--o{ TEAM_MEMBERS : has
-  TEAMS ||--o{ TEAM_INVITATIONS : has
-  USERS ||--o{ TEAM_INVITATIONS : invites
-  TEAMS ||--o{ MAIL_ANALYSES : owns
-  USERS ||--o{ MAIL_ANALYSES : submits
-  MAIL_ANALYSES ||--o{ MAIL_ATTACHMENTS : has
-  MAIL_ANALYSES ||--o{ VT_RESULTS : has
-  MAIL_ATTACHMENTS ||--o{ VT_RESULTS : has
-  USERS ||--o{ NOTIFICATIONS : receives
-  MAIL_ANALYSES ||--o{ NOTIFICATIONS : triggers
-
-  USERS {
-    int id PK
-    string email
-    string password_hash
-    string name
-    string role
-    string totp_secret
-    bool totp_enabled
-    timestamp created_at
-  }
-  TEAMS {
-    int id PK
-    string name
-    timestamp created_at
-  }
-  TEAM_MEMBERS {
-    int id PK
-    int team_id FK
-    int user_id FK
-    timestamp joined_at
-  }
-  TEAM_INVITATIONS {
-    int id PK
-    int team_id FK
-    string email
-    int invited_by FK
-    string status
-    string token
-    timestamp created_at
-  }
-  MAIL_ANALYSES {
-    int id PK
-    int team_id FK
-    int submitted_by FK
-    string source
-    string subject
-    string sender
-    text raw_headers
-    string status
-    string verdict
-    float confidence_score
-    text llm_report
-    timestamp created_at
-    timestamp completed_at
-  }
-  MAIL_ATTACHMENTS {
-    int id PK
-    int mail_analysis_id FK
-    string filename
-    string file_hash
-    string mime_type
-    timestamp created_at
-  }
-  VT_RESULTS {
-    int id PK
-    int attachment_id FK
-    int mail_analysis_id FK
-    string indicator_type
-    string indicator_value
-    string vt_verdict
-    json vt_raw_response
-    timestamp checked_at
-  }
-  NOTIFICATIONS {
-    int id PK
-    int user_id FK
-    int mail_analysis_id FK
-    string message
-    bool read
-    timestamp created_at
-  }
+  USERS ||--o{ TEAM_MEMBERS : "gehört zu"
+  TEAMS ||--o{ TEAM_MEMBERS : hat
+  TEAMS ||--o{ TEAM_INVITATIONS : hat
+  USERS ||--o{ TEAM_INVITATIONS : lädt_ein
+  TEAMS ||--o{ MAIL_ANALYSES : besitzt
+  USERS ||--o{ MAIL_ANALYSES : reicht_ein
+  MAIL_ANALYSES ||--o{ MAIL_ATTACHMENTS : hat
+  MAIL_ANALYSES ||--o{ VT_RESULTS : hat
+  MAIL_ATTACHMENTS ||--o{ VT_RESULTS : hat
+  USERS ||--o{ NOTIFICATIONS : erhält
+  MAIL_ANALYSES ||--o{ NOTIFICATIONS : "löst aus"
 ```
