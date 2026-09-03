@@ -1,6 +1,13 @@
 # AWS Ressourcen
 
-IaC für die phisheye-Infrastruktur (ECS/Fargate-Architektur) via OpenTofu.
+IaC für den AWS-Teil von phisheye via OpenTofu. Deckt nur noch Bedrock-Zugriff (LLM) und Kostenüberwachung ab, siehe [infrastructure.md](../../docs/infrastructure.md) für die Begründung des Architekturwechsels.
+
+## Techstack
+
+- **App-Betrieb:** komplett im Homelab (Proxmox-VM `neuserphis1c`), Docker Compose mit Backend, Frontend, Postgres, Redis, arq-Worker
+- **Zugriff Kollegen/CI:** Tailscale (kein offener SSH-Port)
+- **Reverse Proxy:** Nginx Proxy Manager im Homelab (TLS via Let's Encrypt)
+- **AWS:** ausschließlich Bedrock (LLM-Anbindung) + Budget-Überwachung
 
 ## Voraussetzungen
 
@@ -19,27 +26,9 @@ tofu apply
 
 ## Stand
 
-- [x] Network (VPC, öffentliche/private Subnets, Internet Gateway, NAT Gateway, Route Tables)
-- [x] Security Groups
-- [x] RDS (Postgres)
-- [x] ElastiCache (Redis)
-- [ ] ECS Cluster + IAM Roles
-- [ ] Task Definitions + Services (Backend, Worker)
-- [ ] Application Load Balancer + ACM
-- [ ] S3 + CloudFront (Frontend)
+- [x] Budget-Überwachung (monatlich, gestaffelte Alerts)
+- [x] IAM-User + Policy für Bedrock-Zugriff
 
-## Fahrplan
+## Hinweis
 
-Reihenfolge, da spätere Schritte auf früheren aufbauen:
-
-1. Network -> Fundament, alles andere hängt daran
-2. Security Groups -> bevor Ressourcen angelegt werden, die sie brauchen
-3. RDS (Postgres)
-4. ElastiCache (Redis)
-5. ECS Cluster + IAM Roles
-6. Task Definitions + Services (Backend, Worker)
-7. ALB + ACM
-8. S3 + CloudFront (Frontend)
-
-Container-Images kommen über GitHub Container Registry (GHCR), kein ECR nötig.
-DNS läuft manuell über den bestehenden Domain-Provider (kein Route53).
+Netzwerk, Security Groups, RDS, ElastiCache, ECS/ALB/CloudFront wurden verworfen, die App läuft jetzt komplett im Homelab. Details siehe [infrastructure.md](../../docs/infrastructure.md).
