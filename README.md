@@ -17,14 +17,13 @@ Web-App zur Phishing-Analyse von E-Mails: `.eml` hochladen, Header und Metadaten
 - Backend: FastAPI, SQLModel + Alembic, PostgreSQL
 - Frontend: React + TypeScript (Vite), Tailwind, shadcn/ui
 - Jobs: arq + Redis
-- Extern: VirusTotal-API
-- Infra: AWS (ECS/Fargate, RDS, ElastiCache, CloudFront) via OpenTofu
+- Extern: VirusTotal-API, AWS Bedrock (LLM)
+- Infra: Homelab (Docker Compose, Nginx Proxy Manager), AWS nur für Bedrock + Budget (OpenTofu)
 - CI/CD: GitHub Actions
 
 ## Schnellstart
 
-Voraussetzungen und AWS-Setup: [`setup.md`](setup.md). Start der einzelnen Teile
-jeweils im README von `backend/`, `frontend/` und `infra/main/`.
+Voraussetzungen und AWS-Setup: [`setup.md`](setup.md). Start der einzelnen Teile jeweils im README von `backend/`, `frontend/` und `infra/main/`.
 
 ## Dokumentation
 
