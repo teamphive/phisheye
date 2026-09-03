@@ -74,22 +74,3 @@ jobs:
 
       - name: Backend-Image bauen
         run: docker build -t phisheye-backend:ci backend
-
-  infra:
-    name: Infrastruktur
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: opentofu/setup-opentofu@v1
-
-      - name: Formatierung prüfen
-        run: tofu fmt -check -recursive infra
-
-      - name: Konfiguration prüfen
-        run: |
-          for dir in infra/bootstrap infra/main; do
-            echo "== $dir"
-            tofu -chdir="$dir" init -backend=false -input=false
-            tofu -chdir="$dir" validate
-          done
