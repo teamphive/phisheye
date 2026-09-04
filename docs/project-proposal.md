@@ -1,5 +1,16 @@
 # Projektidee: phisheye
 
+> Team 5 | Teamname: teamphive
+>
+> Stand: 04.09.2026
+>
+> - Adrijus Lazdauskas
+> - Tom Lammers
+> - Oliver Neumann
+>
+> GitHub-Organisation: [github.com/teamphive](https://github.com/teamphive)  
+> Repository: [github.com/teamphive/phisheye](https://github.com/teamphive/phisheye)
+
 ## Problem
 
 Mitarbeiter melden vermeintliche Phishing-Mails, die Cyber Security Abteilung bekommt diese als Ticket bzw. Weiterleitung. Die Prüfung erfolgt aktuell manuell: Header und Anhänge müssen von Hand analysiert werden, was Zeit kostet und bei hohem Meldeaufkommen zum Flaschenhals wird.
