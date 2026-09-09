@@ -1,6 +1,5 @@
 from email import policy
 from email.parser import BytesParser
-from xmlrpc import client
 from fastapi import FastAPI, File, UploadFile
 import os
 import vt
@@ -31,9 +30,8 @@ async def analyze_email(file: UploadFile = File(...)):
         attachments[part.get_filename()] = sha256
 
     # virustotal analysis
-    for filename, sha256 in attachments.items():
-
-        async with vt.Client(os.getenv("VT_API_KEY")) as client:
+    async with vt.Client(os.getenv("VT_API_KEY")) as client:
+        for filename, sha256 in attachments.items():
             try:
                 vt_result = await client.get_object_async(f"/files/{sha256}")
             except vt.APIError as e:
@@ -42,11 +40,11 @@ async def analyze_email(file: UploadFile = File(...)):
                 else:
                     raise
 
-        results.append({
-            "filename": filename,
-            "sha256": sha256,
-            "vt_results": vt_result.last_analysis_results if vt_result else None,
-        })
+            results.append({
+                "filename": filename,
+                "sha256": sha256,
+                "vt_results": vt_result.last_analysis_results if vt_result else None,
+            })
 
     return {"attachments": results}
 
