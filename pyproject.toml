@@ -11,3 +11,8 @@ dependencies = [
     "vt-py",
 ]
 
+[dependency-groups]
+dev = [
+    "ruff>=0.16.6",
+]
+

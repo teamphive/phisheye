@@ -1,7 +1,7 @@
-from email import policy
-from email.parser import BytesParser
 import hashlib
 import os
+from email import policy
+from email.parser import BytesParser
 
 import load_dotenv
 import vt
@@ -38,11 +38,13 @@ async def analyze_email(
         if file_bytes is None:
             continue
 
-        attachments.append({
-            "filename": part.get_filename() or "unnamed",
-            "sha256": hashlib.sha256(file_bytes).hexdigest(),
-            "mime_type": part.get_content_type(),
-        })
+        attachments.append(
+            {
+                "filename": part.get_filename() or "unnamed",
+                "sha256": hashlib.sha256(file_bytes).hexdigest(),
+                "mime_type": part.get_content_type(),
+            }
+        )
 
     results = []
 
@@ -70,14 +72,16 @@ async def analyze_email(
                             detail="VirusTotal lookup failed",
                         ) from exc
 
-                results.append({
-                    **attachment,
-                    "vt_results": (
-                        vt_result.last_analysis_results
-                        if vt_result is not None
-                        else None
-                    ),
-                })
+                results.append(
+                    {
+                        **attachment,
+                        "vt_results": (
+                            vt_result.last_analysis_results
+                            if vt_result is not None
+                            else None
+                        ),
+                    }
+                )
 
     # Save the analysis and attachments together.
     # Any database failure rolls back the entire transaction.

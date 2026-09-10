@@ -1,5 +1,6 @@
 from datetime import datetime
-from sqlmodel import SQLModel, Field
+
+from sqlmodel import Field, SQLModel
 
 
 class MailAttachment(SQLModel, table=True):
@@ -7,9 +8,7 @@ class MailAttachment(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
 
-    mail_analysis_id: int = Field(
-        foreign_key="mail_analyses.id"
-    )
+    mail_analysis_id: int = Field(foreign_key="mail_analyses.id")
 
     filename: str
     sha256: str
