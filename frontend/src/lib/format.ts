@@ -66,3 +66,10 @@ export function formatRelativeTime(iso: string) {
 export function browserTimeZone() {
   return Intl.DateTimeFormat().resolvedOptions().timeZone
 }
+
+/** File size for upload hints, one decimal from a megabyte upwards. */
+export function formatFileSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1).replace(".", ",")} MB`
+}

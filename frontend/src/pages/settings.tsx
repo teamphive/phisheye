@@ -8,7 +8,13 @@ import { useTheme } from "@/components/theme-provider"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import {
   Field,
   FieldDescription,
@@ -41,32 +47,34 @@ export function SettingsPage() {
   const activeTeam = teams[0]
 
   return (
-    <div className="flex max-w-3xl flex-col gap-4">
+    <div className="mx-auto flex max-w-[820px] flex-col gap-4">
       <PageHeader
         title="Einstellungen"
         description="Konto, Sicherheit und Darstellung"
       />
 
       <Card>
-        <CardHeader>
+        <CardHeader className="border-b">
           <CardTitle className="text-sm">Profil</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col gap-5">
-          <div className="flex items-center gap-3">
-            <Avatar className="size-10">
-              <AvatarFallback>{currentUser.initials}</AvatarFallback>
+        <CardContent className="flex flex-col gap-4">
+          <div className="flex items-center gap-3.5">
+            <Avatar className="size-[52px]">
+              <AvatarFallback className="bg-primary text-[17px] font-semibold text-primary-foreground">
+                {currentUser.initials}
+              </AvatarFallback>
             </Avatar>
             <div>
               <div className="text-[15px] font-semibold">
                 {currentUser.name}
               </div>
-              <div className="text-xs text-muted-foreground">
+              <div className="font-mono text-[11.5px] text-faint">
                 {roleLabel[activeTeam.role]} · Team {activeTeam.name}
               </div>
             </div>
           </div>
 
-          <FieldGroup>
+          <FieldGroup className="grid grid-cols-2 gap-3.5">
             <Field>
               <FieldLabel htmlFor="display-name">Anzeigename</FieldLabel>
               <Input id="display-name" defaultValue={currentUser.name} />
@@ -77,20 +85,19 @@ export function SettingsPage() {
               <FieldDescription>Wird vom Admin verwaltet</FieldDescription>
             </Field>
           </FieldGroup>
-
-          <div>
-            <Button>Speichern</Button>
-          </div>
         </CardContent>
+        <CardFooter className="justify-end">
+          <Button>Speichern</Button>
+        </CardFooter>
       </Card>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="border-b">
           <CardTitle className="text-sm">Sicherheit</CardTitle>
         </CardHeader>
         <CardContent>
-          <ItemGroup>
-            <Item>
+          <ItemGroup className="gap-0">
+            <Item className="px-0 py-3.5">
               <ItemContent>
                 <ItemTitle>Passwort</ItemTitle>
                 <ItemDescription>
@@ -102,14 +109,17 @@ export function SettingsPage() {
               </ItemActions>
             </Item>
 
-            <ItemSeparator />
+            <ItemSeparator className="my-0" />
 
-            <Item>
+            <Item className="px-0 py-3.5">
               <ItemContent>
                 <ItemTitle>
                   Zwei-Faktor-Authentifizierung
                   {security.twoFactorEnabled ? (
-                    <Badge variant="secondary">Aktiv</Badge>
+                    <Badge variant="clean">
+                      <span className="size-1.5 rounded-full bg-current" />
+                      Aktiv
+                    </Badge>
                   ) : null}
                 </ItemTitle>
                 <ItemDescription>
@@ -131,9 +141,9 @@ export function SettingsPage() {
               </ItemActions>
             </Item>
 
-            <ItemSeparator />
+            <ItemSeparator className="my-0" />
 
-            <Item>
+            <Item className="px-0 py-3.5">
               <ItemContent>
                 <ItemTitle>Backup-Codes</ItemTitle>
                 <ItemDescription>
@@ -146,9 +156,9 @@ export function SettingsPage() {
               </ItemActions>
             </Item>
 
-            <ItemSeparator />
+            <ItemSeparator className="my-0" />
 
-            <Item>
+            <Item className="px-0 py-3.5">
               <ItemContent>
                 <ItemTitle>Aktive Sitzungen</ItemTitle>
                 <ItemDescription>
@@ -166,11 +176,11 @@ export function SettingsPage() {
       </Card>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="border-b">
           <CardTitle className="text-sm">Darstellung</CardTitle>
         </CardHeader>
         <CardContent>
-          <Item>
+          <Item className="px-0 py-3.5">
             <ItemContent>
               <ItemTitle>Farbschema</ItemTitle>
               <ItemDescription>
@@ -200,7 +210,7 @@ export function SettingsPage() {
 
       <Card>
         <CardContent>
-          <Item>
+          <Item className="px-0 py-3.5">
             <ItemContent>
               <ItemTitle>Abmelden</ItemTitle>
               <ItemDescription>

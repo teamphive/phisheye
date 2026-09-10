@@ -123,7 +123,7 @@ export function NotificationsPage() {
   ]
 
   return (
-    <div className="flex max-w-3xl flex-col gap-4">
+    <div className="mx-auto flex max-w-[820px] flex-col gap-4">
       <PageHeader
         title="Benachrichtigungen"
         description={`${unread} ungelesen · diese Liste sieht nur dein Konto`}
@@ -171,13 +171,13 @@ export function NotificationsPage() {
       ) : (
         grouped.map((group) => (
           <Card key={group.bucket}>
-            <CardHeader>
+            <CardHeader className="border-b">
               <CardTitle className="text-sm">
                 {bucketLabel[group.bucket]}
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <ItemGroup>
+            <CardContent className="px-0">
+              <ItemGroup className="gap-0">
                 {group.items.map((entry) => {
                   const Icon = kindIcon[entry.kind]
 
@@ -185,11 +185,11 @@ export function NotificationsPage() {
                     <Item
                       key={entry.id}
                       render={<button type="button" />}
-                      className={
+                      className={`rounded-none border-t-0 border-r-0 border-b-border px-[18px] py-3 text-left last:border-b-transparent ${
                         entry.read
-                          ? "border-l-2 border-l-transparent text-left hover:bg-muted"
-                          : "border-l-2 border-l-primary bg-accent/50 text-left hover:bg-accent"
-                      }
+                          ? "border-l-2 border-l-transparent hover:bg-muted"
+                          : "border-l-2 border-l-primary bg-accent/50 hover:bg-accent"
+                      }`}
                       onClick={() => open(entry)}
                     >
                       <ItemMedia
