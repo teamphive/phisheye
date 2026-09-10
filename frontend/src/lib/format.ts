@@ -7,9 +7,20 @@ const dateTime = new Intl.DateTimeFormat("de-DE", {
   minute: "2-digit",
 })
 
+const date = new Intl.DateTimeFormat("de-DE", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+})
+
 const shortDateTime = new Intl.DateTimeFormat("de-DE", {
   day: "2-digit",
   month: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+})
+
+const time = new Intl.DateTimeFormat("de-DE", {
   hour: "2-digit",
   minute: "2-digit",
 })
@@ -20,8 +31,18 @@ export function formatDateTime(iso: string) {
   return dateTime.format(new Date(iso))
 }
 
+/** Date without a time, for things like a last-changed hint. */
+export function formatDate(iso: string) {
+  return date.format(new Date(iso))
+}
+
 export function formatShortDateTime(iso: string) {
   return shortDateTime.format(new Date(iso))
+}
+
+/** Time only, where the surrounding context already says which day. */
+export function formatTime(iso: string) {
+  return time.format(new Date(iso))
 }
 
 export function formatRelativeTime(iso: string) {

@@ -31,6 +31,7 @@ Voraussetzungen und AWS-Setup: [`setup.md`](setup.md). Start der einzelnen Teile
 - [Datenmodell](docs/data-model.md)
 - [Prüfkriterien](docs/detection-criteria.md)
 - [Seitenstruktur](docs/site-structure.md)
+- [API](docs/api.md)
 - [UI-Mockup](docs/mockup.html)
 - [Features](docs/features.md)
 - [Infrastruktur-Entscheidungen](docs/infrastructure.md)

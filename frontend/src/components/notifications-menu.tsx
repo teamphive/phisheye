@@ -5,75 +5,68 @@ import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { unreadNotifications } from "@/mocks/session"
+import { formatRelativeTime } from "@/lib/format"
+import { notifications, type NotificationTone } from "@/mocks/notifications"
 
-// Placeholder entries until the notifications endpoint exists.
-const entries = [
-  {
-    id: "1",
-    tone: "bg-phishing",
-    title: "Analyse abgeschlossen — Phishing (100 %)",
-    detail: "„Ihre Rechnung RE-2024-88431 ist überfällig“",
-    meta: "vor 12 Min",
-  },
-  {
-    id: "2",
-    tone: "bg-suspicious",
-    title: "Analyse abgeschlossen — Verdächtig (68 %)",
-    detail: "„AW: Angebot Q3 – bitte kurzfristig freigeben“",
-    meta: "vor 1 Std",
-  },
-  {
-    id: "3",
-    tone: "bg-primary",
-    title: "T. Özdemir ist dem Team beigetreten",
-    detail: "Rolle: Analyst",
-    meta: "gestern, 16:04",
-  },
-]
+const toneDot: Record<NotificationTone, string> = {
+  phishing: "bg-phishing",
+  suspicious: "bg-suspicious",
+  clean: "bg-clean",
+  info: "bg-primary",
+}
+
+const latest = notifications.slice(0, 3)
+const unreadCount = notifications.filter((entry) => !entry.read).length
 
 export function NotificationsMenu() {
   const navigate = useNavigate()
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="text-muted-foreground hover:bg-muted hover:text-foreground relative grid size-[34px] place-items-center rounded-md">
+      <DropdownMenuTrigger className="relative grid size-[34px] place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground">
         <BellIcon className="size-[18px]" />
-        {unreadNotifications > 0 ? (
-          <span className="bg-phishing text-background border-background font-mono absolute top-0.5 right-0 grid h-4 min-w-4 place-items-center rounded-full border-2 px-1 text-[9px] font-semibold">
-            {unreadNotifications}
+        {unreadCount > 0 ? (
+          <span className="absolute top-0.5 right-0 grid h-4 min-w-4 place-items-center rounded-full border-2 border-background bg-phishing px-1 font-mono text-[9px] font-semibold text-background">
+            {unreadCount}
           </span>
         ) : null}
         <span className="sr-only">Benachrichtigungen</span>
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="end" className="w-[380px]">
-        <DropdownMenuLabel>Benachrichtigungen</DropdownMenuLabel>
-        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Benachrichtigungen</DropdownMenuLabel>
+          <DropdownMenuSeparator />
 
-        {entries.map((entry) => (
-          <DropdownMenuItem
-            key={entry.id}
-            onClick={() => navigate("/analysen")}
-            className="items-start gap-3"
-          >
-            <span className={`mt-1.5 size-[7px] shrink-0 rounded-full ${entry.tone}`} />
-            <span className="min-w-0 flex-1">
-              <span className="block text-[13px] font-semibold">{entry.title}</span>
-              <span className="text-muted-foreground block truncate text-xs">
-                {entry.detail}
+          {latest.map((entry) => (
+            <DropdownMenuItem
+              key={entry.id}
+              onClick={() => navigate(entry.target)}
+              className="items-start gap-3"
+            >
+              <span
+                className={`mt-1.5 size-[7px] shrink-0 rounded-full ${toneDot[entry.tone]}`}
+              />
+              <span className="min-w-0 flex-1">
+                <span className="block text-[13px] font-semibold">
+                  {entry.title}
+                </span>
+                <span className="block truncate text-xs text-muted-foreground">
+                  {entry.detail}
+                </span>
+                <span className="mt-0.5 block font-mono text-[10.5px] text-faint">
+                  {formatRelativeTime(entry.createdAt)}
+                </span>
               </span>
-              <span className="text-faint font-mono mt-0.5 block text-[10.5px]">
-                {entry.meta}
-              </span>
-            </span>
-          </DropdownMenuItem>
-        ))}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuGroup>
 
         <DropdownMenuSeparator />
         <div className="p-1">
