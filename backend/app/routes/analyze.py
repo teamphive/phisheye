@@ -2,6 +2,7 @@ import hashlib
 import os
 from email import policy
 from email.parser import BytesParser
+from sqlmodel import select
 
 import load_dotenv
 import vt
@@ -99,13 +100,14 @@ async def analyze_email(
         # Execute the INSERT so the generated analysis ID is available.
         await db.flush()
 
-        for attachment in attachments:
+        for result in results:
             db.add(
                 MailAttachment(
                     mail_analysis_id=analysis.id,
-                    filename=attachment["filename"],
-                    sha256=attachment["sha256"],
-                    mime_type=attachment["mime_type"],
+                    filename=result["filename"],
+                    sha256=result["sha256"],
+                    mime_type=result["mime_type"],
+                    vt_results=result["vt_results"],
                 )
             )
 
@@ -115,4 +117,44 @@ async def analyze_email(
         "sender": analysis.sender,
         "status": analysis.status,
         "attachments": results,
+    }
+
+
+
+@router.get("/analyses/{analysis_id}")
+async def get_analysis(
+    analysis_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    analysis = await db.get(MailAnalysis, analysis_id)
+
+    if analysis is None:
+        raise HTTPException(status_code=404, detail="Analysis not found")
+
+    statement = (
+        select(MailAttachment)
+        .where(MailAttachment.mail_analysis_id == analysis_id)
+        .order_by(MailAttachment.id)
+    )
+    result = await db.exec(statement)
+    attachments = result.all()
+
+    return {
+        "id": analysis.id,
+        "subject": analysis.subject,
+        "sender": analysis.sender,
+        "status": analysis.status,
+        "verdict": analysis.verdict,
+        "confidence_score": analysis.confidence_score,
+        "created_at": analysis.created_at,
+        "attachments": [
+            {
+                "id": attachment.id,
+                "filename": attachment.filename,
+                "sha256": attachment.sha256,
+                "mime_type": attachment.mime_type,
+                "vt_results": attachment.vt_results,
+            }
+            for attachment in attachments
+        ],
     }
