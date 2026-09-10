@@ -18,13 +18,26 @@ import {
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 
-export function CreateTeamDialog() {
+type CreateTeamDialogProps = {
+  /** When controlled from elsewhere the dialog renders no trigger of its own. */
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+}
+
+export function CreateTeamDialog({
+  open,
+  onOpenChange,
+}: CreateTeamDialogProps = {}) {
+  const controlled = open !== undefined
+
   return (
-    <Dialog>
-      <DialogTrigger render={<Button variant="outline" />}>
-        <PlusIcon className="size-4" />
-        Team erstellen
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      {controlled ? null : (
+        <DialogTrigger render={<Button variant="outline" />}>
+          <PlusIcon className="size-4" />
+          Team erstellen
+        </DialogTrigger>
+      )}
 
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
