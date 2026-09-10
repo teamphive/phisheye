@@ -11,17 +11,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { initialsOf } from "@/lib/format"
 import { roleLabel, teams } from "@/mocks/session"
-
-function initialsOf(name: string) {
-  return name
-    .split(/[\s\-_.]+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((word) => word.charAt(0))
-    .join("")
-    .toUpperCase()
-}
 
 export function TeamSwitcher() {
   const [activeId, setActiveId] = useState(teams[0].id)

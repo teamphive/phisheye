@@ -3,6 +3,7 @@ import { ClockIcon } from "lucide-react"
 
 import { AuthBrand, AuthCard } from "@/components/auth-shell"
 import { Button } from "@/components/ui/button"
+import { authEnabled, login } from "@/lib/keycloak"
 
 export function SessionExpiredPage() {
   const navigate = useNavigate()
@@ -12,18 +13,27 @@ export function SessionExpiredPage() {
       <AuthBrand centered />
 
       <div className="flex flex-col items-center gap-2.5 text-center">
-        <span className="bg-suspicious-soft text-suspicious grid size-[46px] place-items-center rounded-xl">
+        <span className="grid size-[46px] place-items-center rounded-xl bg-suspicious-soft text-suspicious">
           <ClockIcon className="size-[22px]" />
         </span>
-        <h1 className="text-xl font-semibold tracking-tight">Sitzung abgelaufen</h1>
-        <p className="text-muted-foreground max-w-[42ch] text-sm">
+        <h1 className="text-xl font-semibold tracking-tight">
+          Sitzung abgelaufen
+        </h1>
+        <p className="max-w-[42ch] text-sm text-muted-foreground">
           Aus Sicherheitsgründen wurdest du nach 30 Minuten ohne Aktivität
-          abgemeldet. Nach der Anmeldung landest du wieder auf der Seite, auf der
-          du warst.
+          abgemeldet. Nach der Anmeldung landest du wieder auf der Seite, auf
+          der du warst.
         </p>
       </div>
 
-      <Button size="lg" className="w-full" onClick={() => navigate("/login")}>
+      <Button
+        size="lg"
+        className="w-full"
+        onClick={() => {
+          if (authEnabled) login()
+          else navigate("/login")
+        }}
+      >
         Erneut anmelden
       </Button>
     </AuthCard>

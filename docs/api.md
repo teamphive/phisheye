@@ -9,18 +9,19 @@ Was das Frontend braucht. Die Feldnamen stammen aus den Typen in `frontend/src/m
 - Fehler als einheitliches Objekt, nicht als FastAPIs `detail`.
 - Löschen ist weich, harte Löschung nach 10 Tagen.
 
-## Zugang
+## Anmeldung
 
-| Methode | Pfad | Body | Zweck |
-|---|---|---|---|
-| POST | `/auth/login` | `email`, `password` | Prüft das Passwort, verlangt danach 2FA |
-| POST | `/auth/2fa` | `code` | Schließt die Anmeldung ab |
-| POST | `/auth/logout` | — | Beendet die Sitzung auf diesem Gerät |
-| POST | `/auth/register` | `token`, `name`, `email`, `password` | Nur über Einladungslink |
-| POST | `/auth/password/forgot` | `email` | Verschickt den Link |
-| POST | `/auth/password/reset` | `token`, `password` | Setzt das neue Passwort |
+Die Anmeldung läuft über Keycloak, nicht über die API. Das Frontend holt sich dort ein Token und schickt es bei jedem Aufruf mit:
 
-Ohne Einladung gibt es kein Konto. Der erste Admin wird beim Initialisieren des Backends angelegt.
+```http
+Authorization: Bearer <access token>
+```
+
+Das Backend prüft die Signatur gegen die öffentlichen Schlüssel des Realms unter `/realms/phisheye/protocol/openid-connect/certs`. Ein Aufruf ohne gültiges Token wird mit 401 abgelehnt, ein Token mit zu schwacher Rolle mit 403. Das Frontend zeigt 403 als fehlende Berechtigung an und meldet niemanden ab.
+
+Das Feld `sub` im Token ist die Keycloak-ID des Nutzers, nicht seine ID in unserer Datenbank. Beim ersten Aufruf muss das Backend den Nutzer anlegen und die beiden IDs verbinden.
+
+Endpunkte unter `/auth/` entfallen damit.
 
 ## Sitzung
 
@@ -77,19 +78,7 @@ Liefert Warteschlange, Worker, Fehlerrate und das VirusTotal-Kontingent. Die Feh
 
 ## Konto
 
-| Methode | Pfad | Zweck |
-|---|---|---|
-| GET | `/me/security` | Stand von Passwort, 2FA, Backup-Codes und Sitzungen |
-| POST | `/me/password` | Body `current_password`, `new_password` |
-| POST | `/me/2fa/setup` | Liefert Secret und QR-Code |
-| POST | `/me/2fa/confirm` | Body `code`, aktiviert 2FA |
-| DELETE | `/me/2fa` | Deaktiviert 2FA |
-| POST | `/me/backup-codes` | Erzeugt neue Codes, alte werden ungültig |
-| GET | `/me/sessions` | Geräte mit Ort, IP und letzter Aktivität |
-| DELETE | `/me/sessions/{id}` | Einzelnes Gerät abmelden |
-| DELETE | `/me/sessions` | Alle außer dem aktuellen abmelden |
-
-Die Codes werden nur einmal ausgeliefert und danach nie wieder angezeigt.
+Passwort, zweiter Faktor, Backup-Codes und angemeldete Geräte verwaltet Keycloak in seiner eigenen Konsole. Dafür braucht die API keine Endpunkte.
 
 ## Antwortformen
 
@@ -126,6 +115,5 @@ Ein Anhang besteht aus `filename`, `size`, `detected_type`, `type_mismatch`, `sh
 
 ## Offen
 
-- Authentifizierung als Cookie oder Bearer-Token. Betrifft jeden Endpunkt.
 - IDs als UUID oder laufende Nummer.
 - Schreibweise der Felder. Das Frontend nutzt derzeit camelCase, oben steht snake_case.

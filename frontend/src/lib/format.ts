@@ -73,3 +73,14 @@ export function formatFileSize(bytes: number) {
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1).replace(".", ",")} MB`
 }
+
+/** Up to two initials from a name, for avatars and team badges. */
+export function initialsOf(name: string) {
+  return name
+    .split(/[\s\-_.]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word.charAt(0))
+    .join("")
+    .toUpperCase()
+}

@@ -12,6 +12,19 @@ services:
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
     volumes:
       - db_local-data:/var/lib/postgresql
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7.3
+    container_name: keycloak
+    restart: always
+    command: start-dev --import-realm
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: "${KEYCLOAK_ADMIN_USER}"
+      KC_BOOTSTRAP_ADMIN_PASSWORD: "${KEYCLOAK_ADMIN_PASSWORD}"
+    volumes:
+      - keycloak-data:/opt/keycloak/data
+      - ./docker/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
   pgadmin:
     image: dpage/pgadmin4:9.17
     container_name: pgadmin
@@ -26,4 +39,5 @@ services:
 
 volumes:
   db_local-data:
+  keycloak-data:
   pgadmin-data:

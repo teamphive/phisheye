@@ -33,7 +33,9 @@ import {
 } from "@/components/ui/item"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { formatDate } from "@/lib/format"
-import { currentUser, roleLabel, security, teams } from "@/mocks/session"
+import { authEnabled, logout, openAccount } from "@/lib/keycloak"
+import { sessionUser } from "@/lib/session"
+import { roleLabel, security, teams } from "@/mocks/session"
 
 const schemes = [
   { value: "light", label: "Hell" },
@@ -44,6 +46,7 @@ const schemes = [
 export function SettingsPage() {
   const navigate = useNavigate()
   const { theme, setTheme } = useTheme()
+  const user = sessionUser()
   const activeTeam = teams[0]
 
   return (
@@ -61,13 +64,11 @@ export function SettingsPage() {
           <div className="flex items-center gap-3.5">
             <Avatar className="size-[52px]">
               <AvatarFallback className="bg-primary text-[17px] font-semibold text-primary-foreground">
-                {currentUser.initials}
+                {user.initials}
               </AvatarFallback>
             </Avatar>
             <div>
-              <div className="text-[15px] font-semibold">
-                {currentUser.name}
-              </div>
+              <div className="text-[15px] font-semibold">{user.name}</div>
               <div className="font-mono text-[11.5px] text-faint">
                 {roleLabel[activeTeam.role]} · Team {activeTeam.name}
               </div>
@@ -77,11 +78,11 @@ export function SettingsPage() {
           <FieldGroup className="grid grid-cols-2 gap-3.5">
             <Field>
               <FieldLabel htmlFor="display-name">Anzeigename</FieldLabel>
-              <Input id="display-name" defaultValue={currentUser.name} />
+              <Input id="display-name" defaultValue={user.name} />
             </Field>
             <Field>
               <FieldLabel htmlFor="email">E-Mail-Adresse</FieldLabel>
-              <Input id="email" defaultValue={currentUser.email} disabled />
+              <Input id="email" defaultValue={user.email} disabled />
               <FieldDescription>Wird vom Admin verwaltet</FieldDescription>
             </Field>
           </FieldGroup>
@@ -97,6 +98,27 @@ export function SettingsPage() {
         </CardHeader>
         <CardContent>
           <ItemGroup className="gap-0">
+            {authEnabled ? (
+              <>
+                <Item className="px-0 py-3.5">
+                  <ItemContent>
+                    <ItemTitle>Kontoeinstellungen</ItemTitle>
+                    <ItemDescription>
+                      Passwort, zweiter Faktor und angemeldete Geräte werden in
+                      Keycloak verwaltet.
+                    </ItemDescription>
+                  </ItemContent>
+                  <ItemActions>
+                    <Button variant="outline" size="sm" onClick={openAccount}>
+                      Öffnen
+                    </Button>
+                  </ItemActions>
+                </Item>
+
+                <ItemSeparator className="my-0" />
+              </>
+            ) : null}
+
             <Item className="px-0 py-3.5">
               <ItemContent>
                 <ItemTitle>Passwort</ItemTitle>
@@ -221,7 +243,10 @@ export function SettingsPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => navigate("/login")}
+                onClick={() => {
+                  if (authEnabled) logout()
+                  else navigate("/login")
+                }}
               >
                 Abmelden
               </Button>
