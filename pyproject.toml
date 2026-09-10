@@ -7,6 +7,12 @@ dependencies = [
     "alembic>=1.19.1",
     "fastapi[standard]>=0.141.1",
     "sqlalchemy>=2.0.52",
+    "sqlmodel>=0.0.42",
     "vt-py",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.16.6",
 ]
 

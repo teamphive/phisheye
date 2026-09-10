@@ -8,30 +8,34 @@ Community-Fork von Terraform, Syntax identisch.
 
 GitHub hat kein natives State-Backend. Bootstrap (Bucket + Lock-Tabelle) läuft einmalig mit lokalem State, Code geht ins Git, die State-Datei selbst nicht.
 
-## Compute: ECS/Fargate statt EC2
+## Kurswechsel: Homelab statt AWS-Compute
 
-Wegen Auto-Deployment (main -> live) mit Zero-Downtime und Rollback. Mehr Aufwand als reines EC2 + Docker Compose, aber sauberere Trennung.
+Ursprünglich war die App komplett auf AWS geplant (ECS/Fargate, RDS, ElastiCache, S3+CloudFront). Entschieden, stattdessen alles im eigenen Homelab zu hosten (Proxmox-VM `neuserphis1c`, Docker Compose mit Backend, Frontend, Postgres, Redis, arq-Worker). AWS wird nur noch für Bedrock (LLM-Anbindung) und Kostenüberwachung (Budget) genutzt.
 
-## DB: RDS statt Postgres-Container
+## Zugriff Kollegen/CI: Tailscale statt offenem SSH
 
-Fargate hat keinen persistenten Storage, Container-Postgres würde bei jedem Neustart alle Daten verlieren.
+Kein offener Port am Router nötig, VM ist im Internet nicht als SSH-Ziel sichtbar. GitHub Actions nutzt die offizielle `tailscale/github-action`, um sich fürs Deployment temporär ins Tailnet einzuklinken.
 
-## Queue: ElastiCache statt Redis-Container
+## Reverse Proxy: Nginx Proxy Manager im Homelab statt AWS
 
-Gleicher Grund wie bei RDS, arq-Jobs würden sonst bei Neustarts verloren gehen.
+Kein Umweg über AWS nötig, NPM läuft bereits im Homelab, terminiert TLS (Let's Encrypt) und routet zum phisheye-Docker-Compose-Stack. Nur Port 80/443 werden am Router freigegeben, SSH bleibt zu.
 
-## Frontend: S3 + CloudFront statt Container
+## Auto-Deployment: GitHub Actions + SSH + Docker Compose
 
-React-Build ist statisch, eigener Fargate-Task dafür wäre unnötiger Overhead.
+Bei Merge in main: Images bauen, zu GHCR pushen, per SSH auf die VM verbinden, `docker compose pull && up -d`.
 
 ## Registry: GHCR statt ECR
 
 Team nutzt eh GitHub, kostenlos, kein zusätzlicher AWS-Service nötig.
 
-## DNS: manuell beim bestehenden Provider statt Route53
+## DNS: manuell beim bestehenden Provider
 
-Domain existiert schon extern, Migration lohnt sich nicht.
+Domain existiert bereits extern, Eintrag zeigt auf die Homelab-IP.
 
-## Netzwerk: eigenes VPC statt Default-VPC
+## AWS Bedrock: eigener IAM-User statt persönlicher Credentials
 
-RDS/ElastiCache/ALB brauchen Subnet Groups über mind. 2 AZs (öffentlich + privat), das geht mit der Default-VPC nicht sauber.
+Minimal berechtigter IAM-User nur mit `bedrock:InvokeModel`-Rechten, damit das Backend nicht mit persönlichen Admin-Credentials arbeitet.
+
+## Budget-Überwachung: monatliches Limit mit gestaffelten Alerts
+
+$50/Monat, Warnungen bei 50/80/100% per E-Mail. Deckt nur noch die Bedrock-Nutzung ab, da sonst nichts mehr über AWS läuft.

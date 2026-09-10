@@ -5,9 +5,11 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "aiosqlite>=0.22.1",
     "alembic>=1.19.1",
     "arq>=0.28.0",
     "fastapi[standard]>=0.141.1",
+    "greenlet>=3.5.5",
     "httpx>=0.28.1",
     "load-dotenv>=0.1.0",
     "passlib[bcrypt]>=1.7.4",
