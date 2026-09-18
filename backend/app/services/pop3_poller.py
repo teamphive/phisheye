@@ -4,7 +4,7 @@ from email import policy
 from email.parser import BytesParser
 
 
-def fetch_new_mails() -> list[bytes]:
+def _connect() -> poplib.POP3_SSL:
     host = os.getenv("POP3_HOST", "pop3.strato.de")
     port = int(os.getenv("POP3_PORT", "995"))
     username = os.getenv("POP3_USERNAME")
@@ -14,21 +14,53 @@ def fetch_new_mails() -> list[bytes]:
         raise RuntimeError("POP3_USERNAME/POP3_PASSWORD are not configured")
 
     connection = poplib.POP3_SSL(host, port)
+    connection.user(username)
+    connection.pass_(password)
+    return connection
+
+
+def fetch_new_mails() -> list[tuple[str, bytes]]:
+    """Fetch pending mails, keyed by their POP3 UIDL.
+
+    Mails stay on the server until `delete_mails` confirms they were
+    analyzed and stored successfully, so a failure downstream does not
+    lose the mail.
+    """
+    connection = _connect()
 
     try:
-        connection.user(username)
-        connection.pass_(password)
-
         message_count, _ = connection.stat()
-        raw_mails: list[bytes] = []
+        mails: list[tuple[str, bytes]] = []
 
         for i in range(1, message_count + 1):
+            uid = connection.uidl(i).split()[-1].decode()
             _, lines, _ = connection.retr(i)
-            raw_mails.append(b"\n".join(lines))
-            connection.dele(i)
+            mails.append((uid, b"\n".join(lines)))
 
         connection.quit()
-        return raw_mails
+        return mails
+    except Exception:
+        connection.rset()
+        connection.quit()
+        raise
+
+
+def delete_mails(uids: set[str]) -> None:
+    """Delete mails identified by their POP3 UIDL from the mailbox."""
+    if not uids:
+        return
+
+    connection = _connect()
+
+    try:
+        message_count, _ = connection.stat()
+
+        for i in range(1, message_count + 1):
+            uid = connection.uidl(i).split()[-1].decode()
+            if uid in uids:
+                connection.dele(i)
+
+        connection.quit()
     except Exception:
         connection.rset()
         connection.quit()
