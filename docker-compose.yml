@@ -10,8 +10,10 @@ services:
     environment:
       POSTGRES_USER: "${POSTGRES_USER}"
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_DB: "${POSTGRES_DB}"
     volumes:
       - db_local-data:/var/lib/postgresql
+
   pgadmin:
     image: dpage/pgadmin4:9.17
     container_name: pgadmin
@@ -24,6 +26,17 @@ services:
     volumes:
       - pgadmin-data:/var/lib/pgadmin
 
+  redis:
+    image: redis:7-alpine
+    platform: linux/amd64
+    container_name: redis_local
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
 volumes:
   db_local-data:
   pgadmin-data:
+  redis-data:
