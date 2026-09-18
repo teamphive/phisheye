@@ -7,6 +7,7 @@ import {
   type AnalysisDetail,
   type Queue,
 } from "@/mocks/analysis-detail"
+import { mockSearch, type SearchHit } from "@/mocks/search"
 
 /**
  * The list of the active team. The backend knows that team from the session,
@@ -38,6 +39,26 @@ export async function fetchQueue() {
   }
 
   return apiFetch<Queue>("/queue")
+}
+
+/**
+ * Searches the active team's analyses by subject, sender, link host and
+ * attachment hash. The signal cancels a request the next keystroke replaces.
+ */
+export async function searchAnalyses(
+  teamId: string,
+  query: string,
+  signal?: AbortSignal
+) {
+  if (!apiEnabled) {
+    await mockLatency(250)
+    return mockSearch(teamId, query)
+  }
+
+  return apiFetch<SearchHit[]>(
+    `/analyses/search?q=${encodeURIComponent(query)}`,
+    { signal }
+  )
 }
 
 /** Uploads the mail. The analysis itself runs as a background job. */

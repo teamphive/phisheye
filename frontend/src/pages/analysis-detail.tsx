@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { Link, useNavigate, useParams } from "react-router"
 import {
   CheckIcon,
+  FlagIcon,
   Loader2Icon,
   TrashIcon,
   TriangleAlertIcon,
@@ -48,6 +49,7 @@ import {
   formatElapsed,
   formatFileSize,
   formatRelativeTime,
+  initialsOf,
   shortenHash,
 } from "@/lib/format"
 import {
@@ -195,7 +197,15 @@ export function AnalysisDetailPage() {
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             <span className="font-mono">{analysis.sender}</span> · eingegangen
-            am {formatDateTime(analysis.receivedAt)} · {analysis.handler}
+            am {formatDateTime(analysis.receivedAt)}
+            {analysis.source === "report" ? (
+              <>
+                {" "}
+                · gemeldet von{" "}
+                <span className="font-mono">{analysis.reportedBy}</span>
+              </>
+            ) : null}
+            {analysis.handler ? ` · ${analysis.handler}` : null}
           </p>
         </div>
 
@@ -270,20 +280,39 @@ export function AnalysisDetailPage() {
                   />
                 )}
               </Row>
+              <Row label="Quelle">
+                {analysis.source === "report" ? (
+                  <Badge variant="outline">
+                    <FlagIcon />
+                    Outlook-Meldung
+                  </Badge>
+                ) : (
+                  <span>Upload</span>
+                )}
+              </Row>
+              {analysis.source === "report" ? (
+                <Row label="Gemeldet von">
+                  <span
+                    className="min-w-0 truncate font-mono text-xs"
+                    title={analysis.reportedBy ?? undefined}
+                  >
+                    {analysis.reportedBy}
+                  </span>
+                </Row>
+              ) : null}
               <Row label="Zugewiesen">
-                <span className="flex items-center gap-1.5">
-                  <Avatar className="size-6">
-                    <AvatarFallback className="text-[10px]">
-                      {analysis.handler
-                        .split(/[\s.]+/)
-                        .filter(Boolean)
-                        .map((part) => part.charAt(0))
-                        .join("")
-                        .toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  {analysis.handler}
-                </span>
+                {analysis.handler ? (
+                  <span className="flex items-center gap-1.5">
+                    <Avatar className="size-6">
+                      <AvatarFallback className="text-[10px]">
+                        {initialsOf(analysis.handler)}
+                      </AvatarFallback>
+                    </Avatar>
+                    {analysis.handler}
+                  </span>
+                ) : (
+                  <span className="text-faint">Niemand</span>
+                )}
               </Row>
               <Row label="Analyse-ID">
                 <span className="font-mono text-xs text-faint">
@@ -484,7 +513,9 @@ function QueueCard() {
                 {item.subject}
               </span>
               <span className="block truncate font-mono text-[10.5px] text-faint">
-                {item.sender} · hochgeladen von {item.submittedBy}
+                {item.sender} ·{" "}
+                {item.source === "report" ? "gemeldet" : "hochgeladen"} von{" "}
+                {item.submittedBy}
               </span>
             </span>
             <span className="font-mono text-[10.5px] text-faint">
@@ -631,14 +662,13 @@ function CompletedCards({ analysis }: { analysis: AnalysisDetail }) {
             <TableHeader>
               <TableRow>
                 <TableHead>Datei</TableHead>
-                <TableHead>Erkannter Typ</TableHead>
                 <TableHead>SHA-256</TableHead>
                 <TableHead>VirusTotal</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {analysis.attachments.length === 0 ? (
-                <EmptyRow colSpan={4}>Die Mail hat keine Anhänge.</EmptyRow>
+                <EmptyRow colSpan={3}>Die Mail hat keine Anhänge.</EmptyRow>
               ) : null}
               {analysis.attachments.map((file) => (
                 <TableRow key={file.sha256}>
@@ -647,11 +677,6 @@ function CompletedCards({ analysis }: { analysis: AnalysisDetail }) {
                     <span className="block font-mono text-[11px] text-faint">
                       {formatFileSize(file.size)}
                     </span>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={file.typeMismatch ? "suspicious" : "clean"}>
-                      {file.detectedType}
-                    </Badge>
                   </TableCell>
                   <TableCell className="font-mono" title={file.sha256}>
                     {shortenHash(file.sha256)}

@@ -30,7 +30,7 @@ export const currentUser: CurrentUser = {
 }
 
 export const teams: Team[] = [
-  { id: "itsec", name: "IT-Security", memberCount: 5, role: "admin" },
+  { id: "itsec", name: "IT-Security", memberCount: 4, role: "admin" },
   { id: "soc", name: "SOC Bereitschaft", memberCount: 3, role: "admin" },
 ]
 

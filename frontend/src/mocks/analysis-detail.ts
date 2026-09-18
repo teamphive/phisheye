@@ -1,6 +1,11 @@
 // Placeholder data until the API exists. Everything here is invented.
 
-import type { AnalysisStatus, Verdict } from "@/mocks/analyses"
+import {
+  findMockAnalysis,
+  type AnalysisSource,
+  type AnalysisStatus,
+  type Verdict,
+} from "@/mocks/analyses"
 
 export type Criterion = {
   name: string
@@ -19,8 +24,6 @@ export type Attachment = {
   filename: string
   /** Bytes, the browser formats them. */
   size: number
-  detectedType: string
-  typeMismatch: boolean
   sha256: string
   virusTotal: string
   malicious: boolean
@@ -40,7 +43,11 @@ export type AnalysisDetail = {
   verdict: Verdict | null
   score: number | null
   thresholds: { suspicious: number; phishing: number }
-  handler: string
+  /** Null for a report nobody has taken on yet. */
+  handler: string | null
+  source: AnalysisSource
+  /** Address of whoever reported the mail in Outlook, null for uploads. */
+  reportedBy: string | null
   receivedAt: string
   durationSeconds: number | null
   criteria: Criterion[]
@@ -71,6 +78,8 @@ const completed: AnalysisDetail = {
   score: 100,
   thresholds,
   handler: "M. Sandmann",
+  source: "upload",
+  reportedBy: null,
   receivedAt: "2026-09-03T07:12:00Z",
   durationSeconds: 41,
   criteriaTotal: 120,
@@ -121,8 +130,6 @@ const completed: AnalysisDetail = {
     {
       filename: "Rechnung_RE-2024-88431.pdf.htm",
       size: 12698,
-      detectedType: "text/html statt PDF",
-      typeMismatch: true,
       sha256:
         "3b192e256b9d34c47200e3cbb35c6db4b89e29c168eda1458fccf3c56810bc5b",
       virusTotal: "42 / 71",
@@ -183,6 +190,17 @@ const failed: AnalysisDetail = {
   },
 }
 
+/** Link hosts and attachment hashes, the parts of a mail the search looks into. */
+export function mockIndicators(id: string) {
+  // Only the worked example carries links and attachments.
+  if (id !== completed.id) return { hosts: [], hashes: [] }
+
+  return {
+    hosts: completed.links.map((link) => new URL(link.target).hostname),
+    hashes: completed.attachments.map((file) => file.sha256),
+  }
+}
+
 /** The analysis a mock upload leads to, so the detail page has something to show. */
 export const runningAnalysisId = running.id
 
@@ -191,6 +209,8 @@ export type QueueItem = {
   position: number
   subject: string
   sender: string
+  source: AnalysisSource
+  /** Name of the uploader, or address of whoever reported it in Outlook. */
   submittedBy: string
   queuedAt: string
 }
@@ -218,6 +238,7 @@ export function mockQueue(): Queue {
         position: 1,
         subject: "Ihre Bestellung konnte nicht zugestellt werden",
         sender: "versand@paket-status.top",
+        source: "upload",
         submittedBy: "T. Özdemir",
         queuedAt: secondsAgo(14),
       },
@@ -225,13 +246,15 @@ export function mockQueue(): Queue {
         position: 2,
         subject: "Rechnung Juli 2026",
         sender: "buchhaltung@lieferant-nord.de",
-        submittedBy: "M. Sandmann",
+        source: "report",
+        submittedBy: "a.hoffmann@hansa-logistik.de",
         queuedAt: secondsAgo(31),
       },
       {
         position: 3,
         subject: "Ihr Konto wurde vorübergehend gesperrt",
         sender: "service@sparkasse-sicherheit.info",
+        source: "upload",
         submittedBy: "L. Brinkmann",
         queuedAt: secondsAgo(62),
       },
@@ -245,5 +268,22 @@ export function mockAnalysis(id: string): AnalysisDetail {
     [failed.id]: failed,
   }
 
-  return byId[id] ?? { ...completed, id }
+  if (byId[id]) return byId[id]
+
+  // Every other id shows the completed example, under the list entry's name.
+  const item = findMockAnalysis(id)
+  if (!item) return { ...completed, id }
+
+  return {
+    ...completed,
+    id,
+    subject: item.subject,
+    sender: item.sender,
+    verdict: item.verdict,
+    score: item.score,
+    handler: item.handler,
+    source: item.source,
+    reportedBy: item.reportedBy,
+    receivedAt: item.receivedAt,
+  }
 }

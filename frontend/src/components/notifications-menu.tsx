@@ -1,7 +1,6 @@
 import { useNavigate } from "react-router"
 import { BellIcon } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,8 +10,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { useNotifications } from "@/components/notifications-provider"
 import { formatRelativeTime } from "@/lib/format"
-import { notifications, type NotificationTone } from "@/mocks/notifications"
+import type { NotificationTone } from "@/mocks/notifications"
 
 const toneDot: Record<NotificationTone, string> = {
   phishing: "bg-phishing",
@@ -21,11 +21,12 @@ const toneDot: Record<NotificationTone, string> = {
   info: "bg-primary",
 }
 
-const latest = notifications.slice(0, 3)
-const unreadCount = notifications.filter((entry) => !entry.read).length
-
 export function NotificationsMenu() {
   const navigate = useNavigate()
+  const { entries, loadError, unreadCount, markRead } = useNotifications()
+
+  // The API sends unread entries first, so these are the ones that matter.
+  const latest = (entries ?? []).slice(0, 3)
 
   return (
     <DropdownMenu>
@@ -44,18 +45,44 @@ export function NotificationsMenu() {
           <DropdownMenuLabel>Benachrichtigungen</DropdownMenuLabel>
           <DropdownMenuSeparator />
 
+          {loadError ? (
+            <p className="px-2 py-3 text-xs text-muted-foreground">
+              Benachrichtigungen konnten nicht geladen werden. {loadError}
+            </p>
+          ) : entries === null ? (
+            <p className="px-2 py-3 text-xs text-muted-foreground">
+              Wird geladen …
+            </p>
+          ) : latest.length === 0 ? (
+            <p className="px-2 py-3 text-xs text-muted-foreground">
+              Keine Benachrichtigungen.
+            </p>
+          ) : null}
+
           {latest.map((entry) => (
             <DropdownMenuItem
               key={entry.id}
-              onClick={() => navigate(entry.target)}
+              onClick={() => {
+                markRead(entry)
+                navigate(entry.target)
+              }}
               className="items-start gap-3"
             >
               <span
                 className={`mt-1.5 size-[7px] shrink-0 rounded-full ${toneDot[entry.tone]}`}
               />
               <span className="min-w-0 flex-1">
-                <span className="block text-[13px] font-semibold">
+                <span
+                  className={`block text-[13px] ${
+                    entry.read
+                      ? "font-medium text-muted-foreground"
+                      : "font-semibold"
+                  }`}
+                >
                   {entry.title}
+                  {entry.read ? null : (
+                    <span className="sr-only"> (ungelesen)</span>
+                  )}
                 </span>
                 <span className="block truncate text-xs text-muted-foreground">
                   {entry.detail}
@@ -69,15 +96,13 @@ export function NotificationsMenu() {
         </DropdownMenuGroup>
 
         <DropdownMenuSeparator />
-        <div className="p-1">
-          <Button
-            variant="ghost"
-            className="w-full text-xs"
-            onClick={() => navigate("/benachrichtigungen")}
-          >
-            Alle Benachrichtigungen ansehen
-          </Button>
-        </div>
+        {/* A menu item, not a button, so the menu closes on the way out */}
+        <DropdownMenuItem
+          onClick={() => navigate("/benachrichtigungen")}
+          className="justify-center text-xs font-medium"
+        >
+          Alle Benachrichtigungen ansehen
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )

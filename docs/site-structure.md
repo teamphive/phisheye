@@ -62,7 +62,7 @@ flowchart LR
   class e403,e404,fehler fehlerhaft
 ```
 
-Gestrichelte Pfeile führen zu Sonderfällen, nicht zu regulären Seiten. Overlays haben keine eigene Adresse und stehen nicht im Diagramm: Suchfenster, Glocken-Menü, Team-Umschalter sowie die Dialoge für Einladen, Team erstellen, Mitglied entfernen, Team verlassen und löschen, Analyse löschen, Passwort ändern, Backup-Codes und aktive Sitzungen.
+Gestrichelte Pfeile führen zu Sonderfällen, nicht zu regulären Seiten. Overlays haben keine eigene Adresse und stehen nicht im Diagramm: Suchfenster, Glocken-Menü, Team-Umschalter sowie die Dialoge für Einladen, Team erstellen, Mitglied entfernen, Domain entfernen, Team verlassen und löschen, Analyse löschen, Passwort ändern, Backup-Codes und aktive Sitzungen.
 
 ## Angemeldet
 
@@ -105,6 +105,7 @@ Die Rolle gilt pro Team, nicht pro Nutzer. Dieselbe Person kann in einem Team Ad
 | Analysen löschen | — | ✓ | — |
 | Mitglieder einladen, Rollen ändern, entfernen | — | ✓ | — |
 | Team umbenennen und löschen | — | ✓ | — |
+| Domains für Outlook-Meldungen eintragen und entfernen | — | ✓ | — |
 
 **Audit** darf ausschließlich lesen. Für diese Rolle blendet die Oberfläche „Neue Analyse", die Verdikt-Knöpfe und die gesamte Team-Verwaltung aus.
 
@@ -114,7 +115,7 @@ Durchgesetzt wird all das im Backend. Die Oberfläche blendet nur aus.
 
 ## Overlays
 
-Keine eigene Adresse, kein Router-Eintrag: Suchfenster (`Cmd/Strg + K`), Glocken-Menü, Team-Umschalter sowie die Dialoge für Mitglied einladen, Team erstellen, Mitglied entfernen, Team verlassen, Team löschen, Analyse löschen, Passwort ändern, Backup-Codes und aktive Sitzungen.
+Keine eigene Adresse, kein Router-Eintrag: Suchfenster (`Cmd/Strg + K`), Glocken-Menü, Team-Umschalter sowie die Dialoge für Mitglied einladen, Team erstellen, Mitglied entfernen, Domain entfernen, Team verlassen, Team löschen, Analyse löschen, Passwort ändern, Backup-Codes und aktive Sitzungen.
 
 ## Zustände
 
@@ -125,6 +126,7 @@ Keine eigene Adresse, kein Router-Eintrag: Suchfenster (`Cmd/Strg + K`), Glocken
 | Analyse fehlgeschlagen | Analyse-Detail, Ursache und erneut starten |
 | Verdikt entschieden | Analyse-Detail, zurücknehmbar |
 | Noch keine Analysen | Analysen und Übersicht im frisch angelegten Team |
+| Keine Domain eingetragen | Team, Karte „Outlook-Meldungen", es kommen keine Meldungen an |
 | Keine Benachrichtigungen | Benachrichtigungen, wenn ein Filter nichts trifft |
 | Suche ohne Treffer | Suchfenster |
 | Ladezustand | Analysenliste beim Öffnen und beim Teamwechsel |
@@ -136,6 +138,7 @@ Keine eigene Adresse, kein Router-Eintrag: Suchfenster (`Cmd/Strg + K`), Glocken
 - Die Rolle hängt an der Verknüpfung Nutzer–Team, nicht am Nutzer.
 - Jeder Nutzer gehört mindestens einem Team an. Das Verlassen des letzten Teams lehnt die API ab.
 - Jedes Team hat immer mindestens einen Admin. Der letzte Admin kann sich weder herabstufen noch entfernen lassen.
+- Gemeldete Mails landen über die Domain der meldenden Adresse im Team. Eine Domain gehört höchstens einem Team, Subdomains zählen mit, ein Nachweis des Domainbesitzes ist nicht vorgesehen. Die Liste sehen alle Rollen, ändern dürfen sie nur Admins.
 - Das Monitoring zeigt systemweite Werte über alle Teams hinweg. Der Endpunkt ist deshalb nicht unter einem Team eingehängt, sondern `GET /monitoring`, und die Fehlerliste enthält keine Mailinhalte.
 - **Der Team-Kontext kommt aus der Sitzung, nicht aus dem Pfad.** Die Endpunkte heißen `/analyses`, nicht `/teams/{id}/analyses`. Der Umschalter ändert den serverseitigen Kontext, nicht die Adresse.
 - **`.eml` und `.msg` werden beide unterstützt.**

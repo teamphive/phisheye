@@ -44,14 +44,14 @@ Endpunkte unter `/auth/` entfallen damit.
 | DELETE | `/analyses/{id}` | Weich löschen, nur Admin |
 | POST | `/analyses/{id}/decision` | Verdikt bestätigen oder als falsch-positiv melden, Body `verdict` |
 | DELETE | `/analyses/{id}/decision` | Entscheidung zurücknehmen |
-| GET | `/analyses/search` | Suche über Absender, Domain, Hash und Betreff |
+| GET | `/analyses/search?q=` | Suche über Betreff, Absender, Link-Domain und Anhang-Hash, siehe unten |
 | GET | `/queue` | Wartende Jobs und Worker-Auslastung, für die Fortschrittsanzeige |
 
 ## Team
 
 | Methode | Pfad | Zweck |
 |---|---|---|
-| GET | `/team` | Mitglieder mit Rolle und Beitrittsdatum |
+| GET | `/team` | Mitglieder und offene Einladungen des aktiven Teams |
 | POST | `/teams` | Team anlegen |
 | PATCH | `/team` | Umbenennen, nur Admin |
 | DELETE | `/team` | Weich löschen, nur Admin |
@@ -60,8 +60,23 @@ Endpunkte unter `/auth/` entfallen damit.
 | DELETE | `/team/invitations/{id}` | Einladung zurückziehen |
 | PATCH | `/team/members/{id}` | Rolle ändern |
 | DELETE | `/team/members/{id}` | Entfernen, oder selbst verlassen |
+| GET | `/team/domains` | Meldeadresse und Domains für Outlook-Meldungen |
+| POST | `/team/domains` | Domain eintragen, Body `domain`, nur Admin |
+| DELETE | `/team/domains/{id}` | Domain entfernen, nur Admin |
 
 Der letzte Admin kann sich weder herabstufen noch entfernen. Das Verlassen des letzten Teams wird abgelehnt.
+
+## Outlook-Meldungen
+
+Mitarbeiter melden eine verdächtige Mail in Outlook, die Meldung geht an ein gemeinsames phisheye-Postfach. Das Backend holt es per POP3 ab und legt für jede Meldung eine Analyse an.
+
+- Welches Team die Meldung bekommt, entscheidet die Domain der meldenden Adresse, nicht die des ursprünglichen Absenders.
+- Subdomains zählen mit: `firma.de` deckt auch `mail.firma.de` ab.
+- Eine Domain gehört höchstens einem Team. `POST /team/domains` antwortet mit 409, wenn ein anderes Team dieselbe Domain, eine übergeordnete oder eine Subdomain davon eingetragen hat. Die Antwort nennt das andere Team nicht.
+- Ein Nachweis, dass dem Team die Domain gehört, ist nicht vorgesehen. Wer zuerst einträgt, bekommt sie.
+- 422 bei ungültigen Domains, öffentlichen Mail-Anbietern wie `gmail.com` und öffentlichen Suffixen wie `co.uk` (Public Suffix List). Das Frontend zeigt die Meldung aus der Antwort an.
+- Das Frontend schickt die Domain in Kleinbuchstaben, ohne `@`, `www.` und Punkt am Ende, Umlaute als Punycode. Das Backend sollte trotzdem selbst normalisieren.
+- Ein Unique-Index reicht für die Subdomain-Regel nicht, die Prüfung muss in der Anwendung laufen, in derselben Transaktion wie das Eintragen.
 
 ## Benachrichtigungen
 
@@ -69,6 +84,10 @@ Der letzte Admin kann sich weder herabstufen noch entfernen. Das Verlassen des l
 |---|---|---|
 | GET | `/notifications` | Liste, ungelesene zuerst |
 | POST | `/notifications/read` | Als gelesen markieren, Body `ids` oder leer für alle |
+
+Das Backend löscht Benachrichtigungen 14 Tage nach `created_at`, gelesen oder nicht. `GET /notifications` liefert nichts Älteres.
+
+Das Frontend fragt `GET /notifications` alle 30 Sekunden neu, solange der Tab sichtbar ist, und sofort, wenn man zurückkommt.
 
 ## Monitoring
 
@@ -95,7 +114,9 @@ Passwort, zweiter Faktor, Backup-Codes und angemeldete Geräte verwaltet Keycloa
 | status | `running`, `completed`, `failed` |
 | verdict | `clean`, `suspicious`, `phishing` oder null |
 | score | 0 bis 100 oder null |
-| handler | string |
+| handler | string oder null, null bei Meldungen, die noch niemand übernommen hat |
+| source | `upload` oder `report` (Outlook-Meldung) |
+| reported_by | Adresse der meldenden Person, null bei `upload` |
 | received_at | timestamp |
 
 `GET /analyses/{id}` zusätzlich:
@@ -114,9 +135,25 @@ Passwort, zweiter Faktor, Backup-Codes und angemeldete Geräte verwaltet Keycloa
 | started_at | timestamp oder null | dito |
 | error | `{ detail, step, attempt, max_attempts, at }` oder null | nur bei `failed` |
 
-Ein Anhang besteht aus `filename`, `size` (Bytes), `detected_type`, `type_mismatch`, `sha256` (voller Hash), `virus_total` und `malicious`.
+Ein Anhang besteht aus `filename`, `size` (Bytes), `sha256` (voller Hash), `virus_total` und `malicious`.
 
 Solange `status` `running` ist, fragt das Frontend `GET /analyses/{id}` und `GET /queue` alle 3 Sekunden neu.
+
+`GET /analyses/search?q=<text>`:
+
+- Durchsucht nur die Analysen des aktiven Teams, ohne Groß- und Kleinschreibung.
+- Das Frontend fragt erst ab 2 Zeichen und wartet 250 ms nach dem letzten Tastendruck. Eine überholte Anfrage bricht es ab.
+- Gesucht wird im Betreff, in der Absenderadresse, in den Hosts der Links (Domain oder IP) und in den SHA-256-Hashes der Anhänge. Beim Hash zählt der Anfang, ab 8 Zeichen.
+- Pro Analyse höchstens ein Treffer. Passt der Text auf mehrere Felder, gilt die Reihenfolge Hash, Absender, Link, Betreff.
+- Höchstens 20 Treffer, neueste zuerst.
+
+Je Treffer:
+
+| Feld | Typ | Beschreibung |
+|---|---|---|
+| id, subject, sender, status, verdict, received_at | wie in `GET /analyses` | |
+| field | `hash`, `sender`, `domain` oder `subject` | wo der Text gefunden wurde, danach gruppiert das Frontend |
+| match | string | der gefundene Wert: voller Hash, Adresse, Host oder Betreff |
 
 `GET /queue`:
 
@@ -125,7 +162,23 @@ Solange `status` `running` ist, fragt das Frontend `GET /analyses/{id}` und `GET
 | waiting | number | alle wartenden Jobs, auch die anderer Teams |
 | workers_busy | number | |
 | workers_total | number | |
-| items | Liste aus `position`, `subject`, `sender`, `submitted_by`, `queued_at` | nur Jobs des aktiven Teams, Mails anderer Teams erscheinen nur in `waiting` |
+| items | Liste aus `position`, `subject`, `sender`, `source`, `submitted_by`, `queued_at` | nur Jobs des aktiven Teams, Mails anderer Teams erscheinen nur in `waiting`. Bei `report` ist `submitted_by` die Adresse der meldenden Person |
+
+`GET /team`:
+
+| Feld | Typ | Beschreibung |
+|---|---|---|
+| members | Liste aus `id`, `name`, `email`, `initials`, `role`, `two_factor_enabled`, `analysis_count`, `is_self` | `is_self` markiert den angemeldeten Nutzer |
+| invitations | Liste aus `id`, `email`, `role`, `invited_at` | nur offene Einladungen |
+
+`GET /team/domains`:
+
+| Feld | Typ | Beschreibung |
+|---|---|---|
+| report_address | string | Postfach, an das Outlook die Meldungen weiterleitet, für alle Teams gleich |
+| domains | Liste aus `id`, `domain`, `added_by`, `added_at` | |
+
+`POST /team/domains` antwortet mit dem neuen Eintrag.
 
 `GET /monitoring`:
 
@@ -143,3 +196,6 @@ Solange `status` `running` ist, fragt das Frontend `GET /analyses/{id}` und `GET
 
 - IDs als UUID oder laufende Nummer.
 - Abbrechen einer laufenden Analyse. Die Oberfläche hat den Knopf, ein Endpunkt fehlt noch.
+- Was mit Meldungen von Domains passiert, die kein Team eingetragen hat: verwerfen oder dem Melder antworten.
+- Übernehmen einer gemeldeten Mail. Die Oberfläche zeigt `handler` null als „Niemand", ein Endpunkt zum Zuweisen fehlt.
+- `mail_analyses.submitted_by` ist laut [data-model.md](data-model.md) ein Pflichtverweis auf `users`. Meldende Personen sind meist keine phisheye-Nutzer.

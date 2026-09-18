@@ -2,7 +2,9 @@ import { useMemo, useState } from "react"
 import { useNavigate } from "react-router"
 import { ActivityIcon, BellIcon, MailIcon, UsersIcon } from "lucide-react"
 
+import { useNotifications } from "@/components/notifications-provider"
 import { PageHeader } from "@/components/page-header"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -21,13 +23,13 @@ import {
   ItemMedia,
   ItemTitle,
 } from "@/components/ui/item"
+import { Skeleton } from "@/components/ui/skeleton"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { formatDate, formatRelativeTime, formatTime } from "@/lib/format"
-import {
-  notifications as initialNotifications,
-  type Notification,
-  type NotificationKind,
-  type NotificationTone,
+import type {
+  Notification,
+  NotificationKind,
+  NotificationTone,
 } from "@/mocks/notifications"
 
 type Filter = "all" | "unread" | NotificationKind
@@ -85,13 +87,17 @@ function matches(entry: Notification, filter: Filter) {
 
 export function NotificationsPage() {
   const navigate = useNavigate()
-  const [entries, setEntries] = useState(initialNotifications)
+  const {
+    entries,
+    loadError,
+    unreadCount: unread,
+    markRead,
+    markAllRead,
+  } = useNotifications()
   const [filter, setFilter] = useState<Filter>("all")
 
-  const unread = entries.filter((entry) => !entry.read).length
-
   const grouped = useMemo(() => {
-    const visible = entries.filter((entry) => matches(entry, filter))
+    const visible = (entries ?? []).filter((entry) => matches(entry, filter))
 
     return buckets
       .map((bucket) => ({
@@ -101,16 +107,8 @@ export function NotificationsPage() {
       .filter((group) => group.items.length > 0)
   }, [entries, filter])
 
-  function markAllRead() {
-    setEntries((current) => current.map((entry) => ({ ...entry, read: true })))
-  }
-
   function open(entry: Notification) {
-    setEntries((current) =>
-      current.map((item) =>
-        item.id === entry.id ? { ...item, read: true } : item
-      )
-    )
+    markRead(entry)
     navigate(entry.target)
   }
 
@@ -151,7 +149,27 @@ export function NotificationsPage() {
         ))}
       </ToggleGroup>
 
-      {grouped.length === 0 ? (
+      {loadError ? (
+        <Alert variant="destructive">
+          <AlertDescription>
+            Die Benachrichtigungen konnten nicht geladen werden. {loadError}
+          </AlertDescription>
+        </Alert>
+      ) : entries === null ? (
+        <Card>
+          <CardContent className="flex flex-col gap-4">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div key={index} className="flex items-center gap-3">
+                <Skeleton className="size-[30px] rounded-lg" />
+                <div className="flex flex-1 flex-col gap-1.5">
+                  <Skeleton className="h-3.5 w-[45%]" />
+                  <Skeleton className="h-2.5 w-[30%]" />
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      ) : grouped.length === 0 ? (
         <Card>
           <CardContent>
             <Empty>
@@ -215,7 +233,7 @@ export function NotificationsPage() {
       )}
 
       <p className="text-xs text-muted-foreground">
-        Benachrichtigungen werden nach 90 Tagen automatisch entfernt.
+        Benachrichtigungen werden nach 14 Tagen automatisch entfernt.
       </p>
     </div>
   )

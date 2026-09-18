@@ -1,11 +1,18 @@
 import { useEffect, useMemo, useState } from "react"
 import { Link, useNavigate } from "react-router"
-import { DownloadIcon, MailIcon, PlusIcon, SearchIcon } from "lucide-react"
+import {
+  DownloadIcon,
+  FlagIcon,
+  MailIcon,
+  PlusIcon,
+  SearchIcon,
+} from "lucide-react"
 import { toast } from "sonner"
 
 import { PageHeader } from "@/components/page-header"
 import { useTeams } from "@/components/team-provider"
 import { VerdictBadge } from "@/components/verdict-badge"
+import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import {
@@ -90,6 +97,8 @@ function exportAnalyses(items: AnalysisListItem[], teamName: string) {
       "Status",
       "Verdikt",
       "Score",
+      "Quelle",
+      "Gemeldet von",
       "Bearbeiter",
       "Eingang",
     ],
@@ -100,6 +109,8 @@ function exportAnalyses(items: AnalysisListItem[], teamName: string) {
       statusLabel[item.status],
       item.verdict ? verdictLabel[item.verdict] : null,
       item.score,
+      item.source === "report" ? "Outlook-Meldung" : "Upload",
+      item.reportedBy,
       item.handler,
       formatDateTime(item.receivedAt),
     ]),
@@ -279,6 +290,7 @@ function AnalysesList({
                   <TableHead>Betreff / Absender</TableHead>
                   <TableHead>Verdikt</TableHead>
                   <TableHead className="text-right">Score</TableHead>
+                  <TableHead>Quelle</TableHead>
                   <TableHead>Bearbeiter</TableHead>
                   <TableHead>Eingang</TableHead>
                 </TableRow>
@@ -311,8 +323,26 @@ function AnalysesList({
                         `${item.score} %`
                       )}
                     </TableCell>
+                    <TableCell>
+                      {item.source === "report" ? (
+                        <>
+                          <Badge variant="outline">
+                            <FlagIcon />
+                            Outlook
+                          </Badge>
+                          <span
+                            className="mt-0.5 block max-w-[200px] truncate font-mono text-[11px] text-faint"
+                            title={item.reportedBy ?? undefined}
+                          >
+                            {item.reportedBy}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground">Upload</span>
+                      )}
+                    </TableCell>
                     <TableCell className="whitespace-nowrap text-muted-foreground">
-                      {item.handler}
+                      {item.handler ?? <span className="text-faint">—</span>}
                     </TableCell>
                     <TableCell className="font-mono whitespace-nowrap text-faint">
                       {formatShortDateTime(item.receivedAt)}

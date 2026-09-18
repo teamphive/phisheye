@@ -15,7 +15,7 @@ export type Notification = {
   read: boolean
 }
 
-export const notifications: Notification[] = [
+const notifications: Notification[] = [
   {
     id: "n-08",
     kind: "analysis",
@@ -32,7 +32,7 @@ export const notifications: Notification[] = [
     tone: "suspicious",
     title: "Analyse abgeschlossen — Verdächtig (68 %)",
     detail: "„AW: Angebot Q3 – bitte kurzfristig freigeben“",
-    target: "/analysen/a-2026-0127",
+    target: "/analysen/a-2026-0125",
     createdAt: "2026-09-10T07:00:00Z",
     read: false,
   },
@@ -73,7 +73,7 @@ export const notifications: Notification[] = [
     tone: "clean",
     title: "Analyse abgeschlossen — Sauber (3 %)",
     detail: "„Wartungsfenster Fileserver am 03.09.“",
-    target: "/analysen/a-2026-0126",
+    target: "/analysen/a-2026-0122",
     createdAt: "2026-09-09T09:05:00Z",
     read: true,
   },
@@ -98,3 +98,15 @@ export const notifications: Notification[] = [
     read: true,
   },
 ]
+
+/** Copies, so the page only sees a change once it asks again. */
+export function mockNotifications(): Notification[] {
+  return notifications.map((entry) => ({ ...entry }))
+}
+
+/** Remembers the read state like the server would, until the page reloads. */
+export function mockMarkRead(ids?: string[]) {
+  for (const entry of notifications) {
+    if (!ids || ids.includes(entry.id)) entry.read = true
+  }
+}

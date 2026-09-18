@@ -47,22 +47,6 @@ const refreshInterval = 10_000
 /** Optional, where the logs live depends on the deployment. */
 const logsUrl = import.meta.env.VITE_LOGS_URL
 
-type Flag = { tone: "suspicious" | "phishing"; label: string }
-
-// The API delivers raw numbers, these limits decide when a tile warns.
-function errorRateFlag(percent: number): Flag | null {
-  if (percent >= 5) return { tone: "phishing", label: "Kritisch" }
-  if (percent >= 1) return { tone: "suspicious", label: "Erhöht" }
-  return null
-}
-
-function quotaFlag(used: number, limit: number): Flag | null {
-  if (used >= limit) return { tone: "phishing", label: "Aufgebraucht" }
-  if (used >= limit * 0.9)
-    return { tone: "suspicious", label: "Fast aufgebraucht" }
-  return null
-}
-
 const serviceState = {
   ok: { variant: "clean", icon: CircleCheckIcon, label: "erreichbar" },
   degraded: {
@@ -160,7 +144,7 @@ export function MonitoringPage() {
         />
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, index) => (
-            <Skeleton key={index} className="h-[93px] rounded-xl" />
+            <Skeleton key={index} className="h-[88px] rounded-xl" />
           ))}
         </div>
         <Skeleton className="mt-4 h-[290px] rounded-xl" />
@@ -195,23 +179,16 @@ export function MonitoringPage() {
           label="Aktive Worker"
           value={formatNumber(workers.busy)}
           unit={`/ ${formatNumber(workers.total)}`}
-          flag={
-            workers.total === 0
-              ? { tone: "phishing", label: "Keiner läuft" }
-              : null
-          }
         />
         <StatTile
           label="Fehlerrate (24 Std)"
           value={errorRate === null ? "—" : formatDecimal(errorRate)}
           unit={errorRate === null ? undefined : "%"}
-          flag={errorRate === null ? null : errorRateFlag(errorRate)}
         />
         <StatTile
           label="VirusTotal heute"
           value={formatNumber(virusTotal.used)}
           unit={`/ ${formatNumber(virusTotal.limit)}`}
-          flag={quotaFlag(virusTotal.used, virusTotal.limit)}
         />
       </div>
 
@@ -277,27 +254,17 @@ function StatTile({
   label,
   value,
   unit,
-  flag,
 }: {
   label: string
   value: string
   unit?: string
-  flag?: Flag | null
 }) {
   return (
     <Card>
       <CardContent className="flex flex-col gap-1.5">
-        <div className="flex min-h-5 items-center justify-between gap-2">
-          <span className="font-mono text-[10.5px] tracking-[0.12em] text-faint uppercase">
-            {label}
-          </span>
-          {flag ? (
-            <Badge variant={flag.tone}>
-              <TriangleAlertIcon />
-              {flag.label}
-            </Badge>
-          ) : null}
-        </div>
+        <span className="font-mono text-[10.5px] tracking-[0.12em] text-faint uppercase">
+          {label}
+        </span>
         <div className="text-[28px] leading-tight font-semibold tracking-tight">
           {value}
           {unit ? (
