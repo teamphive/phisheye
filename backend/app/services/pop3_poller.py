@@ -11,7 +11,7 @@ def fetch_new_mails() -> list[bytes]:
     password = os.getenv("POP3_PASSWORD")
 
     if not (username and password):
-        raise RuntimeError("POP3_USERNAME/POP3_PASSWORD sind nicht konfiguriert")
+        raise RuntimeError("POP3_USERNAME/POP3_PASSWORD are not configured")
 
     connection = poplib.POP3_SSL(host, port)
 

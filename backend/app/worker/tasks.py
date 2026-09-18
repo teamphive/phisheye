@@ -12,7 +12,7 @@ async def poll_report_mailbox(ctx) -> None:
     try:
         raw_mails = fetch_new_mails()
     except Exception:
-        logger.exception("POP3-Abruf des Meldepostfachs fehlgeschlagen")
+        logger.exception("POP3 mailbox fetch failed")
         return
 
     if not raw_mails:
@@ -33,5 +33,5 @@ async def poll_report_mailbox(ctx) -> None:
                 )
             except Exception:
                 logger.exception(
-                    "Analyse einer per POP3 abgerufenen Mail fehlgeschlagen"
+                    "Analysis of POP3 mail failed"
                 )

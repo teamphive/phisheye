@@ -14,7 +14,7 @@ POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
 
 if not (POSTGRES_USER and POSTGRES_PASSWORD and POSTGRES_DB):
     raise RuntimeError(
-        "POSTGRES_USER, POSTGRES_PASSWORD und POSTGRES_DB müssen gesetzt sein"
+        "POSTGRES_USER, POSTGRES_PASSWORD, and POSTGRES_DB must be set"
     )
 
 DATABASE_URL = (
