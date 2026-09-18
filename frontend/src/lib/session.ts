@@ -1,3 +1,4 @@
+import { apiEnabled, apiFetch, mockLatency } from "@/lib/api"
 import { authEnabled, keycloak } from "@/lib/keycloak"
 import { initialsOf } from "@/lib/format"
 import { currentUser, type CurrentUser } from "@/mocks/session"
@@ -27,4 +28,18 @@ export function sessionUser(): CurrentUser {
   }
 
   return cached
+}
+
+/**
+ * Makes a team the active one on the server. The team context lives in the
+ * session, not in the address, so every later call answers for this team.
+ */
+export async function selectTeam(teamId: string) {
+  if (!apiEnabled) return mockLatency()
+
+  await apiFetch<void>("/me/team", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ team_id: teamId }),
+  })
 }

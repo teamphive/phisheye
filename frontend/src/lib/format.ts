@@ -84,3 +84,40 @@ export function initialsOf(name: string) {
     .join("")
     .toUpperCase()
 }
+
+/** Minutes and seconds since a point in time, for jobs that are waiting. */
+export function formatElapsed(iso: string) {
+  const seconds = Math.max(
+    0,
+    Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
+  )
+
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`
+}
+
+/** A hash shortened in the middle, the full value belongs in a title. */
+export function shortenHash(hash: string) {
+  return hash.length > 20 ? `${hash.slice(0, 12)}…${hash.slice(-4)}` : hash
+}
+
+const whole = new Intl.NumberFormat("de-DE")
+
+const oneDecimal = new Intl.NumberFormat("de-DE", {
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1,
+})
+
+/** Thousands separated the German way: 1.284 */
+export function formatNumber(value: number) {
+  return whole.format(value)
+}
+
+/** One decimal with a comma, the unit is left to the caller: 1,2 */
+export function formatDecimal(value: number) {
+  return oneDecimal.format(value)
+}
+
+/** Response times, milliseconds until a full second is reached. */
+export function formatLatency(ms: number) {
+  return ms < 1000 ? `${Math.round(ms)} ms` : `${formatDecimal(ms / 1000)} Sek`
+}

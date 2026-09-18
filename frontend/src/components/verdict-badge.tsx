@@ -1,11 +1,9 @@
 import { Badge } from "@/components/ui/badge"
-import type { AnalysisStatus, Verdict } from "@/mocks/analyses"
-
-const verdictLabel: Record<Verdict, string> = {
-  clean: "Sauber",
-  suspicious: "Verdächtig",
-  phishing: "Phishing",
-}
+import {
+  verdictLabel,
+  type AnalysisStatus,
+  type Verdict,
+} from "@/mocks/analyses"
 
 type VerdictBadgeProps = {
   status: AnalysisStatus

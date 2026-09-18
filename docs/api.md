@@ -6,6 +6,7 @@ Was das Frontend braucht. Die Feldnamen stammen aus den Typen in `frontend/src/m
 
 - Der Team-Kontext kommt aus der Sitzung. Kein Pfad enthält eine Team-ID.
 - Zeiten als ISO 8601 in UTC.
+- Feldnamen in snake_case. Das Frontend wandelt sie beim Empfang zentral in camelCase um.
 - Fehler als einheitliches Objekt, nicht als FastAPIs `detail`.
 - Löschen ist weich, harte Löschung nach 10 Tagen.
 
@@ -38,13 +39,13 @@ Endpunkte unter `/auth/` entfallen damit.
 | Methode | Pfad | Zweck |
 |---|---|---|
 | GET | `/analyses` | Liste für das aktive Team |
-| POST | `/analyses` | Upload einer `.eml` oder `.msg`, startet den Job |
+| POST | `/analyses` | Upload einer `.eml` oder `.msg` als Feld `file` (multipart), startet den Job, antwortet mit dem Listeneintrag |
 | GET | `/analyses/{id}` | Detail |
 | DELETE | `/analyses/{id}` | Weich löschen, nur Admin |
 | POST | `/analyses/{id}/decision` | Verdikt bestätigen oder als falsch-positiv melden, Body `verdict` |
 | DELETE | `/analyses/{id}/decision` | Entscheidung zurücknehmen |
 | GET | `/analyses/search` | Suche über Absender, Domain, Hash und Betreff |
-| GET | `/queue` | Wartende Jobs, für die Fortschrittsanzeige |
+| GET | `/queue` | Wartende Jobs und Worker-Auslastung, für die Fortschrittsanzeige |
 
 ## Team
 
@@ -55,6 +56,7 @@ Endpunkte unter `/auth/` entfallen damit.
 | PATCH | `/team` | Umbenennen, nur Admin |
 | DELETE | `/team` | Weich löschen, nur Admin |
 | POST | `/team/invitations` | Einladen, Body `email` und `role` |
+| PATCH | `/team/invitations/{id}` | Rolle einer offenen Einladung ändern, Body `role` |
 | DELETE | `/team/invitations/{id}` | Einladung zurückziehen |
 | PATCH | `/team/members/{id}` | Rolle ändern |
 | DELETE | `/team/members/{id}` | Entfernen, oder selbst verlassen |
@@ -73,8 +75,9 @@ Der letzte Admin kann sich weder herabstufen noch entfernen. Das Verlassen des l
 | Methode | Pfad | Zweck |
 |---|---|---|
 | GET | `/monitoring` | Systemweit über alle Teams, nur für `is_operator` |
+| POST | `/monitoring/jobs/{id}/retry` | Fehlgeschlagenen Job neu einreihen, nur für `is_operator` |
 
-Liefert Warteschlange, Worker, Fehlerrate und das VirusTotal-Kontingent. Die Fehlerliste enthält keine Mailinhalte.
+Liefert Warteschlange, Worker, Fehlerrate und das VirusTotal-Kontingent. Die Fehlerliste enthält keine Mailinhalte. Das Frontend fragt alle 10 Sekunden neu.
 
 ## Konto
 
@@ -100,7 +103,7 @@ Passwort, zweiter Faktor, Backup-Codes und angemeldete Geräte verwaltet Keycloa
 | Feld | Typ | Beschreibung |
 |---|---|---|
 | thresholds | `{ suspicious, phishing }` | Schwellen kommen vom Server, das Frontend rechnet nichts nach |
-| criteria | Liste aus `name`, `finding`, `weight` | die vier Prüfungen aus [detection-criteria.md](detection-criteria.md) |
+| criteria | Liste aus `name`, `finding`, `weight` | alle vier Prüfungen aus [detection-criteria.md](detection-criteria.md), nicht ausgelöste mit `weight` 0 |
 | criteria_total | number | Summe der Gewichte, bei 100 gekappt |
 | links | Liste aus `text`, `target`, `finding`, `tone` | |
 | attachments | Liste, siehe unten | |
@@ -111,9 +114,32 @@ Passwort, zweiter Faktor, Backup-Codes und angemeldete Geräte verwaltet Keycloa
 | started_at | timestamp oder null | dito |
 | error | `{ detail, step, attempt, max_attempts, at }` oder null | nur bei `failed` |
 
-Ein Anhang besteht aus `filename`, `size`, `detected_type`, `type_mismatch`, `sha256`, `virus_total` und `malicious`.
+Ein Anhang besteht aus `filename`, `size` (Bytes), `detected_type`, `type_mismatch`, `sha256` (voller Hash), `virus_total` und `malicious`.
+
+Solange `status` `running` ist, fragt das Frontend `GET /analyses/{id}` und `GET /queue` alle 3 Sekunden neu.
+
+`GET /queue`:
+
+| Feld | Typ | Beschreibung |
+|---|---|---|
+| waiting | number | alle wartenden Jobs, auch die anderer Teams |
+| workers_busy | number | |
+| workers_total | number | |
+| items | Liste aus `position`, `subject`, `sender`, `submitted_by`, `queued_at` | nur Jobs des aktiven Teams, Mails anderer Teams erscheinen nur in `waiting` |
+
+`GET /monitoring`:
+
+| Feld | Typ | Beschreibung |
+|---|---|---|
+| queue | `{ waiting }` | |
+| workers | `{ busy, total }` | |
+| jobs | `{ failed, total }` | letzte 24 Stunden, daraus rechnet das Frontend die Fehlerrate |
+| virus_total | `{ used, limit }` | Kontingent des Tages |
+| hourly | Liste aus `hour`, `count` | 24 Einträge, älteste zuerst, `hour` ist der Beginn der Stunde |
+| services | Liste aus `name`, `status`, `latency_ms` | `status` ist `ok`, `degraded` oder `down`, `latency_ms` null wenn keine Antwort |
+| failures | Liste aus `id`, `error`, `attempt`, `max_attempts`, `at` | fehlgeschlagene Jobs der letzten 24 Stunden, ohne Mailinhalte |
 
 ## Offen
 
 - IDs als UUID oder laufende Nummer.
-- Schreibweise der Felder. Das Frontend nutzt derzeit camelCase, oben steht snake_case.
+- Abbrechen einer laufenden Analyse. Die Oberfläche hat den Knopf, ein Endpunkt fehlt noch.

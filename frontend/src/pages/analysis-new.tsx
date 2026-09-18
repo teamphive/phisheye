@@ -5,13 +5,7 @@ import { FileTextIcon, UploadIcon, XIcon } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import {
   Item,
   ItemActions,
@@ -20,15 +14,13 @@ import {
   ItemMedia,
   ItemTitle,
 } from "@/components/ui/item"
-import { Switch } from "@/components/ui/switch"
+import { Spinner } from "@/components/ui/spinner"
+import { createAnalysis } from "@/lib/analyses"
+import { errorMessage } from "@/lib/api"
 import { formatFileSize } from "@/lib/format"
 
 const acceptedTypes = [".eml", ".msg"]
 const maxBytes = 25 * 1024 * 1024
-
-// The mail that is already running in the mocks, so the detail page has
-// something to show once the analysis is handed over.
-const runningAnalysisId = "a-2026-0130"
 
 function rejectionReason(files: FileList) {
   if (files.length !== 1) {
@@ -55,7 +47,7 @@ export function AnalysisNewPage() {
   const [file, setFile] = useState<File | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
-  const [sendAttachments, setSendAttachments] = useState(true)
+  const [uploading, setUploading] = useState(false)
 
   function take(files: FileList | null) {
     if (!files || files.length === 0) return
@@ -70,6 +62,21 @@ export function AnalysisNewPage() {
 
     setError(null)
     setFile(files[0])
+  }
+
+  async function start() {
+    if (!file) return
+
+    setUploading(true)
+    setError(null)
+
+    try {
+      const analysis = await createAnalysis(file)
+      navigate(`/analysen/${analysis.id}`)
+    } catch (uploadError) {
+      setError(errorMessage(uploadError))
+      setUploading(false)
+    }
   }
 
   function clear() {
@@ -111,7 +118,12 @@ export function AnalysisNewPage() {
                 <ItemDescription>{formatFileSize(file.size)}</ItemDescription>
               </ItemContent>
               <ItemActions>
-                <Button variant="ghost" size="icon-sm" onClick={clear}>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={clear}
+                  disabled={uploading}
+                >
                   <XIcon />
                   <span className="sr-only">Datei entfernen</span>
                 </Button>
@@ -162,38 +174,14 @@ export function AnalysisNewPage() {
             </Alert>
           ) : null}
         </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="border-b">
-          <CardTitle className="text-sm">Optionen</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Item className="px-0 py-3.5">
-            <ItemMedia>
-              <Switch
-                checked={sendAttachments}
-                onCheckedChange={setSendAttachments}
-              />
-            </ItemMedia>
-            <ItemContent>
-              <ItemTitle>Anhänge an VirusTotal übergeben</ItemTitle>
-              <ItemDescription>
-                Es wird zuerst der Hash geprüft. Nur wenn der unbekannt ist,
-                wird die Datei hochgeladen — die verlässt damit das Unternehmen.
-              </ItemDescription>
-            </ItemContent>
-          </Item>
-        </CardContent>
-        <CardFooter className="justify-between">
+        <CardFooter className="justify-between gap-4">
           <span className="text-[11.5px] text-faint">
-            Analyse startet im Hintergrund, du wirst benachrichtigt.
+            Anhang-Hashes werden automatisch bei VirusTotal geprüft. Die Analyse
+            läuft im Hintergrund, du wirst benachrichtigt.
           </span>
-          <Button
-            disabled={!file}
-            onClick={() => navigate(`/analysen/${runningAnalysisId}`)}
-          >
-            Analyse starten
+          <Button disabled={!file || uploading} onClick={start}>
+            {uploading ? <Spinner /> : null}
+            {uploading ? "Wird hochgeladen …" : "Analyse starten"}
           </Button>
         </CardFooter>
       </Card>

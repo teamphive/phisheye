@@ -1,12 +1,22 @@
 import { useEffect, useMemo, useState } from "react"
 import { Link, useNavigate } from "react-router"
-import { MailIcon, PlusIcon, SearchIcon } from "lucide-react"
+import { DownloadIcon, MailIcon, PlusIcon, SearchIcon } from "lucide-react"
+import { toast } from "sonner"
 
 import { PageHeader } from "@/components/page-header"
+import { useTeams } from "@/components/team-provider"
 import { VerdictBadge } from "@/components/verdict-badge"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -18,11 +28,21 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import { formatShortDateTime } from "@/lib/format"
-import { fetchAnalyses, type AnalysisListItem } from "@/mocks/analyses"
+import { fetchAnalyses } from "@/lib/analyses"
+import { errorMessage } from "@/lib/api"
+import { downloadCsv } from "@/lib/csv"
+import { formatDateTime, formatShortDateTime } from "@/lib/format"
+import {
+  verdictLabel,
+  type AnalysisListItem,
+  type AnalysisStatus,
+} from "@/mocks/analyses"
 import { currentUser } from "@/mocks/session"
 
-type Filter = "all" | "phishing" | "suspicious" | "clean" | "running" | "failed" | "mine"
+const pageSize = 10
+
+type Filter =
+  "all" | "phishing" | "suspicious" | "clean" | "running" | "failed" | "mine"
 
 const filters: { value: Filter; label: string }[] = [
   { value: "all", label: "Alle" },
@@ -48,21 +68,97 @@ function matches(item: AnalysisListItem, filter: Filter) {
   }
 }
 
+const statusLabel: Record<AnalysisStatus, string> = {
+  running: "Läuft",
+  completed: "Abgeschlossen",
+  failed: "Fehlgeschlagen",
+}
+
+/** Exports what the filter shows, across all pages, not only the current one. */
+function exportAnalyses(items: AnalysisListItem[], teamName: string) {
+  const team = teamName
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+  const today = new Date().toISOString().slice(0, 10)
+
+  downloadCsv(`phisheye-analysen-${team}-${today}.csv`, [
+    [
+      "ID",
+      "Betreff",
+      "Absender",
+      "Status",
+      "Verdikt",
+      "Score",
+      "Bearbeiter",
+      "Eingang",
+    ],
+    ...items.map((item) => [
+      item.id,
+      item.subject,
+      item.sender,
+      statusLabel[item.status],
+      item.verdict ? verdictLabel[item.verdict] : null,
+      item.score,
+      item.handler,
+      formatDateTime(item.receivedAt),
+    ]),
+  ])
+
+  toast.success(
+    items.length === 1
+      ? "1 Analyse exportiert"
+      : `${items.length} Analysen exportiert`
+  )
+}
+
+function rangeLabel(first: number, last: number, total: number) {
+  if (total === 0) return "0 Einträge"
+  if (total === 1) return "1 Eintrag"
+  return `${first}–${last} von ${total} Einträgen`
+}
+
 export function AnalysesPage() {
+  const { activeTeam } = useTeams()
+
+  // Another team is another list: remounting resets data, filter and page at once.
+  return (
+    <AnalysesList
+      key={activeTeam.id}
+      teamId={activeTeam.id}
+      teamName={activeTeam.name}
+    />
+  )
+}
+
+function AnalysesList({
+  teamId,
+  teamName,
+}: {
+  teamId: string
+  teamName: string
+}) {
   const navigate = useNavigate()
   const [items, setItems] = useState<AnalysisListItem[] | null>(null)
   const [filter, setFilter] = useState<Filter>("all")
   const [query, setQuery] = useState("")
+  const [page, setPage] = useState(1)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
-    fetchAnalyses().then((data) => {
-      if (active) setItems(data)
-    })
+    fetchAnalyses(teamId).then(
+      (data) => {
+        if (active) setItems(data)
+      },
+      (error: unknown) => {
+        if (active) setLoadError(errorMessage(error))
+      }
+    )
     return () => {
       active = false
     }
-  }, [])
+  }, [teamId])
 
   const visible = useMemo(() => {
     if (!items) return []
@@ -78,14 +174,26 @@ export function AnalysesPage() {
     })
   }, [items, filter, query])
 
+  const pageCount = Math.max(1, Math.ceil(visible.length / pageSize))
+  const currentPage = Math.min(page, pageCount)
+  const offset = (currentPage - 1) * pageSize
+  const pageItems = visible.slice(offset, offset + pageSize)
+
   return (
     <>
       <PageHeader
         title="Analysen"
-        description="Geteilte Historie im Team IT-Security"
+        description={`Geteilte Historie im Team ${teamName}`}
         actions={
           <>
-            <Button variant="outline">Exportieren</Button>
+            <Button
+              variant="outline"
+              disabled={visible.length === 0}
+              onClick={() => exportAnalyses(visible, teamName)}
+            >
+              <DownloadIcon className="size-4" />
+              Exportieren
+            </Button>
             <Link to="/analysen/neu" className={buttonVariants()}>
               <PlusIcon className="size-4" />
               Neue Analyse
@@ -98,7 +206,10 @@ export function AnalysesPage() {
         <CardHeader className="flex-row flex-wrap items-center justify-between gap-3">
           <ToggleGroup
             value={[filter]}
-            onValueChange={(value) => setFilter((value[0] as Filter) ?? "all")}
+            onValueChange={(value) => {
+              setFilter((value[0] as Filter) ?? "all")
+              setPage(1)
+            }}
             variant="outline"
             size="sm"
           >
@@ -110,10 +221,13 @@ export function AnalysesPage() {
           </ToggleGroup>
 
           <div className="relative w-[240px]">
-            <SearchIcon className="text-faint pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
+            <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-faint" />
             <Input
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => {
+                setQuery(event.target.value)
+                setPage(1)
+              }}
               placeholder="Liste filtern"
               className="pl-8"
             />
@@ -121,12 +235,18 @@ export function AnalysesPage() {
         </CardHeader>
 
         <CardContent className="px-0">
-          {items === null ? (
+          {loadError ? (
+            <Alert variant="destructive" className="mx-6 w-auto">
+              <AlertDescription>
+                Die Analysen konnten nicht geladen werden. {loadError}
+              </AlertDescription>
+            </Alert>
+          ) : items === null ? (
             <div className="flex flex-col">
               {Array.from({ length: 5 }).map((_, index) => (
                 <div
                   key={index}
-                  className="border-border flex flex-col gap-2 border-b px-6 py-3.5 last:border-b-0"
+                  className="flex flex-col gap-2 border-b border-border px-6 py-3.5 last:border-b-0"
                 >
                   <Skeleton className="h-3.5 w-[46%]" />
                   <Skeleton className="h-2.5 w-[30%]" />
@@ -164,7 +284,7 @@ export function AnalysesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {visible.map((item) => (
+                {pageItems.map((item) => (
                   <TableRow
                     key={item.id}
                     onClick={() => navigate(`/analysen/${item.id}`)}
@@ -174,12 +294,15 @@ export function AnalysesPage() {
                       <span className="block max-w-[380px] truncate font-semibold">
                         {item.subject}
                       </span>
-                      <span className="text-faint block max-w-[380px] truncate font-mono text-xs">
+                      <span className="block max-w-[380px] truncate font-mono text-xs text-faint">
                         {item.sender}
                       </span>
                     </TableCell>
                     <TableCell>
-                      <VerdictBadge status={item.status} verdict={item.verdict} />
+                      <VerdictBadge
+                        status={item.status}
+                        verdict={item.verdict}
+                      />
                     </TableCell>
                     <TableCell className="text-right font-mono font-semibold tabular-nums">
                       {item.score === null ? (
@@ -188,10 +311,10 @@ export function AnalysesPage() {
                         `${item.score} %`
                       )}
                     </TableCell>
-                    <TableCell className="text-muted-foreground whitespace-nowrap">
+                    <TableCell className="whitespace-nowrap text-muted-foreground">
                       {item.handler}
                     </TableCell>
-                    <TableCell className="text-faint font-mono whitespace-nowrap">
+                    <TableCell className="font-mono whitespace-nowrap text-faint">
                       {formatShortDateTime(item.receivedAt)}
                     </TableCell>
                   </TableRow>
@@ -202,14 +325,37 @@ export function AnalysesPage() {
         </CardContent>
 
         <CardFooter className="justify-between">
-          <span className="text-faint font-mono text-[11.5px]">
-            {items === null ? "Wird geladen" : `${visible.length} Einträge`}
+          <span className="font-mono text-[11.5px] text-faint">
+            {loadError
+              ? "Nicht geladen"
+              : items === null
+                ? "Wird geladen"
+                : rangeLabel(
+                    offset + 1,
+                    offset + pageItems.length,
+                    visible.length
+                  )}
           </span>
-          <div className="flex gap-1.5">
-            <Button variant="outline" size="sm" disabled>
+          <div className="flex items-center gap-1.5">
+            {pageCount > 1 ? (
+              <span className="mr-1.5 font-mono text-[11.5px] text-faint">
+                Seite {currentPage} von {pageCount}
+              </span>
+            ) : null}
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage === 1}
+              onClick={() => setPage(currentPage - 1)}
+            >
               Zurück
             </Button>
-            <Button variant="outline" size="sm">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage === pageCount}
+              onClick={() => setPage(currentPage + 1)}
+            >
               Weiter
             </Button>
           </div>

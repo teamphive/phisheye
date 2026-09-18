@@ -7,6 +7,7 @@ import { InviteDialog } from "@/components/invite-dialog"
 import { PageHeader } from "@/components/page-header"
 import { RemoveMemberDialog } from "@/components/remove-member-dialog"
 import { TeamDangerDialog } from "@/components/team-danger-dialog"
+import { useTeams } from "@/components/team-provider"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -44,7 +45,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { formatDate } from "@/lib/format"
-import { roleLabel, teams, type TeamRole } from "@/mocks/session"
+import { roleLabel, type TeamRole } from "@/mocks/session"
 import {
   invitations as initialInvitations,
   members as initialMembers,
@@ -101,7 +102,7 @@ function TwoFactorState({ enabled }: { enabled: boolean }) {
 
 export function TeamPage() {
   const navigate = useNavigate()
-  const activeTeam = teams[0]
+  const { activeTeam } = useTeams()
   const [members, setMembers] = useState(initialMembers)
   const [invitations, setInvitations] = useState(initialInvitations)
 
@@ -111,6 +112,15 @@ export function TeamPage() {
   function changeRole(id: string, role: TeamRole) {
     setMembers((current) =>
       current.map((member) => (member.id === id ? { ...member, role } : member))
+    )
+  }
+
+  // The role only takes effect once the invitation is accepted.
+  function changeInvitationRole(id: string, role: TeamRole) {
+    setInvitations((current) =>
+      current.map((invitation) =>
+        invitation.id === id ? { ...invitation, role } : invitation
+      )
     )
   }
 
@@ -222,7 +232,12 @@ export function TeamPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <RolePicker value={invitation.role} onChange={() => {}} />
+                    <RolePicker
+                      value={invitation.role}
+                      onChange={(role) =>
+                        changeInvitationRole(invitation.id, role)
+                      }
+                    />
                   </TableCell>
                   <TableCell>
                     <span className="text-xs text-faint">—</span>

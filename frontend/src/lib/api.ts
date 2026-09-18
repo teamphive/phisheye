@@ -1,6 +1,18 @@
 import { authEnabled, keycloak } from "@/lib/keycloak"
 
-const baseUrl = import.meta.env.VITE_API_URL ?? "http://localhost:8000"
+const configuredUrl = import.meta.env.VITE_API_URL
+const baseUrl = configuredUrl ?? "http://localhost:8000"
+
+/**
+ * Without a configured backend the pages keep working on the placeholder data
+ * in src/mocks, the same way the app starts without Keycloak.
+ */
+export const apiEnabled = Boolean(configuredUrl)
+
+/** Stands in for the round trip while no backend is configured. */
+export function mockLatency(ms = 400) {
+  return new Promise<void>((resolve) => setTimeout(resolve, ms))
+}
 
 /** Signed in, but the role is not enough. Show it, do not sign the user out. */
 export class ForbiddenError extends Error {}
@@ -42,9 +54,39 @@ async function messageOf(response: Response) {
   }
 }
 
+/** The API speaks snake_case like the rest of the Python code. */
+function toCamelCase(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(toCamelCase)
+
+  if (value !== null && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [
+        key.replace(/_([a-z0-9])/g, (_, letter: string) =>
+          letter.toUpperCase()
+        ),
+        toCamelCase(entry),
+      ])
+    )
+  }
+
+  return value
+}
+
+/** A message that can be shown as it is, whatever went wrong. */
+export function errorMessage(error: unknown) {
+  // fetch itself fails with a TypeError when nothing answers, its message is
+  // English and says nothing useful
+  if (error instanceof Error && !(error instanceof TypeError)) {
+    return error.message
+  }
+
+  return "Das Backend antwortet nicht."
+}
+
 /**
  * Every call to the backend goes through here, so the token handling exists
- * exactly once. Throws on anything but a successful answer.
+ * exactly once. Throws on anything but a successful answer. Field names of the
+ * answer arrive in camelCase, request bodies stay in the API's snake_case.
  */
 export async function apiFetch<T>(
   path: string,
@@ -69,5 +111,5 @@ export async function apiFetch<T>(
 
   return response.status === 204
     ? (undefined as T)
-    : ((await response.json()) as T)
+    : (toCamelCase(await response.json()) as T)
 }

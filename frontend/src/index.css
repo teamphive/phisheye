@@ -158,7 +158,8 @@
     --phishing: #ff6b72;
     --phishing-soft: #2d1416;
 
-    --chart-1: #6f9bff;
+    /* one step darker than --primary, a chart line needs OKLCH L <= 0.67 on the dark card */
+    --chart-1: #5b8af5;
     --chart-2: #34c88f;
     --chart-3: #e0a33a;
     --chart-4: #ff6b72;

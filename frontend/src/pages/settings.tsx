@@ -4,6 +4,7 @@ import { BackupCodesDialog } from "@/components/backup-codes-dialog"
 import { PageHeader } from "@/components/page-header"
 import { PasswordDialog } from "@/components/password-dialog"
 import { SessionsDialog } from "@/components/sessions-dialog"
+import { useTeams } from "@/components/team-provider"
 import { useTheme } from "@/components/theme-provider"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -35,7 +36,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { formatDate } from "@/lib/format"
 import { authEnabled, logout, openAccount } from "@/lib/keycloak"
 import { sessionUser } from "@/lib/session"
-import { roleLabel, security, teams } from "@/mocks/session"
+import { roleLabel, security } from "@/mocks/session"
 
 const schemes = [
   { value: "light", label: "Hell" },
@@ -47,7 +48,7 @@ export function SettingsPage() {
   const navigate = useNavigate()
   const { theme, setTheme } = useTheme()
   const user = sessionUser()
-  const activeTeam = teams[0]
+  const { activeTeam } = useTeams()
 
   return (
     <div className="mx-auto flex max-w-[820px] flex-col gap-4">

@@ -1,7 +1,10 @@
 import { useState } from "react"
+import { useLocation, useNavigate } from "react-router"
 import { CheckIcon, ChevronDownIcon, PlusIcon } from "lucide-react"
+import { toast } from "sonner"
 
 import { CreateTeamDialog } from "@/components/create-team-dialog"
+import { useTeams } from "@/components/team-provider"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,23 +14,51 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Spinner } from "@/components/ui/spinner"
+import { errorMessage } from "@/lib/api"
 import { initialsOf } from "@/lib/format"
-import { roleLabel, teams } from "@/mocks/session"
+import { roleLabel } from "@/mocks/session"
 
 export function TeamSwitcher() {
-  const [activeId, setActiveId] = useState(teams[0].id)
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const { teams, activeTeam: active, pendingTeamId, switchTeam } = useTeams()
   const [createOpen, setCreateOpen] = useState(false)
-  const active = teams.find((team) => team.id === activeId) ?? teams[0]
+
+  async function choose(teamId: string) {
+    if (teamId === active.id) return
+
+    try {
+      await switchTeam(teamId)
+    } catch (error) {
+      toast.error("Teamwechsel fehlgeschlagen", {
+        description: errorMessage(error),
+      })
+      return
+    }
+
+    // An analysis belongs to exactly one team, the new one would answer 404.
+    if (pathname.startsWith("/analysen/") && pathname !== "/analysen/neu") {
+      navigate("/analysen")
+    }
+  }
 
   return (
     <>
       <DropdownMenu>
-        <DropdownMenuTrigger className="flex max-w-[220px] items-center gap-2 rounded-md border border-border bg-card py-1 pr-2 pl-1.5 text-sm font-semibold hover:bg-muted">
+        <DropdownMenuTrigger
+          disabled={pendingTeamId !== null}
+          className="flex max-w-[220px] items-center gap-2 rounded-md border border-border bg-card py-1 pr-2 pl-1.5 text-sm font-semibold hover:bg-muted disabled:opacity-70"
+        >
           <span className="grid size-[22px] shrink-0 place-items-center rounded-md bg-accent font-mono text-[10px] font-semibold text-accent-foreground">
             {initialsOf(active.name)}
           </span>
           <span className="truncate">{active.name}</span>
-          <ChevronDownIcon className="size-3.5 shrink-0 text-faint" />
+          {pendingTeamId !== null ? (
+            <Spinner className="size-3.5 shrink-0 text-faint" />
+          ) : (
+            <ChevronDownIcon className="size-3.5 shrink-0 text-faint" />
+          )}
         </DropdownMenuTrigger>
 
         <DropdownMenuContent align="end" className="w-[300px]">
@@ -39,7 +70,7 @@ export function TeamSwitcher() {
             {teams.map((team) => (
               <DropdownMenuItem
                 key={team.id}
-                onClick={() => setActiveId(team.id)}
+                onClick={() => choose(team.id)}
                 className="gap-3"
               >
                 <span className="grid size-[22px] shrink-0 place-items-center rounded-md bg-accent font-mono text-[10px] font-semibold text-accent-foreground">

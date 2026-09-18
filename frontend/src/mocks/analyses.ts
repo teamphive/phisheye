@@ -15,6 +15,12 @@ export type AnalysisListItem = {
   receivedAt: string
 }
 
+export const verdictLabel: Record<Verdict, string> = {
+  clean: "Sauber",
+  suspicious: "Verdächtig",
+  phishing: "Phishing",
+}
+
 export const analyses: AnalysisListItem[] = [
   {
     id: "a-2026-0128",
@@ -106,11 +112,97 @@ export const analyses: AnalysisListItem[] = [
     handler: "T. Özdemir",
     receivedAt: "2026-09-02T09:05:00Z",
   },
+  {
+    id: "a-2026-0121",
+    subject: "DocuSign: Bitte Arbeitsvertrag prüfen und unterzeichnen",
+    sender: "dse@docusign-envelope.net",
+    status: "completed",
+    verdict: "phishing",
+    score: 88,
+    handler: "L. Brinkmann",
+    receivedAt: "2026-09-01T15:37:00Z",
+  },
+  {
+    id: "a-2026-0120",
+    subject: "Einladung: Quartalsmeeting Vertrieb",
+    sender: "s.meyer@hansa-logistik.de",
+    status: "completed",
+    verdict: "clean",
+    score: 0,
+    handler: "M. Sandmann",
+    receivedAt: "2026-09-01T11:02:00Z",
+  },
+  {
+    id: "a-2026-0119",
+    subject: "Ihre Mailbox ist zu 98 % voll",
+    sender: "admin@mail-quota-service.com",
+    status: "completed",
+    verdict: "phishing",
+    score: 79,
+    handler: "T. Özdemir",
+    receivedAt: "2026-08-31T08:44:00Z",
+  },
+  {
+    id: "a-2026-0118",
+    subject: "Geänderte Bankverbindung ab September",
+    sender: "rechnung@spedition-kraemer.de",
+    status: "completed",
+    verdict: "suspicious",
+    score: 60,
+    handler: "L. Brinkmann",
+    receivedAt: "2026-08-29T13:15:00Z",
+  },
+  {
+    id: "a-2026-0117",
+    subject: "Newsletter September: Neues aus der Logistik",
+    sender: "news@logistik-heute.de",
+    status: "completed",
+    verdict: "clean",
+    score: 20,
+    handler: "M. Sandmann",
+    receivedAt: "2026-08-28T07:30:00Z",
+  },
+  {
+    id: "a-2026-0116",
+    subject: "Sicherheitswarnung: Ungewöhnliche Anmeldung erkannt",
+    sender: "no-reply@accounts-google.security-check.co",
+    status: "completed",
+    verdict: "phishing",
+    score: 94,
+    handler: "T. Özdemir",
+    receivedAt: "2026-08-27T16:58:00Z",
+  },
 ]
 
-/** Stands in for the request that will later fetch the list. */
-export function fetchAnalyses(delay = 700): Promise<AnalysisListItem[]> {
-  return new Promise((resolve) => {
-    setTimeout(() => resolve(analyses), delay)
-  })
+/** A second team, so switching teams visibly changes the list. */
+const socAnalyses: AnalysisListItem[] = [
+  {
+    id: "a-2026-0129",
+    subject: "Dringend: Zugangsdaten VPN aktualisieren",
+    sender: "helpdesk@hansa-logistik-it.support",
+    status: "completed",
+    verdict: "phishing",
+    score: 85,
+    handler: "L. Brinkmann",
+    receivedAt: "2026-09-03T05:48:00Z",
+  },
+  {
+    id: "a-2026-0115",
+    subject: "Lieferavis KW 36",
+    sender: "avis@spedition-kraemer.de",
+    status: "completed",
+    verdict: "clean",
+    score: 5,
+    handler: "M. Sandmann",
+    receivedAt: "2026-09-02T22:10:00Z",
+  },
+]
+
+const analysesByTeam: Record<string, AnalysisListItem[]> = {
+  itsec: analyses,
+  soc: socAnalyses,
+}
+
+export function mockAnalyses(teamId: string): AnalysisListItem[] {
+  return analysesByTeam[teamId] ?? []
 }

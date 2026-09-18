@@ -17,7 +17,8 @@ export type AnalysisLink = {
 
 export type Attachment = {
   filename: string
-  size: string
+  /** Bytes, the browser formats them. */
+  size: number
   detectedType: string
   typeMismatch: boolean
   sha256: string
@@ -98,7 +99,8 @@ const completed: AnalysisDetail = {
   links: [
     {
       text: "Rechnung ansehen",
-      target: "https://t.co-redirect.click/r?u=…&e=m.sandmann%40hansa-logistik.de",
+      target:
+        "https://t.co-redirect.click/r?u=…&e=m.sandmann%40hansa-logistik.de",
       finding: "Open Redirect",
       tone: "phishing",
     },
@@ -118,10 +120,11 @@ const completed: AnalysisDetail = {
   attachments: [
     {
       filename: "Rechnung_RE-2024-88431.pdf.htm",
-      size: "12,4 KB",
+      size: 12698,
       detectedType: "text/html statt PDF",
       typeMismatch: true,
-      sha256: "9f2c1ab4e7d3…a41b",
+      sha256:
+        "3b192e256b9d34c47200e3cbb35c6db4b89e29c168eda1458fccf3c56810bc5b",
       virusTotal: "42 / 71",
       malicious: true,
     },
@@ -180,46 +183,67 @@ const failed: AnalysisDetail = {
   },
 }
 
+/** The analysis a mock upload leads to, so the detail page has something to show. */
+export const runningAnalysisId = running.id
+
 export type QueueItem = {
+  /** Place in the queue across all teams. */
   position: number
   subject: string
   sender: string
   submittedBy: string
-  waitingFor: string
+  queuedAt: string
 }
 
-export const queue: QueueItem[] = [
-  {
-    position: 1,
-    subject: "Ihre Bestellung konnte nicht zugestellt werden",
-    sender: "versand@paket-status.top",
-    submittedBy: "T. Özdemir",
-    waitingFor: "0:14",
-  },
-  {
-    position: 2,
-    subject: "Rechnung Juli 2026",
-    sender: "buchhaltung@lieferant-nord.de",
-    submittedBy: "M. Sandmann",
-    waitingFor: "0:31",
-  },
-  {
-    position: 3,
-    subject: "Ihr Konto wurde vorübergehend gesperrt",
-    sender: "service@sparkasse-sicherheit.info",
-    submittedBy: "L. Brinkmann",
-    waitingFor: "1:02",
-  },
-]
+export type Queue = {
+  /** Every waiting job, including those of other teams. */
+  waiting: number
+  workersBusy: number
+  workersTotal: number
+  /** Only the jobs of the active team, other teams' mails stay hidden. */
+  items: QueueItem[]
+}
 
-/** Stands in for the request that will later fetch one analysis. */
-export function fetchAnalysis(id: string, delay = 500): Promise<AnalysisDetail> {
+function secondsAgo(seconds: number) {
+  return new Date(Date.now() - seconds * 1000).toISOString()
+}
+
+export function mockQueue(): Queue {
+  return {
+    waiting: 3,
+    workersBusy: 2,
+    workersTotal: 4,
+    items: [
+      {
+        position: 1,
+        subject: "Ihre Bestellung konnte nicht zugestellt werden",
+        sender: "versand@paket-status.top",
+        submittedBy: "T. Özdemir",
+        queuedAt: secondsAgo(14),
+      },
+      {
+        position: 2,
+        subject: "Rechnung Juli 2026",
+        sender: "buchhaltung@lieferant-nord.de",
+        submittedBy: "M. Sandmann",
+        queuedAt: secondsAgo(31),
+      },
+      {
+        position: 3,
+        subject: "Ihr Konto wurde vorübergehend gesperrt",
+        sender: "service@sparkasse-sicherheit.info",
+        submittedBy: "L. Brinkmann",
+        queuedAt: secondsAgo(62),
+      },
+    ],
+  }
+}
+
+export function mockAnalysis(id: string): AnalysisDetail {
   const byId: Record<string, AnalysisDetail> = {
     [running.id]: running,
     [failed.id]: failed,
   }
 
-  return new Promise((resolve) => {
-    setTimeout(() => resolve(byId[id] ?? { ...completed, id }), delay)
-  })
+  return byId[id] ?? { ...completed, id }
 }
