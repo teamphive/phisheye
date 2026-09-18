@@ -8,9 +8,7 @@ from ..models.user import User
 
 async def ensure_system_defaults(db: AsyncSession) -> tuple[Team, User]:
     async with db.begin():
-        team_result = await db.exec(
-            select(Team).where(Team.name == DEFAULT_TEAM_NAME)
-        )
+        team_result = await db.exec(select(Team).where(Team.name == DEFAULT_TEAM_NAME))
         team = team_result.first()
 
         if team is None:
@@ -18,9 +16,7 @@ async def ensure_system_defaults(db: AsyncSession) -> tuple[Team, User]:
             db.add(team)
             await db.flush()
 
-        user_result = await db.exec(
-            select(User).where(User.email == SYSTEM_USER_EMAIL)
-        )
+        user_result = await db.exec(select(User).where(User.email == SYSTEM_USER_EMAIL))
         user = user_result.first()
 
         if user is None:

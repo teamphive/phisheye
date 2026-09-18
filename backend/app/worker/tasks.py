@@ -32,4 +32,6 @@ async def poll_report_mailbox(ctx) -> None:
                     db=db,
                 )
             except Exception:
-                logger.exception("Analyse einer per POP3 abgerufenen Mail fehlgeschlagen")
+                logger.exception(
+                    "Analyse einer per POP3 abgerufenen Mail fehlgeschlagen"
+                )

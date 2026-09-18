@@ -1,7 +1,7 @@
 from datetime import datetime
 
-from sqlalchemy import Column, JSON
-from sqlmodel import SQLModel, Field
+from sqlalchemy import JSON, Column
+from sqlmodel import Field, SQLModel
 
 
 class MailAttachment(SQLModel, table=True):
