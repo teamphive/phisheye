@@ -13,9 +13,7 @@ POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
 POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
 
 if not (POSTGRES_USER and POSTGRES_PASSWORD and POSTGRES_DB):
-    raise RuntimeError(
-        "POSTGRES_USER, POSTGRES_PASSWORD, and POSTGRES_DB must be set"
-    )
+    raise RuntimeError("POSTGRES_USER, POSTGRES_PASSWORD, and POSTGRES_DB must be set")
 
 DATABASE_URL = (
     f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}"
