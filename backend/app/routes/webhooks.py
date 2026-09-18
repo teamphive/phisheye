@@ -22,6 +22,8 @@ def _extract_eml_attachment(raw_mime: bytes) -> bytes:
 
         payload = part.get_payload()
 
+        # message/rfc822 payload is a list with the embedded Message,
+        # not raw bytes (decode=True returns None here)
         if isinstance(payload, list) and payload:
             return payload[0].as_bytes()
 
@@ -67,8 +69,8 @@ async def inbound_mail(
     content = _extract_eml_attachment(outer_content)
     sender_domain = _sender_domain(content)
 
-    # TODO(domain-routing): sender_domain gegen DB-Mapping auflösen statt
-    # immer das Standard-Team zu nehmen, sobald das Frontend-Feature existiert.
+    # TODO(domain-routing): resolve sender_domain against a DB mapping
+    # instead of always using the default team, once the frontend exists.
     default_team, system_user = await ensure_system_defaults(db)
 
     analysis, results = await analyze_and_store(
