@@ -20,6 +20,7 @@
 | id | PK | |
 | name | string | |
 | created_at | timestamp | |
+| deleted_at | timestamp, nullable | weich gelöscht, harte Löschung nach 10 Tagen |
 
 ## team_members (many-to-many User <-> Team)
 
@@ -62,6 +63,7 @@
 | decided_at | timestamp, nullable | zurücknehmbar, dann wieder null |
 | created_at | timestamp | |
 | completed_at | timestamp, nullable | |
+| deleted_at | timestamp, nullable | weich gelöscht, harte Löschung nach 10 Tagen |
 
 ## mail_attachments
 
@@ -128,6 +130,7 @@ erDiagram
     int id PK
     string name
     timestamp created_at
+    timestamp deleted_at
   }
   TEAM_MEMBERS {
     int id PK
@@ -160,6 +163,7 @@ erDiagram
     timestamp decided_at
     timestamp created_at
     timestamp completed_at
+    timestamp deleted_at
   }
   MAIL_ATTACHMENTS {
     int id PK

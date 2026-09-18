@@ -1,0 +1,24 @@
+type BrandMarkProps = {
+  className?: string
+}
+
+export function BrandMark({ className }: BrandMarkProps) {
+  return (
+    <svg viewBox="0 0 32 32" fill="none" aria-hidden="true" className={className}>
+      <path
+        d="M2.6 13.2C6.6 8 11 5.4 16 5.4s9.4 2.6 13.4 7.8c-4 5.2-8.4 7.8-13.4 7.8S6.6 18.4 2.6 13.2Z"
+        stroke="currentColor"
+        strokeWidth="2.3"
+        strokeLinejoin="round"
+      />
+      <circle cx="16" cy="13.2" r="3.1" fill="currentColor" />
+      <path
+        d="M16 19.6V24.2a2.4 2.4 0 0 1-4.8 0v-1.6"
+        stroke="currentColor"
+        strokeWidth="2.3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
