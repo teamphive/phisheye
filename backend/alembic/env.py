@@ -10,6 +10,11 @@ from sqlmodel import SQLModel
 
 from alembic import context
 
+# Wichtig: importiert alle Model-Klassen, damit sie sich bei
+# SQLModel.metadata registrieren. Ohne diesen Import kennt Autogenerate
+# keine der Tabellen und generiert leere/falsche Migrationen.
+from app import models  # noqa: F401
+
 load_dotenv.load_dotenv()
 
 # this is the Alembic Config object, which provides
