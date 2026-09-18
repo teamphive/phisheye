@@ -1,6 +1,6 @@
-import os
 from email import policy
 from email.parser import BytesParser
+from email.utils import parseaddr
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -8,6 +8,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from ..database import get_db
 from ..services.mail_analysis import analyze_and_store
 from ..services.mailgun import verify_mailgun_signature
+from ..services.system_defaults import ensure_system_defaults
 
 router = APIRouter(tags=["webhooks"])
 
@@ -15,21 +16,26 @@ router = APIRouter(tags=["webhooks"])
 def _extract_eml_attachment(raw_mime: bytes) -> bytes:
     outer_msg = BytesParser(policy=policy.default).parsebytes(raw_mime)
 
-    for part in outer_msg.iter_attachments():
-        filename = (part.get_filename() or "").lower()
-        content_type = part.get_content_type()
+    for part in outer_msg.walk():
+        if part.get_content_type() != "message/rfc822":
+            continue
 
-        is_eml = filename.endswith(".eml") or content_type in (
-            "message/rfc822",
-            "application/octet-stream",
-        )
+        payload = part.get_payload()
 
-        if is_eml:
-            payload = part.get_payload(decode=True)
-            if payload:
-                return payload
+        if isinstance(payload, list) and payload:
+            return payload[0].as_bytes()
 
     return raw_mime
+
+
+def _sender_domain(eml_content: bytes) -> str | None:
+    msg = BytesParser(policy=policy.default).parsebytes(eml_content)
+    _, address = parseaddr(str(msg.get("From", "")))
+
+    if "@" not in address:
+        return None
+
+    return address.split("@", 1)[1].strip().lower()
 
 
 @router.post("/webhooks/inbound-mail")
@@ -59,21 +65,21 @@ async def inbound_mail(
     )
 
     content = _extract_eml_attachment(outer_content)
+    sender_domain = _sender_domain(content)
 
-    system_team_id = os.getenv("PHISHEYE_SYSTEM_TEAM_ID")
-    system_user_id = os.getenv("PHISHEYE_SYSTEM_USER_ID")
+    # TODO(domain-routing): sender_domain gegen DB-Mapping auflösen statt
+    # immer das Standard-Team zu nehmen, sobald das Frontend-Feature existiert.
+    default_team, system_user = await ensure_system_defaults(db)
 
-    if not (system_team_id and system_user_id):
-        raise HTTPException(
-            status_code=503,
-            detail="System team/user for inbound mail is not configured",
-        )
-
-    analysis = await analyze_and_store(
+    analysis, results = await analyze_and_store(
         content=content,
-        team_id=int(system_team_id),
-        submitted_by=int(system_user_id),
+        team_id=default_team.id,
+        submitted_by=system_user.id,
         db=db,
     )
 
-    return {"id": analysis.id, "status": analysis.status}
+    return {
+        "id": analysis.id,
+        "sender_domain": sender_domain,
+        "status": analysis.status,
+    }

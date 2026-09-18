@@ -17,7 +17,7 @@ async def analyze_and_store(
     team_id: int,
     submitted_by: int,
     db: AsyncSession,
-) -> MailAnalysis:
+) -> tuple[MailAnalysis, list[dict]]:
     if not content:
         raise HTTPException(status_code=400, detail="Uploaded file is empty")
 
@@ -75,6 +75,8 @@ async def analyze_and_store(
                     }
                 )
 
+    # Save the analysis and attachments together.
+    # Any database failure rolls back the entire transaction.
     async with db.begin():
         analysis = MailAnalysis(
             team_id=team_id,
@@ -86,6 +88,7 @@ async def analyze_and_store(
 
         db.add(analysis)
 
+        # Execute the INSERT so the generated analysis ID is available.
         await db.flush()
 
         for result in results:
@@ -99,5 +102,4 @@ async def analyze_and_store(
                 )
             )
 
-    analysis.attachments_result = results
-    return analysis
+    return analysis, results

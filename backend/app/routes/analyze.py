@@ -19,7 +19,7 @@ async def analyze_email(
 ):
     content = await file.read()
 
-    analysis = await analyze_and_store(
+    analysis, results = await analyze_and_store(
         content=content,
         team_id=team_id,
         submitted_by=submitted_by,
@@ -31,7 +31,7 @@ async def analyze_email(
         "subject": analysis.subject,
         "sender": analysis.sender,
         "status": analysis.status,
-        "attachments": analysis.attachments_result,  # type: ignore[attr-defined]
+        "attachments": results,
     }
 
 
