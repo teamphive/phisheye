@@ -48,8 +48,23 @@ services:
     volumes:
       - redis-data:/data
 
+  minio:
+    image: minio/minio:latest
+    container_name: minio_local
+    restart: always
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "127.0.0.1:9001:9001"
+    environment:
+      MINIO_ROOT_USER: "${MINIO_ROOT_USER}"
+      MINIO_ROOT_PASSWORD: "${MINIO_ROOT_PASSWORD}"
+    volumes:
+      - minio-data:/data
+
 volumes:
   db_local-data:
   keycloak-data:
   pgadmin-data:
   redis-data:
+  minio-data:

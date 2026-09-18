@@ -1,14 +1,19 @@
 import hashlib
+import logging
 import os
 from email import policy
 from email.parser import BytesParser
 
 import vt
 from fastapi import HTTPException
+from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ..models.mail_analysis import MailAnalysis
 from ..models.mail_attachment import MailAttachment
+from .object_storage import ObjectStorageError, delete_object, store_eml
+
+logger = logging.getLogger(__name__)
 
 
 async def analyze_and_store(
@@ -75,31 +80,40 @@ async def analyze_and_store(
                     }
                 )
 
-    # Save the analysis and attachments together.
-    # Any database failure rolls back the entire transaction.
-    async with db.begin():
-        analysis = MailAnalysis(
-            team_id=team_id,
-            submitted_by=submitted_by,
-            subject=str(msg.get("Subject", "")),
-            sender=str(msg.get("From", "")),
-            status="completed",
-        )
+    storage_key = await store_eml(content)
 
-        db.add(analysis)
-
-        # Execute the INSERT so the generated analysis ID is available.
-        await db.flush()
-
-        for result in results:
-            db.add(
-                MailAttachment(
-                    mail_analysis_id=analysis.id,
-                    filename=result["filename"],
-                    sha256=result["sha256"],
-                    mime_type=result["mime_type"],
-                    vt_results=result["vt_results"],
-                )
+    try:
+        # Store the analysis and attachments together
+        async with db.begin():
+            analysis = MailAnalysis(
+                team_id=team_id,
+                submitted_by=submitted_by,
+                subject=str(msg.get("Subject", "")),
+                sender=str(msg.get("From", "")),
+                status="completed",
+                storage_key=storage_key,
             )
+
+            db.add(analysis)
+
+            # Load the generated analysis ID
+            await db.flush()
+
+            for result in results:
+                db.add(
+                    MailAttachment(
+                        mail_analysis_id=analysis.id,
+                        filename=result["filename"],
+                        sha256=result["sha256"],
+                        mime_type=result["mime_type"],
+                        vt_results=result["vt_results"],
+                    )
+                )
+    except SQLAlchemyError:
+        try:
+            await delete_object(storage_key)
+        except ObjectStorageError:
+            logger.exception("Failed to remove orphaned EML object %s", storage_key)
+        raise
 
     return analysis, results

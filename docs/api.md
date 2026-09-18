@@ -134,6 +134,7 @@ Passwort, zweiter Faktor, Backup-Codes und angemeldete Geräte verwaltet Keycloa
 | step | string oder null | nur solange `status` `running` ist |
 | started_at | timestamp oder null | dito |
 | error | `{ detail, step, attempt, max_attempts, at }` oder null | nur bei `failed` |
+| storage_key | string oder null | interne UUID-Referenz der gespeicherten `.eml` in MinIO |
 
 Ein Anhang besteht aus `filename`, `size` (Bytes), `sha256` (voller Hash), `virus_total` und `malicious`.
 

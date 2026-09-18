@@ -14,6 +14,7 @@ class MailAnalysis(SQLModel, table=True):
     subject: str
     sender: str
     status: str = "pending"
+    storage_key: str | None = None
 
     verdict: str | None = None
     confidence_score: float | None = None
