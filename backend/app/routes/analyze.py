@@ -31,6 +31,7 @@ async def analyze_email(
         "subject": analysis.subject,
         "sender": analysis.sender,
         "status": analysis.status,
+        "storage_key": analysis.storage_key,
         "attachments": results,
     }
 
@@ -58,6 +59,7 @@ async def get_analysis(
         "subject": analysis.subject,
         "sender": analysis.sender,
         "status": analysis.status,
+        "storage_key": analysis.storage_key,
         "verdict": analysis.verdict,
         "confidence_score": analysis.confidence_score,
         "created_at": analysis.created_at,

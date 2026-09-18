@@ -46,6 +46,10 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    env:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: phisheye
     steps:
       - uses: actions/checkout@v4
 
