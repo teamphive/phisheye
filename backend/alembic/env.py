@@ -1,6 +1,8 @@
 import asyncio
+import os
 from logging.config import fileConfig
 
+import load_dotenv
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
@@ -8,9 +10,28 @@ from sqlmodel import SQLModel
 
 from alembic import context
 
+load_dotenv.load_dotenv()
+
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
+
+# DB-URL aus einzelnen Umgebungsvariablen zusammensetzen, statt eine
+# fertige DATABASE_URL zu erwarten. Nutzt dieselben Variablen wie die
+# docker-compose.yml (POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB),
+# damit es nur eine Quelle der Wahrheit für die Zugangsdaten gibt.
+postgres_user = os.getenv("POSTGRES_USER")
+postgres_password = os.getenv("POSTGRES_PASSWORD")
+postgres_db = os.getenv("POSTGRES_DB")
+postgres_host = os.getenv("POSTGRES_HOST", "localhost")
+postgres_port = os.getenv("POSTGRES_PORT", "5432")
+
+if postgres_user and postgres_password and postgres_db:
+    database_url = (
+        f"postgresql+asyncpg://{postgres_user}:{postgres_password}"
+        f"@{postgres_host}:{postgres_port}/{postgres_db}"
+    )
+    config.set_main_option("sqlalchemy.url", database_url)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
