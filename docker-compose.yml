@@ -35,8 +35,18 @@ services:
     environment:
       PGADMIN_DEFAULT_EMAIL: "${PGADMIN_DEFAULT_EMAIL}"
       PGADMIN_DEFAULT_PASSWORD: "${PGADMIN_DEFAULT_PASSWORD}"
+      POSTGRES_USER: "${POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        echo "db:5432:*:$$POSTGRES_USER:$$POSTGRES_PASSWORD" > /tmp/pgpass
+        chmod 600 /tmp/pgpass
+        exec /entrypoint.sh
     volumes:
       - pgadmin-data:/var/lib/pgadmin
+      - ./docker/pgadmin/servers.json:/pgadmin4/servers.json:ro
 
   redis:
     image: redis:7-alpine
