@@ -56,3 +56,23 @@ def test_extract_eml_unwraps_eml_attached_as_plain_file():
     )
 
     assert extract_eml(outer.as_bytes()) == inner
+
+
+def test_extract_eml_decodes_base64_message_rfc822():
+    import base64
+
+    inner = (
+        b"From: attacker@example.com\r\nSubject: original phishing mail\r\n\r\nbody\r\n"
+    )
+    outer = (
+        b"From: reporter@example.com\r\n"
+        b"Subject: WG: original phishing mail\r\n"
+        b'Content-Type: multipart/mixed; boundary="b"\r\n\r\n'
+        b"--b\r\nContent-Type: text/plain\r\n\r\nforwarded\r\n"
+        b'--b\r\nContent-Type: message/rfc822; name="x.eml"\r\n'
+        b"Content-Transfer-Encoding: base64\r\n\r\n"
+        + base64.encodebytes(inner)
+        + b"--b--\r\n"
+    )
+
+    assert extract_eml(outer) == inner

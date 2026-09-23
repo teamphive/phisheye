@@ -1,3 +1,4 @@
+import base64
 import os
 import poplib
 from email import policy
@@ -76,6 +77,11 @@ def extract_eml(raw_mail: bytes) -> bytes:
             payload = part.get_payload()
 
             if isinstance(payload, list) and payload:
+                # base64 here is non-standard but common (GMX, Outlook), the
+                # parser then keeps the still encoded text as the body
+                if str(part.get("Content-Transfer-Encoding", "")).lower() == "base64":
+                    return base64.b64decode(payload[0].get_payload())
+
                 return payload[0].as_bytes()
 
         # some clients attach the forwarded mail as a plain file
