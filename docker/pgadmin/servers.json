@@ -1,0 +1,14 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "phisheye",
+      "Group": "Servers",
+      "Host": "db",
+      "Port": 5432,
+      "MaintenanceDB": "phisheye",
+      "Username": "postgres",
+      "SSLMode": "prefer",
+      "PassFile": "/tmp/pgpass"
+    }
+  }
+}
