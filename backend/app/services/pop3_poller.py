@@ -2,6 +2,7 @@ import os
 import poplib
 from email import policy
 from email.parser import BytesParser
+from email.utils import parseaddr
 
 
 def _connect() -> poplib.POP3_SSL:
@@ -71,12 +72,28 @@ def extract_eml(raw_mail: bytes) -> bytes:
     msg = BytesParser(policy=policy.default).parsebytes(raw_mail)
 
     for part in msg.walk():
-        if part.get_content_type() != "message/rfc822":
-            continue
+        if part.get_content_type() == "message/rfc822":
+            payload = part.get_payload()
 
-        payload = part.get_payload()
+            if isinstance(payload, list) and payload:
+                return payload[0].as_bytes()
 
-        if isinstance(payload, list) and payload:
-            return payload[0].as_bytes()
+        # some clients attach the forwarded mail as a plain file
+        elif (part.get_filename() or "").lower().endswith(".eml"):
+            content = part.get_payload(decode=True)
+
+            if content:
+                return content
 
     return raw_mail
+
+
+def extract_reporter(raw_mail: bytes) -> str | None:
+    """Address of the person who forwarded the mail, None for auto-replies."""
+    msg = BytesParser(policy=policy.default).parsebytes(raw_mail)
+
+    if str(msg.get("Auto-Submitted", "no")).lower() != "no":
+        return None
+
+    _, address = parseaddr(str(msg.get("From", "")))
+    return address.lower() if "@" in address else None

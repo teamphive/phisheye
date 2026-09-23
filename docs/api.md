@@ -78,6 +78,15 @@ Mitarbeiter melden eine verdächtige Mail in Outlook, die Meldung geht an ein ge
 - Das Frontend schickt die Domain in Kleinbuchstaben, ohne `@`, `www.` und Punkt am Ende, Umlaute als Punycode. Das Backend sollte trotzdem selbst normalisieren.
 - Ein Unique-Index reicht für die Subdomain-Regel nicht, die Prüfung muss in der Anwendung laufen, in derselben Transaktion wie das Eintragen.
 
+### Benachrichtigung per Mail
+
+Die meldende Person bekommt per Mail eine Eingangsbestätigung und das Ergebnis (Verdikt und Begründung, ohne Score). Meldende haben keinen Zugang zum Portal, die Mails enthalten deshalb keinen Link.
+
+- Der Versand läuft als arq-Job und höchstens einmal pro Analyse (`notified_at`).
+- Empfänger ist die Adresse aus `reported_by`, sie stammt aus dem `From` der weitergeleiteten Mail. Pro Adresse gehen höchstens 10 Mails pro Stunde raus.
+- Auto-Antworten (`Auto-Submitted`), die eigene Absenderadresse und Systemadressen wie `mailer-daemon` bekommen nichts.
+- Manuelle Uploads lösen keine Mail aus.
+
 ## Benachrichtigungen
 
 | Methode | Pfad | Zweck |
@@ -199,4 +208,4 @@ Je Treffer:
 - Abbrechen einer laufenden Analyse. Die Oberfläche hat den Knopf, ein Endpunkt fehlt noch.
 - Was mit Meldungen von Domains passiert, die kein Team eingetragen hat: verwerfen oder dem Melder antworten.
 - Übernehmen einer gemeldeten Mail. Die Oberfläche zeigt `handler` null als „Niemand", ein Endpunkt zum Zuweisen fehlt.
-- `mail_analyses.submitted_by` ist laut [data-model.md](data-model.md) ein Pflichtverweis auf `users`. Meldende Personen sind meist keine phisheye-Nutzer.
+- `mail_analyses.submitted_by` ist laut [data-model.md](data-model.md) ein Pflichtverweis auf `users`. Meldende Personen sind meist keine phisheye-Nutzer. Ihre Adresse steht in `reported_by`, `submitted_by` zeigt bei Meldungen auf den Systemnutzer.
