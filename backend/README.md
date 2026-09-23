@@ -16,7 +16,7 @@ Läuft unter `http://localhost:8000`, Docs (Swagger UI) unter `http://localhost:
 
 ## Worker
 
-Verarbeitet eingehende Mails per POP3-Polling (alle 60s):
+Holt gemeldete Mails per POP3 ab (alle 30s) und verschickt die Benachrichtigungen per SMTP (`SMTP_*` in der `.env`). Nur wer per Mail meldet, bekommt eine Mail. Manuelle Uploads lösen keine aus. Bei SMTP-Fehlern gibt es bis zu 5 Versuche:
 
 ```bash
 uv run arq app.worker.settings.WorkerSettings

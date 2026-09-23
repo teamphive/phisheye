@@ -11,6 +11,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ..models.mail_analysis import MailAnalysis
 from ..models.mail_attachment import MailAttachment
+from .notifications import enqueue_analysis_ready
 from .object_storage import ObjectStorageError, delete_object, store_eml
 
 logger = logging.getLogger(__name__)
@@ -22,6 +23,7 @@ async def analyze_and_store(
     team_id: int,
     submitted_by: int,
     db: AsyncSession,
+    reported_by: str | None = None,
 ) -> tuple[MailAnalysis, list[dict]]:
     if not content:
         raise HTTPException(status_code=400, detail="Uploaded file is empty")
@@ -92,6 +94,7 @@ async def analyze_and_store(
                 sender=str(msg.get("From", "")),
                 status="completed",
                 storage_key=storage_key,
+                reported_by=reported_by,
             )
 
             db.add(analysis)
@@ -115,5 +118,8 @@ async def analyze_and_store(
         except ObjectStorageError:
             logger.exception("Failed to remove orphaned EML object %s", storage_key)
         raise
+
+    if reported_by:
+        await enqueue_analysis_ready(analysis.id)
 
     return analysis, results

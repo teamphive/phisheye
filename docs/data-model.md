@@ -53,7 +53,10 @@
 | team_id | FK -> teams | |
 | submitted_by | FK -> users | |
 | subject | string | |
-| sender | string | |
+| sender | string | Absender der gemeldeten Mail, nicht der meldenden Person |
+| reported_by | string, nullable | Adresse der meldenden Person, nur bei Meldung per Mail |
+| storage_key | string, nullable | UUID der gespeicherten `.eml` in MinIO |
+| notified_at | timestamp, nullable | Zeitpunkt der Benachrichtigungsmail, verhindert doppelten Versand |
 | raw_headers | text/JSON | |
 | status | enum (pending, processing, completed, failed) | |
 | verdict | enum (phishing, clean, suspicious), nullable | bis Analyse fertig |

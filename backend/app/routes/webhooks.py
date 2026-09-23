@@ -8,26 +8,10 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from ..database import get_db
 from ..services.mail_analysis import analyze_and_store
 from ..services.mailgun import verify_mailgun_signature
+from ..services.pop3_poller import extract_eml
 from ..services.system_defaults import ensure_system_defaults
 
 router = APIRouter(tags=["webhooks"])
-
-
-def _extract_eml_attachment(raw_mime: bytes) -> bytes:
-    outer_msg = BytesParser(policy=policy.default).parsebytes(raw_mime)
-
-    for part in outer_msg.walk():
-        if part.get_content_type() != "message/rfc822":
-            continue
-
-        payload = part.get_payload()
-
-        # message/rfc822 payload is a list with the embedded Message,
-        # not raw bytes (decode=True returns None here)
-        if isinstance(payload, list) and payload:
-            return payload[0].as_bytes()
-
-    return raw_mime
 
 
 def _sender_domain(eml_content: bytes) -> str | None:
@@ -66,7 +50,7 @@ async def inbound_mail(
         raw_mime.encode("utf-8") if isinstance(raw_mime, str) else await raw_mime.read()
     )
 
-    content = _extract_eml_attachment(outer_content)
+    content = extract_eml(outer_content)
     sender_domain = _sender_domain(content)
 
     # TODO(domain-routing): resolve sender_domain against a DB mapping
