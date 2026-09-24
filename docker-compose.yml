@@ -1,5 +1,17 @@
 ---
 
+# app services only start with `--profile app`, plain `up` stays infra only
+x-backend: &backend
+  build: ./backend
+  image: phisheye-backend
+  env_file: backend/.env
+  environment:
+    POSTGRES_HOST: db
+    REDIS_URL: redis://redis:6379/0
+    S3_ENDPOINT_URL: http://minio:9000
+  restart: unless-stopped
+  profiles: [app]
+
 services:
   db:
     image: postgres:18.6
@@ -11,6 +23,11 @@ services:
       POSTGRES_USER: "${POSTGRES_USER}"
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
       POSTGRES_DB: "${POSTGRES_DB}"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
     volumes:
       - db_local-data:/var/lib/postgresql
   keycloak:
@@ -71,6 +88,53 @@ services:
       MINIO_ROOT_PASSWORD: "${MINIO_ROOT_PASSWORD}"
     volumes:
       - minio-data:/data
+
+  migrate:
+    <<: *backend
+    command: alembic upgrade head
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  backend:
+    <<: *backend
+    container_name: backend
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+      minio:
+        condition: service_started
+
+  worker:
+    <<: *backend
+    container_name: worker
+    command: arq app.worker.settings.WorkerSettings
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+      minio:
+        condition: service_started
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: "${VITE_API_URL:-/api}"
+        VITE_KEYCLOAK_URL: "${VITE_KEYCLOAK_URL:-}"
+        VITE_KEYCLOAK_REALM: "${VITE_KEYCLOAK_REALM:-}"
+        VITE_KEYCLOAK_CLIENT_ID: "${VITE_KEYCLOAK_CLIENT_ID:-}"
+    container_name: frontend
+    restart: unless-stopped
+    profiles: [app]
+    depends_on:
+      - backend
+    ports:
+      - "${FRONTEND_PORT:-8081}:80"
 
 volumes:
   db_local-data:
