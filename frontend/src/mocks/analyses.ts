@@ -248,6 +248,12 @@ export function mockAnalyses(teamId: string): AnalysisListItem[] {
   return analysesByTeam[teamId] ?? []
 }
 
+export function mockDeleteAnalysis(id: string) {
+  for (const [teamId, items] of Object.entries(analysesByTeam)) {
+    analysesByTeam[teamId] = items.filter((item) => item.id !== id)
+  }
+}
+
 /** Looks through every team, the detail placeholder borrows from the list. */
 export function findMockAnalysis(id: string) {
   return Object.values(analysesByTeam)

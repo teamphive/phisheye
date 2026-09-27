@@ -1,10 +1,18 @@
 import { apiEnabled, apiFetch, mockLatency } from "@/lib/api"
-import { mockAnalyses, type AnalysisListItem } from "@/mocks/analyses"
+import { sessionUser } from "@/lib/session"
+import {
+  mockAnalyses,
+  mockDeleteAnalysis,
+  type AnalysisListItem,
+} from "@/mocks/analyses"
 import {
   mockAnalysis,
+  mockDecide,
   mockQueue,
+  mockRevokeDecision,
   runningAnalysisId,
   type AnalysisDetail,
+  type Decision,
   type Queue,
 } from "@/mocks/analysis-detail"
 import { mockSearch, type SearchHit } from "@/mocks/search"
@@ -72,4 +80,41 @@ export async function createAnalysis(file: File) {
   body.append("file", file)
 
   return apiFetch<AnalysisListItem>("/analyses", { method: "POST", body })
+}
+
+/** Confirms the verdict or reports it as a false positive. */
+export async function decideAnalysis(id: string, verdict: Decision["verdict"]) {
+  if (!apiEnabled) {
+    await mockLatency()
+    return mockDecide(id, verdict, sessionUser().name)
+  }
+
+  return apiFetch<Decision>(`/analyses/${encodeURIComponent(id)}/decision`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ verdict }),
+  })
+}
+
+export async function revokeDecision(id: string) {
+  if (!apiEnabled) {
+    await mockLatency()
+    return mockRevokeDecision(id)
+  }
+
+  await apiFetch<void>(`/analyses/${encodeURIComponent(id)}/decision`, {
+    method: "DELETE",
+  })
+}
+
+/** Soft delete for the whole team, only admins. */
+export async function deleteAnalysis(id: string) {
+  if (!apiEnabled) {
+    await mockLatency()
+    return mockDeleteAnalysis(id)
+  }
+
+  await apiFetch<void>(`/analyses/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  })
 }

@@ -1,4 +1,6 @@
+import { useState, type FormEvent } from "react"
 import { useNavigate } from "react-router"
+import { toast } from "sonner"
 
 import { BackupCodesDialog } from "@/components/backup-codes-dialog"
 import { PageHeader } from "@/components/page-header"
@@ -32,9 +34,12 @@ import {
   ItemSeparator,
   ItemTitle,
 } from "@/components/ui/item"
+import { Spinner } from "@/components/ui/spinner"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { errorMessage } from "@/lib/api"
 import { formatDate } from "@/lib/format"
 import { authEnabled, logout, openAccount } from "@/lib/keycloak"
+import { updateProfile } from "@/lib/session"
 import { roleLabel, security } from "@/mocks/session"
 
 const schemes = [
@@ -46,7 +51,29 @@ const schemes = [
 export function SettingsPage() {
   const navigate = useNavigate()
   const { theme, setTheme } = useTheme()
-  const { user, activeTeam } = useSession()
+  const { user, activeTeam, refresh } = useSession()
+  const [displayName, setDisplayName] = useState(user.name)
+  const [saving, setSaving] = useState(false)
+
+  const trimmedName = displayName.trim()
+
+  async function saveProfile(event: FormEvent) {
+    event.preventDefault()
+    if (!trimmedName || trimmedName === user.name) return
+
+    setSaving(true)
+    try {
+      await updateProfile(trimmedName)
+      await refresh()
+      toast.success("Anzeigename gespeichert")
+    } catch (error) {
+      toast.error("Anzeigename konnte nicht gespeichert werden", {
+        description: errorMessage(error),
+      })
+    } finally {
+      setSaving(false)
+    }
+  }
 
   return (
     <div className="mx-auto flex max-w-[820px] flex-col gap-4">
@@ -56,39 +83,52 @@ export function SettingsPage() {
       />
 
       <Card>
-        <CardHeader className="border-b">
-          <CardTitle className="text-sm">Profil</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <div className="flex items-center gap-3.5">
-            <Avatar className="size-[52px]">
-              <AvatarFallback className="bg-primary text-[17px] font-semibold text-primary-foreground">
-                {user.initials}
-              </AvatarFallback>
-            </Avatar>
-            <div>
-              <div className="text-[15px] font-semibold">{user.name}</div>
-              <div className="font-mono text-[11.5px] text-faint">
-                {roleLabel[activeTeam.role]} · Team {activeTeam.name}
+        <form onSubmit={saveProfile} className="contents">
+          <CardHeader className="border-b">
+            <CardTitle className="text-sm">Profil</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            <div className="flex items-center gap-3.5">
+              <Avatar className="size-[52px]">
+                <AvatarFallback className="bg-primary text-[17px] font-semibold text-primary-foreground">
+                  {user.initials}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <div className="text-[15px] font-semibold">{user.name}</div>
+                <div className="font-mono text-[11.5px] text-faint">
+                  {roleLabel[activeTeam.role]} · Team {activeTeam.name}
+                </div>
               </div>
             </div>
-          </div>
 
-          <FieldGroup className="grid grid-cols-2 gap-3.5">
-            <Field>
-              <FieldLabel htmlFor="display-name">Anzeigename</FieldLabel>
-              <Input id="display-name" defaultValue={user.name} />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="email">E-Mail-Adresse</FieldLabel>
-              <Input id="email" defaultValue={user.email} disabled />
-              <FieldDescription>Wird vom Admin verwaltet</FieldDescription>
-            </Field>
-          </FieldGroup>
-        </CardContent>
-        <CardFooter className="justify-end">
-          <Button>Speichern</Button>
-        </CardFooter>
+            <FieldGroup className="grid grid-cols-2 gap-3.5">
+              <Field>
+                <FieldLabel htmlFor="display-name">Anzeigename</FieldLabel>
+                <Input
+                  id="display-name"
+                  value={displayName}
+                  onChange={(event) => setDisplayName(event.target.value)}
+                  disabled={saving}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="email">E-Mail-Adresse</FieldLabel>
+                <Input id="email" defaultValue={user.email} disabled />
+                <FieldDescription>Wird vom Admin verwaltet</FieldDescription>
+              </Field>
+            </FieldGroup>
+          </CardContent>
+          <CardFooter className="justify-end">
+            <Button
+              type="submit"
+              disabled={saving || !trimmedName || trimmedName === user.name}
+            >
+              {saving ? <Spinner /> : null}
+              Speichern
+            </Button>
+          </CardFooter>
+        </form>
       </Card>
 
       <Card>

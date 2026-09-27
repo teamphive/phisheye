@@ -34,6 +34,19 @@ export const teams: Team[] = [
   { id: "soc", name: "SOC Bereitschaft", memberCount: 3, role: "admin" },
 ]
 
+// The placeholder server remembers the active team while the page is open.
+let activeTeamId: string | null = teams[0]?.id ?? null
+
+export function mockActiveTeamId() {
+  return teams.some((team) => team.id === activeTeamId)
+    ? activeTeamId
+    : (teams[0]?.id ?? null)
+}
+
+export function mockSelectTeam(teamId: string) {
+  activeTeamId = teamId
+}
+
 export type Security = {
   passwordChangedAt: string
   twoFactorEnabled: boolean

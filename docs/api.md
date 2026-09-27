@@ -30,7 +30,7 @@ Endpunkte unter `/auth/` entfallen damit.
 |---|---|---|
 | GET | `/me` | Angemeldeter Nutzer, seine Teams und die aktive Rolle |
 | POST | `/me/team` | Wechselt den Team-Kontext, Body `team_id` |
-| PATCH | `/me` | Ändert den Anzeigenamen |
+| PATCH | `/me` | Ändert den Anzeigenamen, Body `name` |
 
 `GET /me` liefert `name`, `email`, `initials`, `is_operator` sowie die Teams mit `id`, `name`, `member_count` und `role`. Dazu `active_team_id`: das Team, für das der Server gerade antwortet, `null` ohne Team. Ohne dieses Feld weiß das Frontend nach einem Reload nicht, welches Team aktiv ist, und nimmt das erste der Liste.
 
@@ -42,7 +42,7 @@ Endpunkte unter `/auth/` entfallen damit.
 | POST | `/analyses` | Upload einer `.eml` oder `.msg` als Feld `file` (multipart), startet den Job, antwortet mit dem Listeneintrag |
 | GET | `/analyses/{id}` | Detail |
 | DELETE | `/analyses/{id}` | Weich löschen, nur Admin |
-| POST | `/analyses/{id}/decision` | Verdikt bestätigen oder als falsch-positiv melden, Body `verdict` |
+| POST | `/analyses/{id}/decision` | Verdikt bestätigen oder als falsch-positiv melden, Body `verdict`, antwortet mit `{ verdict, by, at }` |
 | DELETE | `/analyses/{id}/decision` | Entscheidung zurücknehmen |
 | GET | `/analyses/search?q=` | Suche über Betreff, Absender, Link-Domain und Anhang-Hash, siehe unten |
 | GET | `/queue` | Wartende Jobs und Worker-Auslastung, für die Fortschrittsanzeige |
@@ -52,13 +52,13 @@ Endpunkte unter `/auth/` entfallen damit.
 | Methode | Pfad | Zweck |
 |---|---|---|
 | GET | `/team` | Mitglieder und offene Einladungen des aktiven Teams |
-| POST | `/teams` | Team anlegen |
-| PATCH | `/team` | Umbenennen, nur Admin |
+| POST | `/teams` | Team anlegen, Body `name`, der Nutzer wird Admin. Antwortet mit dem Team wie in `GET /me` |
+| PATCH | `/team` | Umbenennen, Body `name`, nur Admin |
 | DELETE | `/team` | Weich löschen, nur Admin |
-| POST | `/team/invitations` | Einladen, Body `email` und `role` |
+| POST | `/team/invitations` | Einladen, Body `email` und `role`, antwortet mit der Einladung wie in `GET /team`. 409, wenn die Adresse schon Mitglied oder eingeladen ist |
 | PATCH | `/team/invitations/{id}` | Rolle einer offenen Einladung ändern, Body `role` |
 | DELETE | `/team/invitations/{id}` | Einladung zurückziehen |
-| PATCH | `/team/members/{id}` | Rolle ändern |
+| PATCH | `/team/members/{id}` | Rolle ändern, Body `role` |
 | DELETE | `/team/members/{id}` | Entfernen, oder selbst verlassen |
 | GET | `/team/domains` | Meldeadresse und Domains für Outlook-Meldungen |
 | POST | `/team/domains` | Domain eintragen, Body `domain`, nur Admin |
@@ -206,6 +206,8 @@ Je Treffer:
 
 - IDs als UUID oder laufende Nummer.
 - Abbrechen einer laufenden Analyse. Die Oberfläche hat den Knopf, ein Endpunkt fehlt noch.
+- Erneut starten einer fehlgeschlagenen Analyse durch Analysten. `POST /monitoring/jobs/{id}/retry` gibt es nur für Operatoren, der Knopf auf der Detailseite hat noch keinen Endpunkt.
+- Einladung erneut senden. Die Oberfläche hat den Knopf, ein Endpunkt fehlt noch.
 - Was mit Meldungen von Domains passiert, die kein Team eingetragen hat: verwerfen oder dem Melder antworten.
 - Übernehmen einer gemeldeten Mail. Die Oberfläche zeigt `handler` null als „Niemand", ein Endpunkt zum Zuweisen fehlt.
 - `mail_analyses.submitted_by` ist laut [data-model.md](data-model.md) ein Pflichtverweis auf `users`. Meldende Personen sind meist keine phisheye-Nutzer. Ihre Adresse steht in `reported_by`, `submitted_by` zeigt bei Meldungen auf den Systemnutzer.
