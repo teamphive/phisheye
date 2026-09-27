@@ -1,8 +1,8 @@
 import { PageHeader } from "@/components/page-header"
-import { useTeams } from "@/components/team-provider"
+import { useSession } from "@/components/session-provider"
 
 export function OverviewPage() {
-  const { activeTeam } = useTeams()
+  const { activeTeam } = useSession()
 
   return (
     <>

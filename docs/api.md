@@ -32,7 +32,7 @@ Endpunkte unter `/auth/` entfallen damit.
 | POST | `/me/team` | Wechselt den Team-Kontext, Body `team_id` |
 | PATCH | `/me` | Ändert den Anzeigenamen |
 
-`GET /me` liefert `name`, `email`, `initials`, `is_operator` sowie die Teams mit `id`, `name`, `member_count` und `role`.
+`GET /me` liefert `name`, `email`, `initials`, `is_operator` sowie die Teams mit `id`, `name`, `member_count` und `role`. Dazu `active_team_id`: das Team, für das der Server gerade antwortet, `null` ohne Team. Ohne dieses Feld weiß das Frontend nach einem Reload nicht, welches Team aktiv ist, und nimmt das erste der Liste.
 
 ## Analysen
 

@@ -2,15 +2,13 @@ import { Link } from "react-router"
 
 import { NotificationsMenu } from "@/components/notifications-menu"
 import { SearchCommand } from "@/components/search-command"
-import { useTeams } from "@/components/team-provider"
+import { useSession } from "@/components/session-provider"
 import { TeamSwitcher } from "@/components/team-switcher"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { sessionUser } from "@/lib/session"
 import { roleLabel } from "@/mocks/session"
 
 export function AppTopbar() {
-  const user = sessionUser()
-  const { activeTeam } = useTeams()
+  const { user, activeTeam } = useSession()
 
   return (
     <header className="sticky top-0 z-40 flex items-center gap-4 border-b border-border bg-background/85 px-7 py-2.5 backdrop-blur">

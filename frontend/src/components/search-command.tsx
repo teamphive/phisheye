@@ -8,7 +8,7 @@ import {
   UserIcon,
 } from "lucide-react"
 
-import { useTeams } from "@/components/team-provider"
+import { useSession } from "@/components/session-provider"
 import { VerdictBadge } from "@/components/verdict-badge"
 import {
   CommandDialog,
@@ -70,7 +70,7 @@ function HitLabel({ hit }: { hit: SearchHit }) {
 
 export function SearchCommand() {
   const navigate = useNavigate()
-  const { activeTeam } = useTeams()
+  const { activeTeam } = useSession()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
   const [result, setResult] = useState<SearchResult | null>(null)

@@ -10,7 +10,7 @@ import {
 import { toast } from "sonner"
 
 import { PageHeader } from "@/components/page-header"
-import { useTeams } from "@/components/team-provider"
+import { useSession } from "@/components/session-provider"
 import { VerdictBadge } from "@/components/verdict-badge"
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -44,7 +44,6 @@ import {
   type AnalysisListItem,
   type AnalysisStatus,
 } from "@/mocks/analyses"
-import { currentUser } from "@/mocks/session"
 
 const pageSize = 10
 
@@ -61,7 +60,7 @@ const filters: { value: Filter; label: string }[] = [
   { value: "mine", label: "Nur meine" },
 ]
 
-function matches(item: AnalysisListItem, filter: Filter) {
+function matches(item: AnalysisListItem, filter: Filter, userName: string) {
   switch (filter) {
     case "all":
       return true
@@ -69,7 +68,7 @@ function matches(item: AnalysisListItem, filter: Filter) {
     case "failed":
       return item.status === filter
     case "mine":
-      return item.handler === currentUser.name
+      return item.handler === userName
     default:
       return item.verdict === filter
   }
@@ -130,7 +129,7 @@ function rangeLabel(first: number, last: number, total: number) {
 }
 
 export function AnalysesPage() {
-  const { activeTeam } = useTeams()
+  const { activeTeam } = useSession()
 
   // Another team is another list: remounting resets data, filter and page at once.
   return (
@@ -150,6 +149,7 @@ function AnalysesList({
   teamName: string
 }) {
   const navigate = useNavigate()
+  const { user, permissions } = useSession()
   const [items, setItems] = useState<AnalysisListItem[] | null>(null)
   const [filter, setFilter] = useState<Filter>("all")
   const [query, setQuery] = useState("")
@@ -176,14 +176,14 @@ function AnalysesList({
     const needle = query.trim().toLowerCase()
 
     return items.filter((item) => {
-      if (!matches(item, filter)) return false
+      if (!matches(item, filter, user.name)) return false
       if (!needle) return true
       return (
         item.subject.toLowerCase().includes(needle) ||
         item.sender.toLowerCase().includes(needle)
       )
     })
-  }, [items, filter, query])
+  }, [items, filter, query, user.name])
 
   const pageCount = Math.max(1, Math.ceil(visible.length / pageSize))
   const currentPage = Math.min(page, pageCount)
@@ -205,10 +205,12 @@ function AnalysesList({
               <DownloadIcon className="size-4" />
               Exportieren
             </Button>
-            <Link to="/analysen/neu" className={buttonVariants()}>
-              <PlusIcon className="size-4" />
-              Neue Analyse
-            </Link>
+            {permissions.analyze ? (
+              <Link to="/analysen/neu" className={buttonVariants()}>
+                <PlusIcon className="size-4" />
+                Neue Analyse
+              </Link>
+            ) : null}
           </>
         }
       />
@@ -272,16 +274,19 @@ function AnalysesList({
                 </EmptyMedia>
                 <EmptyTitle>Keine Analysen</EmptyTitle>
                 <EmptyDescription>
-                  Für diese Auswahl gibt es keine Einträge. Andere Filter
-                  ausprobieren oder eine Mail hochladen.
+                  {permissions.analyze
+                    ? "Für diese Auswahl gibt es keine Einträge. Andere Filter ausprobieren oder eine Mail hochladen."
+                    : "Für diese Auswahl gibt es keine Einträge. Andere Filter ausprobieren."}
                 </EmptyDescription>
               </EmptyHeader>
-              <EmptyContent>
-                <Link to="/analysen/neu" className={buttonVariants()}>
-                  <PlusIcon className="size-4" />
-                  Neue Analyse
-                </Link>
-              </EmptyContent>
+              {permissions.analyze ? (
+                <EmptyContent>
+                  <Link to="/analysen/neu" className={buttonVariants()}>
+                    <PlusIcon className="size-4" />
+                    Neue Analyse
+                  </Link>
+                </EmptyContent>
+              ) : null}
             </Empty>
           ) : (
             <Table>
