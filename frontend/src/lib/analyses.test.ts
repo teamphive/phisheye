@@ -1,0 +1,71 @@
+import { beforeEach, describe, expect, it, vi } from "vitest"
+
+vi.mock("@/lib/keycloak", () => ({
+  authEnabled: false,
+  keycloak: { tokenParsed: undefined },
+}))
+
+const fetchMock = vi.fn<typeof fetch>()
+
+// The base URL is read once when the module loads, so every test gets a fresh one
+async function loadAnalyses() {
+  vi.resetModules()
+  return import("@/lib/analyses")
+}
+
+beforeEach(() => {
+  fetchMock.mockReset()
+  vi.stubGlobal("fetch", fetchMock)
+})
+
+describe("with a backend", () => {
+  beforeEach(() => {
+    vi.stubEnv("VITE_API_URL", "https://phisheye.test/api")
+  })
+
+  it("posts the verdict and returns the decision the server stored", async () => {
+    const { decideAnalysis } = await loadAnalyses()
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          verdict: "phishing",
+          by: "Adrijus Lazdauskas",
+          at: "2026-10-15T12:00:00Z",
+        })
+      )
+    )
+
+    const decision = await decideAnalysis("a-1", "phishing")
+
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(url).toBe("https://phisheye.test/api/analyses/a-1/decision")
+    expect(init?.method).toBe("POST")
+    expect(init?.body).toBe(JSON.stringify({ verdict: "phishing" }))
+    expect(decision).toEqual({
+      verdict: "phishing",
+      by: "Adrijus Lazdauskas",
+      at: "2026-10-15T12:00:00Z",
+    })
+  })
+
+  it.each([
+    [
+      "takes the decision back",
+      "revokeDecision",
+      "https://phisheye.test/api/analyses/a-1/decision",
+    ],
+    [
+      "deletes the analysis",
+      "deleteAnalysis",
+      "https://phisheye.test/api/analyses/a-1",
+    ],
+  ] as const)("%s", async (_, name, url) => {
+    const analyses = await loadAnalyses()
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }))
+
+    await analyses[name]("a-1")
+
+    expect(fetchMock.mock.calls[0][0]).toBe(url)
+    expect(fetchMock.mock.calls[0][1]?.method).toBe("DELETE")
+  })
+})

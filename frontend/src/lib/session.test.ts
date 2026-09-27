@@ -91,8 +91,18 @@ describe("fetchSession", () => {
     const session = await fetchSession()
 
     expect(fetchMock).not.toHaveBeenCalled()
-    expect(session.teams).toBe(teams)
+    expect(session.teams).toEqual(teams)
     expect(session.activeTeamId).toBe(teams[0].id)
+  })
+
+  it("keeps the team the placeholder server was told about", async () => {
+    vi.stubEnv("VITE_API_URL", undefined)
+    const { fetchSession, selectTeam } = await loadSession()
+    const { teams } = await import("@/mocks/session")
+
+    await selectTeam(teams[1].id)
+
+    expect((await fetchSession()).activeTeamId).toBe(teams[1].id)
   })
 })
 

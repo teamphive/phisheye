@@ -13,11 +13,14 @@ import {
 } from "@/components/ui/dialog"
 import { Field, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { Spinner } from "@/components/ui/spinner"
+import { errorMessage } from "@/lib/api"
 
 type TeamDangerDialogProps = {
   mode: "leave" | "delete"
   teamName: string
-  onConfirm: () => void
+  /** The dialog stays open until it resolves and shows why it failed. */
+  onConfirm: () => Promise<void>
 }
 
 export function TeamDangerDialog({
@@ -27,16 +30,36 @@ export function TeamDangerDialog({
 }: TeamDangerDialogProps) {
   const [open, setOpen] = useState(false)
   const [typed, setTyped] = useState("")
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const isDelete = mode === "delete"
   // Deleting takes the whole team down, so it asks for the name to be typed out.
   const confirmed = !isDelete || typed.trim() === teamName
 
   function change(next: boolean) {
+    if (pending) return
+
     setOpen(next)
 
     if (!next) {
       setTyped("")
+      setError(null)
+    }
+  }
+
+  async function confirm() {
+    setPending(true)
+    setError(null)
+
+    try {
+      await onConfirm()
+      setOpen(false)
+      setTyped("")
+    } catch (confirmError) {
+      setError(errorMessage(confirmError))
+    } finally {
+      setPending(false)
     }
   }
 
@@ -78,18 +101,18 @@ export function TeamDangerDialog({
           </Field>
         ) : null}
 
+        {error ? <p className="text-sm text-phishing">{error}</p> : null}
+
         <DialogFooter>
-          <DialogClose render={<Button variant="outline" />}>
+          <DialogClose render={<Button variant="outline" disabled={pending} />}>
             Abbrechen
           </DialogClose>
           <Button
             variant="destructive"
-            disabled={!confirmed}
-            onClick={() => {
-              onConfirm()
-              change(false)
-            }}
+            disabled={!confirmed || pending}
+            onClick={confirm}
           >
+            {pending ? <Spinner /> : null}
             {isDelete ? "Endgültig löschen" : "Verlassen"}
           </Button>
         </DialogFooter>

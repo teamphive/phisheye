@@ -262,7 +262,29 @@ export function mockQueue(): Queue {
   }
 }
 
+// Changed in place, so a decision is still there when the page is opened again.
+const decisions: Record<string, Decision | null> = {}
+
+export function mockDecide(
+  id: string,
+  verdict: Decision["verdict"],
+  by: string
+): Decision {
+  const decision = { verdict, by, at: new Date().toISOString() }
+  decisions[id] = decision
+  return decision
+}
+
+export function mockRevokeDecision(id: string) {
+  decisions[id] = null
+}
+
 export function mockAnalysis(id: string): AnalysisDetail {
+  const base = baseAnalysis(id)
+  return id in decisions ? { ...base, decision: decisions[id] } : base
+}
+
+function baseAnalysis(id: string): AnalysisDetail {
   const byId: Record<string, AnalysisDetail> = {
     [running.id]: running,
     [failed.id]: failed,

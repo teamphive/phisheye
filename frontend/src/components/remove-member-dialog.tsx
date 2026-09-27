@@ -19,6 +19,7 @@ type RemoveMemberDialogProps = {
   teamName: string
   /** An invitation is withdrawn rather than removed, so the wording differs. */
   isInvitation?: boolean
+  disabled?: boolean
   onConfirm: () => void
 }
 
@@ -28,11 +29,13 @@ export function RemoveMemberDialog({
   initials,
   teamName,
   isInvitation = false,
+  disabled,
   onConfirm,
 }: RemoveMemberDialogProps) {
   return (
     <AlertDialog>
       <AlertDialogTrigger
+        disabled={disabled}
         render={<Button variant="ghost" size="sm" className="text-phishing" />}
       >
         {isInvitation ? "Zurückziehen" : "Entfernen"}

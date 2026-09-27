@@ -20,6 +20,11 @@ type SessionState = {
   /** The team being switched to while the request runs, otherwise null. */
   pendingTeamId: string | null
   switchTeam: (teamId: string) => Promise<void>
+  /**
+   * Asks the server again, after anything that changes teams, names or the
+   * own role. Throws instead of replacing the app with an error screen.
+   */
+  refresh: () => Promise<void>
 }
 
 const SessionContext = React.createContext<SessionState | undefined>(undefined)
@@ -72,6 +77,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     [activeTeamId]
   )
 
+  const refresh = React.useCallback(async () => {
+    setSession(await fetchSession())
+  }, [])
+
   const value = React.useMemo(() => {
     const activeTeam = session?.teams.find((team) => team.id === activeTeamId)
     if (!session || !activeTeam) return undefined
@@ -83,8 +92,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       permissions: permissionsOf(activeTeam.role, session.user.isOperator),
       pendingTeamId,
       switchTeam,
+      refresh,
     }
-  }, [session, activeTeamId, pendingTeamId, switchTeam])
+  }, [session, activeTeamId, pendingTeamId, switchTeam, refresh])
 
   if (error instanceof SessionExpiredError) {
     return <Navigate to="/sitzung-abgelaufen" replace />
@@ -104,7 +114,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   if (!session) return <SessionLoading />
 
-  if (!value) return <NoTeam user={session.user} />
+  if (!value) return <NoTeam user={session.user} onCreated={refresh} />
 
   return (
     <SessionContext.Provider value={value}>{children}</SessionContext.Provider>
@@ -168,7 +178,13 @@ function SessionFailed({
  * Right after the first sign-in nobody belongs to a team yet, and the only
  * way on is to create one.
  */
-function NoTeam({ user }: { user: CurrentUser }) {
+function NoTeam({
+  user,
+  onCreated,
+}: {
+  user: CurrentUser
+  onCreated: () => Promise<void>
+}) {
   const [createOpen, setCreateOpen] = React.useState(false)
 
   return (
@@ -197,7 +213,11 @@ function NoTeam({ user }: { user: CurrentUser }) {
         Angemeldet als {user.email}
       </p>
 
-      <CreateTeamDialog open={createOpen} onOpenChange={setCreateOpen} />
+      <CreateTeamDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onCreated={onCreated}
+      />
     </AuthCard>
   )
 }

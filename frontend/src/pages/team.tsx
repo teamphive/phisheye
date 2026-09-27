@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, type FormEvent } from "react"
 import { useNavigate } from "react-router"
 import { CheckIcon, TriangleAlertIcon } from "lucide-react"
+import { toast } from "sonner"
 
 import { CreateTeamDialog } from "@/components/create-team-dialog"
 import { InviteDialog } from "@/components/invite-dialog"
@@ -39,6 +40,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Spinner } from "@/components/ui/spinner"
 import {
   Table,
   TableBody,
@@ -49,7 +51,16 @@ import {
 } from "@/components/ui/table"
 import { errorMessage } from "@/lib/api"
 import { formatDate } from "@/lib/format"
-import { fetchTeam } from "@/lib/team"
+import {
+  changeInvitationRole,
+  changeMemberRole,
+  deleteTeam,
+  fetchTeam,
+  leaveTeam,
+  removeMember,
+  renameTeam,
+  revokeInvitation,
+} from "@/lib/team"
 import { roleLabel, type Team, type TeamRole } from "@/mocks/session"
 import type { Invitation, Member } from "@/mocks/team"
 
@@ -117,11 +128,15 @@ export function TeamPage() {
 
 function TeamView({ team }: { team: Team }) {
   const navigate = useNavigate()
-  const { permissions } = useSession()
+  const { permissions, refresh } = useSession()
   const canManage = permissions.manageTeam
   const [members, setMembers] = useState<Member[] | null>(null)
   const [invitations, setInvitations] = useState<Invitation[]>([])
   const [loadError, setLoadError] = useState<string | null>(null)
+  // The member or invitation a request is running for
+  const [busyId, setBusyId] = useState<string | null>(null)
+  const [teamName, setTeamName] = useState(team.name)
+  const [renaming, setRenaming] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -145,23 +160,135 @@ function TeamView({ team }: { team: Team }) {
     (member) => member.role === "admin"
   ).length
 
-  function changeRole(id: string, role: TeamRole) {
+  // Teams, names and the own role live in the session as well
+  async function reloadSession() {
+    try {
+      await refresh()
+    } catch (error) {
+      toast.error("Teams konnten nicht neu geladen werden", {
+        description: errorMessage(error),
+      })
+    }
+  }
+
+  async function changeRole(member: Member, role: TeamRole) {
+    setBusyId(member.id)
+    try {
+      await changeMemberRole(team.id, member.id, role)
+    } catch (error) {
+      toast.error("Rolle konnte nicht geändert werden", {
+        description: errorMessage(error),
+      })
+      return
+    } finally {
+      setBusyId(null)
+    }
+
     setMembers(
       (current) =>
         current &&
-        current.map((member) =>
-          member.id === id ? { ...member, role } : member
+        current.map((entry) =>
+          entry.id === member.id ? { ...entry, role } : entry
         )
     )
+    toast.success(`${member.name} ist jetzt ${roleLabel[role]}`)
+
+    // The own role decides what the interface offers
+    if (member.isSelf) await reloadSession()
+  }
+
+  async function remove(member: Member) {
+    setBusyId(member.id)
+    try {
+      await removeMember(team.id, member.id)
+      setMembers(
+        (current) =>
+          current && current.filter((entry) => entry.id !== member.id)
+      )
+      toast.success(`${member.name} entfernt`)
+    } catch (error) {
+      toast.error("Mitglied konnte nicht entfernt werden", {
+        description: errorMessage(error),
+      })
+    } finally {
+      setBusyId(null)
+    }
   }
 
   // The role only takes effect once the invitation is accepted.
-  function changeInvitationRole(id: string, role: TeamRole) {
-    setInvitations((current) =>
-      current.map((invitation) =>
-        invitation.id === id ? { ...invitation, role } : invitation
+  async function changeInvitation(invitation: Invitation, role: TeamRole) {
+    setBusyId(invitation.id)
+    try {
+      await changeInvitationRole(team.id, invitation.id, role)
+      setInvitations((current) =>
+        current.map((entry) =>
+          entry.id === invitation.id ? { ...entry, role } : entry
+        )
       )
-    )
+    } catch (error) {
+      toast.error("Rolle konnte nicht geändert werden", {
+        description: errorMessage(error),
+      })
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  async function revoke(invitation: Invitation) {
+    setBusyId(invitation.id)
+    try {
+      await revokeInvitation(team.id, invitation.id)
+      setInvitations((current) =>
+        current.filter((entry) => entry.id !== invitation.id)
+      )
+      toast.success(`Einladung an ${invitation.email} zurückgezogen`)
+    } catch (error) {
+      toast.error("Einladung konnte nicht zurückgezogen werden", {
+        description: errorMessage(error),
+      })
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  async function rename(event: FormEvent) {
+    event.preventDefault()
+
+    const name = teamName.trim()
+    if (!name || name === team.name) return
+
+    setRenaming(true)
+    try {
+      await renameTeam(team.id, name)
+      toast.success(`Team heißt jetzt ${name}`)
+    } catch (error) {
+      toast.error("Umbenennen fehlgeschlagen", {
+        description: errorMessage(error),
+      })
+      return
+    } finally {
+      setRenaming(false)
+    }
+
+    await reloadSession()
+  }
+
+  // Errors stay in the dialog, it explains the last admin and the last team.
+  async function leave() {
+    const self = members?.find((member) => member.isSelf)
+    if (!self) throw new Error("Deine Mitgliedschaft wurde nicht gefunden.")
+
+    await leaveTeam(team.id, self.id)
+    toast.success(`Du hast ${team.name} verlassen`)
+    navigate("/")
+    await reloadSession()
+  }
+
+  async function removeTeam() {
+    await deleteTeam(team.id)
+    toast.success(`${team.name} gelöscht`)
+    navigate("/")
+    await reloadSession()
   }
 
   return (
@@ -171,8 +298,15 @@ function TeamView({ team }: { team: Team }) {
         description={`Team · ${members?.length ?? team.memberCount} Mitglieder · geteilte Analyse-Historie`}
         actions={
           <>
-            <CreateTeamDialog />
-            {canManage ? <InviteDialog /> : null}
+            <CreateTeamDialog onCreated={refresh} />
+            {canManage ? (
+              <InviteDialog
+                teamId={team.id}
+                onInvited={(invitation) =>
+                  setInvitations((current) => [...current, invitation])
+                }
+              />
+            ) : null}
           </>
         }
       />
@@ -240,8 +374,11 @@ function TeamView({ team }: { team: Team }) {
                     <TableCell>
                       <RolePicker
                         value={member.role}
-                        onChange={(role) => changeRole(member.id, role)}
-                        disabled={member.role === "admin" && adminCount === 1}
+                        onChange={(role) => changeRole(member, role)}
+                        disabled={
+                          busyId === member.id ||
+                          (member.role === "admin" && adminCount === 1)
+                        }
                         readOnly={!canManage}
                       />
                     </TableCell>
@@ -260,15 +397,8 @@ function TeamView({ team }: { team: Team }) {
                           email={member.email}
                           initials={member.initials}
                           teamName={team.name}
-                          onConfirm={() =>
-                            setMembers(
-                              (current) =>
-                                current &&
-                                current.filter(
-                                  (entry) => entry.id !== member.id
-                                )
-                            )
-                          }
+                          disabled={busyId === member.id}
+                          onConfirm={() => remove(member)}
                         />
                       )}
                     </TableCell>
@@ -301,9 +431,8 @@ function TeamView({ team }: { team: Team }) {
                     <TableCell>
                       <RolePicker
                         value={invitation.role}
-                        onChange={(role) =>
-                          changeInvitationRole(invitation.id, role)
-                        }
+                        onChange={(role) => changeInvitation(invitation, role)}
+                        disabled={busyId === invitation.id}
                         readOnly={!canManage}
                       />
                     </TableCell>
@@ -325,13 +454,8 @@ function TeamView({ team }: { team: Team }) {
                             initials="?"
                             teamName={team.name}
                             isInvitation
-                            onConfirm={() =>
-                              setInvitations((current) =>
-                                current.filter(
-                                  (entry) => entry.id !== invitation.id
-                                )
-                              )
-                            }
+                            disabled={busyId === invitation.id}
+                            onConfirm={() => revoke(invitation)}
                           />
                         </>
                       ) : null}
@@ -352,22 +476,37 @@ function TeamView({ team }: { team: Team }) {
 
       {canManage ? (
         <Card>
-          <CardHeader className="border-b">
-            <CardTitle className="text-sm">Team-Einstellungen</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Field>
-              <FieldLabel htmlFor="team-name">Teamname</FieldLabel>
-              <Input id="team-name" defaultValue={team.name} />
-              <FieldDescription>
-                Erscheint im Umschalter oben rechts und in jeder Analyse dieses
-                Teams.
-              </FieldDescription>
-            </Field>
-          </CardContent>
-          <CardFooter className="justify-end">
-            <Button>Speichern</Button>
-          </CardFooter>
+          <form onSubmit={rename} className="contents">
+            <CardHeader className="border-b">
+              <CardTitle className="text-sm">Team-Einstellungen</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Field>
+                <FieldLabel htmlFor="team-name">Teamname</FieldLabel>
+                <Input
+                  id="team-name"
+                  value={teamName}
+                  onChange={(event) => setTeamName(event.target.value)}
+                  disabled={renaming}
+                />
+                <FieldDescription>
+                  Erscheint im Umschalter oben rechts und in jeder Analyse
+                  dieses Teams.
+                </FieldDescription>
+              </Field>
+            </CardContent>
+            <CardFooter className="justify-end">
+              <Button
+                type="submit"
+                disabled={
+                  renaming || !teamName.trim() || teamName.trim() === team.name
+                }
+              >
+                {renaming ? <Spinner /> : null}
+                Speichern
+              </Button>
+            </CardFooter>
+          </form>
         </Card>
       ) : null}
 
@@ -385,7 +524,7 @@ function TeamView({ team }: { team: Team }) {
                 <TeamDangerDialog
                   mode="leave"
                   teamName={team.name}
-                  onConfirm={() => navigate("/")}
+                  onConfirm={leave}
                 />
               </ItemActions>
             </Item>
@@ -406,7 +545,7 @@ function TeamView({ team }: { team: Team }) {
                     <TeamDangerDialog
                       mode="delete"
                       teamName={team.name}
-                      onConfirm={() => navigate("/")}
+                      onConfirm={removeTeam}
                     />
                   </ItemActions>
                 </Item>

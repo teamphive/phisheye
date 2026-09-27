@@ -3,6 +3,8 @@ import { authEnabled, keycloak } from "@/lib/keycloak"
 import { initialsOf } from "@/lib/format"
 import {
   currentUser,
+  mockActiveTeamId,
+  mockSelectTeam,
   teams as placeholderTeams,
   type CurrentUser,
   type Team,
@@ -51,9 +53,10 @@ export async function fetchSession(): Promise<Session> {
   if (!apiEnabled) {
     await mockLatency(300)
     return {
-      user: sessionUser(),
-      teams: placeholderTeams,
-      activeTeamId: placeholderTeams[0]?.id ?? null,
+      user: { ...sessionUser() },
+      // Copies, the placeholder server changes its own entries in place
+      teams: placeholderTeams.map((team) => ({ ...team })),
+      activeTeamId: mockActiveTeamId(),
     }
   }
 
@@ -83,11 +86,29 @@ export async function fetchSession(): Promise<Session> {
  * session, not in the address, so every later call answers for this team.
  */
 export async function selectTeam(teamId: string) {
-  if (!apiEnabled) return mockLatency()
+  if (!apiEnabled) {
+    await mockLatency()
+    return mockSelectTeam(teamId)
+  }
 
   await apiFetch<void>("/me/team", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ team_id: teamId }),
+  })
+}
+
+/** The display name, address and roles stay as they are. */
+export async function updateProfile(name: string) {
+  if (!apiEnabled) {
+    await mockLatency()
+    Object.assign(sessionUser(), { name, initials: initialsOf(name) })
+    return
+  }
+
+  await apiFetch<unknown>("/me", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
   })
 }

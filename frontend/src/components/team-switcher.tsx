@@ -22,7 +22,13 @@ import { roleLabel } from "@/mocks/session"
 export function TeamSwitcher() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
-  const { teams, activeTeam: active, pendingTeamId, switchTeam } = useSession()
+  const {
+    teams,
+    activeTeam: active,
+    pendingTeamId,
+    switchTeam,
+    refresh,
+  } = useSession()
   const [createOpen, setCreateOpen] = useState(false)
 
   async function choose(teamId: string) {
@@ -37,10 +43,19 @@ export function TeamSwitcher() {
       return
     }
 
-    // An analysis belongs to exactly one team, the new one would answer 404.
+    leaveOtherTeamsAnalysis()
+  }
+
+  // An analysis belongs to exactly one team, the new one would answer 404.
+  function leaveOtherTeamsAnalysis() {
     if (pathname.startsWith("/analysen/") && pathname !== "/analysen/neu") {
       navigate("/analysen")
     }
+  }
+
+  async function created() {
+    await refresh()
+    leaveOtherTeamsAnalysis()
   }
 
   return (
@@ -104,7 +119,11 @@ export function TeamSwitcher() {
       </DropdownMenu>
 
       {/* Lives outside the menu so closing the menu does not unmount it. */}
-      <CreateTeamDialog open={createOpen} onOpenChange={setCreateOpen} />
+      <CreateTeamDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onCreated={created}
+      />
     </>
   )
 }

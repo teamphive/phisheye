@@ -7,6 +7,7 @@ import {
   TrashIcon,
   TriangleAlertIcon,
 } from "lucide-react"
+import { toast } from "sonner"
 
 import { ScoreMeter } from "@/components/score-meter"
 import { useSession } from "@/components/session-provider"
@@ -35,6 +36,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Spinner } from "@/components/ui/spinner"
 import {
   Table,
   TableBody,
@@ -43,7 +45,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { fetchAnalysis, fetchQueue } from "@/lib/analyses"
+import {
+  decideAnalysis,
+  deleteAnalysis,
+  fetchAnalysis,
+  fetchQueue,
+  revokeDecision,
+} from "@/lib/analyses"
 import { ApiError, errorMessage } from "@/lib/api"
 import {
   formatDateTime,
@@ -72,7 +80,7 @@ const scoreTone = {
 export function AnalysisDetailPage() {
   const { id = "" } = useParams()
   const navigate = useNavigate()
-  const { user, permissions } = useSession()
+  const { permissions } = useSession()
   const [loaded, setLoaded] = useState<{
     id: string
     data: AnalysisDetail
@@ -86,6 +94,9 @@ export function AnalysisDetailPage() {
     value: Decision | null
   } | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [pending, setPending] = useState<"decide" | "revoke" | "delete" | null>(
+    null
+  )
 
   useEffect(() => {
     let active = true
@@ -165,12 +176,52 @@ export function AnalysisDetailPage() {
     )
   }
 
-  function decide(verdict: "phishing" | "clean") {
-    setDecision({
-      verdict,
-      by: user.name,
-      at: new Date().toISOString(),
-    })
+  async function decide(verdict: Decision["verdict"]) {
+    setPending("decide")
+    try {
+      setDecision(await decideAnalysis(id, verdict))
+      toast.success(
+        verdict === "phishing"
+          ? "Als Phishing bestätigt"
+          : "Als falsch-positiv gemeldet"
+      )
+    } catch (error) {
+      toast.error("Entscheidung konnte nicht gespeichert werden", {
+        description: errorMessage(error),
+      })
+    } finally {
+      setPending(null)
+    }
+  }
+
+  async function undo() {
+    setPending("revoke")
+    try {
+      await revokeDecision(id)
+      setDecision(null)
+    } catch (error) {
+      toast.error("Entscheidung konnte nicht zurückgenommen werden", {
+        description: errorMessage(error),
+      })
+    } finally {
+      setPending(null)
+    }
+  }
+
+  async function remove() {
+    setPending("delete")
+    try {
+      await deleteAnalysis(id)
+      toast.success("Analyse gelöscht", {
+        description: "Nach 10 Tagen wird sie endgültig entfernt.",
+      })
+      navigate("/analysen")
+    } catch (error) {
+      toast.error("Analyse konnte nicht gelöscht werden", {
+        description: errorMessage(error),
+      })
+      setPending(null)
+    }
   }
 
   return (
@@ -223,8 +274,10 @@ export function AnalysisDetailPage() {
                   variant="ghost"
                   size="sm"
                   className="ml-1 h-auto px-2 py-0.5 text-xs"
-                  onClick={() => setDecision(null)}
+                  disabled={pending !== null}
+                  onClick={undo}
                 >
+                  {pending === "revoke" ? <Spinner /> : null}
                   Rückgängig
                 </Button>
               ) : null}
@@ -233,17 +286,33 @@ export function AnalysisDetailPage() {
             <div className="flex shrink-0 gap-2">
               {permissions.analyze ? (
                 <>
-                  <Button variant="outline" onClick={() => decide("clean")}>
+                  <Button
+                    variant="outline"
+                    disabled={pending !== null}
+                    onClick={() => decide("clean")}
+                  >
                     Falsch-positiv melden
                   </Button>
-                  <Button onClick={() => decide("phishing")}>
+                  <Button
+                    disabled={pending !== null}
+                    onClick={() => decide("phishing")}
+                  >
+                    {pending === "decide" ? <Spinner /> : null}
                     Als Phishing bestätigen
                   </Button>
                 </>
               ) : null}
               {permissions.deleteAnalyses ? (
-                <Button variant="outline" onClick={() => setDeleteOpen(true)}>
-                  <TrashIcon className="size-4" />
+                <Button
+                  variant="outline"
+                  disabled={pending !== null}
+                  onClick={() => setDeleteOpen(true)}
+                >
+                  {pending === "delete" ? (
+                    <Spinner />
+                  ) : (
+                    <TrashIcon className="size-4" />
+                  )}
                   Löschen
                 </Button>
               ) : null}
@@ -372,9 +441,7 @@ export function AnalysisDetailPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction onClick={() => navigate("/analysen")}>
-              Löschen
-            </AlertDialogAction>
+            <AlertDialogAction onClick={remove}>Löschen</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
