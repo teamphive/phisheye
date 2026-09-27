@@ -1,5 +1,6 @@
 import { Route, Routes } from "react-router"
 
+import { RequirePermission } from "@/components/require-permission"
 import { AppLayout } from "@/layouts/app-layout"
 import { AuthLayout } from "@/layouts/auth-layout"
 import { AnalysisDetailPage } from "@/pages/analysis-detail"
@@ -28,10 +29,24 @@ export function AppRoutes() {
       <Route element={<AppLayout />}>
         <Route path="/" element={<OverviewPage />} />
         <Route path="/analysen" element={<AnalysesPage />} />
-        <Route path="/analysen/neu" element={<AnalysisNewPage />} />
+        <Route
+          path="/analysen/neu"
+          element={
+            <RequirePermission permission="analyze">
+              <AnalysisNewPage />
+            </RequirePermission>
+          }
+        />
         <Route path="/analysen/:id" element={<AnalysisDetailPage />} />
         <Route path="/team" element={<TeamPage />} />
-        <Route path="/monitoring" element={<MonitoringPage />} />
+        <Route
+          path="/monitoring"
+          element={
+            <RequirePermission permission="monitor">
+              <MonitoringPage />
+            </RequirePermission>
+          }
+        />
         <Route path="/benachrichtigungen" element={<NotificationsPage />} />
         <Route path="/einstellungen" element={<SettingsPage />} />
         <Route path="/kein-zugriff" element={<ForbiddenPage />} />

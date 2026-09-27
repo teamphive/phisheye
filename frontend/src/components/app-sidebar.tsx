@@ -2,6 +2,7 @@ import { Link, NavLink } from "react-router"
 import { ActivityIcon, MailIcon, PlusIcon, UsersIcon } from "lucide-react"
 
 import { BrandMark } from "@/components/brand-mark"
+import { useSession } from "@/components/session-provider"
 import { buttonVariants } from "@/components/ui/button"
 import {
   Sidebar,
@@ -14,7 +15,6 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { cn } from "@/lib/utils"
-import { currentUser } from "@/mocks/session"
 
 const mainNavigation = [
   { to: "/analysen", label: "Analysen", icon: MailIcon },
@@ -22,6 +22,8 @@ const mainNavigation = [
 ]
 
 export function AppSidebar() {
+  const { permissions } = useSession()
+
   return (
     <Sidebar collapsible="none" className="border-border sticky top-0 h-svh border-r">
       <SidebarHeader className="gap-3">
@@ -33,13 +35,18 @@ export function AppSidebar() {
           <span className="text-[17px] font-bold tracking-tight">phisheye</span>
         </Link>
 
-        <Link
-          to="/analysen/neu"
-          className={cn(buttonVariants({ size: "lg" }), "w-full font-semibold")}
-        >
-          <PlusIcon className="size-4" />
-          Neue Analyse
-        </Link>
+        {permissions.analyze ? (
+          <Link
+            to="/analysen/neu"
+            className={cn(
+              buttonVariants({ size: "lg" }),
+              "w-full font-semibold"
+            )}
+          >
+            <PlusIcon className="size-4" />
+            Neue Analyse
+          </Link>
+        ) : null}
       </SidebarHeader>
 
       <SidebarContent>
@@ -58,7 +65,7 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter>
-        {currentUser.isOperator ? (
+        {permissions.monitor ? (
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton render={<NavLink to="/monitoring" />}>

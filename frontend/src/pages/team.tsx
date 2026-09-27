@@ -7,8 +7,8 @@ import { InviteDialog } from "@/components/invite-dialog"
 import { PageHeader } from "@/components/page-header"
 import { RemoveMemberDialog } from "@/components/remove-member-dialog"
 import { ReportDomainsCard } from "@/components/report-domains-card"
+import { useSession } from "@/components/session-provider"
 import { TeamDangerDialog } from "@/components/team-danger-dialog"
-import { useTeams } from "@/components/team-provider"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -59,11 +59,16 @@ function RolePicker({
   value,
   onChange,
   disabled,
+  readOnly,
 }: {
   value: TeamRole
   onChange: (role: TeamRole) => void
   disabled?: boolean
+  /** Only admins change roles, everyone else just sees them. */
+  readOnly?: boolean
 }) {
+  if (readOnly) return <span className="text-[13px]">{roleLabel[value]}</span>
+
   return (
     <Select
       value={value}
@@ -103,7 +108,7 @@ function TwoFactorState({ enabled }: { enabled: boolean }) {
 }
 
 export function TeamPage() {
-  const { activeTeam } = useTeams()
+  const { activeTeam } = useSession()
 
   // Another team is another roster: remounting drops members, domains and the
   // form fields of the previous team at once.
@@ -112,6 +117,8 @@ export function TeamPage() {
 
 function TeamView({ team }: { team: Team }) {
   const navigate = useNavigate()
+  const { permissions } = useSession()
+  const canManage = permissions.manageTeam
   const [members, setMembers] = useState<Member[] | null>(null)
   const [invitations, setInvitations] = useState<Invitation[]>([])
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -165,7 +172,7 @@ function TeamView({ team }: { team: Team }) {
         actions={
           <>
             <CreateTeamDialog />
-            <InviteDialog />
+            {canManage ? <InviteDialog /> : null}
           </>
         }
       />
@@ -235,6 +242,7 @@ function TeamView({ team }: { team: Team }) {
                         value={member.role}
                         onChange={(role) => changeRole(member.id, role)}
                         disabled={member.role === "admin" && adminCount === 1}
+                        readOnly={!canManage}
                       />
                     </TableCell>
                     <TableCell>
@@ -246,7 +254,7 @@ function TeamView({ team }: { team: Team }) {
                     <TableCell className="text-right">
                       {member.isSelf ? (
                         <span className="text-xs text-faint">—</span>
-                      ) : (
+                      ) : !canManage ? null : (
                         <RemoveMemberDialog
                           name={member.name}
                           email={member.email}
@@ -296,6 +304,7 @@ function TeamView({ team }: { team: Team }) {
                         onChange={(role) =>
                           changeInvitationRole(invitation.id, role)
                         }
+                        readOnly={!canManage}
                       />
                     </TableCell>
                     <TableCell>
@@ -305,23 +314,27 @@ function TeamView({ team }: { team: Team }) {
                       —
                     </TableCell>
                     <TableCell className="text-right whitespace-nowrap">
-                      <Button variant="ghost" size="sm">
-                        Erneut senden
-                      </Button>
-                      <RemoveMemberDialog
-                        name=""
-                        email={invitation.email}
-                        initials="?"
-                        teamName={team.name}
-                        isInvitation
-                        onConfirm={() =>
-                          setInvitations((current) =>
-                            current.filter(
-                              (entry) => entry.id !== invitation.id
-                            )
-                          )
-                        }
-                      />
+                      {canManage ? (
+                        <>
+                          <Button variant="ghost" size="sm">
+                            Erneut senden
+                          </Button>
+                          <RemoveMemberDialog
+                            name=""
+                            email={invitation.email}
+                            initials="?"
+                            teamName={team.name}
+                            isInvitation
+                            onConfirm={() =>
+                              setInvitations((current) =>
+                                current.filter(
+                                  (entry) => entry.id !== invitation.id
+                                )
+                              )
+                            }
+                          />
+                        </>
+                      ) : null}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -334,27 +347,29 @@ function TeamView({ team }: { team: Team }) {
       <ReportDomainsCard
         teamId={team.id}
         teamName={team.name}
-        isAdmin={team.role === "admin"}
+        isAdmin={canManage}
       />
 
-      <Card>
-        <CardHeader className="border-b">
-          <CardTitle className="text-sm">Team-Einstellungen</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Field>
-            <FieldLabel htmlFor="team-name">Teamname</FieldLabel>
-            <Input id="team-name" defaultValue={team.name} />
-            <FieldDescription>
-              Erscheint im Umschalter oben rechts und in jeder Analyse dieses
-              Teams.
-            </FieldDescription>
-          </Field>
-        </CardContent>
-        <CardFooter className="justify-end">
-          <Button>Speichern</Button>
-        </CardFooter>
-      </Card>
+      {canManage ? (
+        <Card>
+          <CardHeader className="border-b">
+            <CardTitle className="text-sm">Team-Einstellungen</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Field>
+              <FieldLabel htmlFor="team-name">Teamname</FieldLabel>
+              <Input id="team-name" defaultValue={team.name} />
+              <FieldDescription>
+                Erscheint im Umschalter oben rechts und in jeder Analyse dieses
+                Teams.
+              </FieldDescription>
+            </Field>
+          </CardContent>
+          <CardFooter className="justify-end">
+            <Button>Speichern</Button>
+          </CardFooter>
+        </Card>
+      ) : null}
 
       <Card>
         <CardContent>
@@ -375,24 +390,28 @@ function TeamView({ team }: { team: Team }) {
               </ItemActions>
             </Item>
 
-            <ItemSeparator className="my-0" />
+            {canManage ? (
+              <>
+                <ItemSeparator className="my-0" />
 
-            <Item className="px-0 py-3.5">
-              <ItemContent>
-                <ItemTitle>Team löschen</ItemTitle>
-                <ItemDescription>
-                  Löscht das Team mit allen Analysen für alle Mitglieder. Lässt
-                  sich nicht rückgängig machen.
-                </ItemDescription>
-              </ItemContent>
-              <ItemActions>
-                <TeamDangerDialog
-                  mode="delete"
-                  teamName={team.name}
-                  onConfirm={() => navigate("/")}
-                />
-              </ItemActions>
-            </Item>
+                <Item className="px-0 py-3.5">
+                  <ItemContent>
+                    <ItemTitle>Team löschen</ItemTitle>
+                    <ItemDescription>
+                      Löscht das Team mit allen Analysen für alle Mitglieder.
+                      Lässt sich nicht rückgängig machen.
+                    </ItemDescription>
+                  </ItemContent>
+                  <ItemActions>
+                    <TeamDangerDialog
+                      mode="delete"
+                      teamName={team.name}
+                      onConfirm={() => navigate("/")}
+                    />
+                  </ItemActions>
+                </Item>
+              </>
+            ) : null}
           </ItemGroup>
         </CardContent>
       </Card>

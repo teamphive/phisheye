@@ -4,7 +4,7 @@ import { CheckIcon, ChevronDownIcon, PlusIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import { CreateTeamDialog } from "@/components/create-team-dialog"
-import { useTeams } from "@/components/team-provider"
+import { useSession } from "@/components/session-provider"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,7 +22,7 @@ import { roleLabel } from "@/mocks/session"
 export function TeamSwitcher() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
-  const { teams, activeTeam: active, pendingTeamId, switchTeam } = useTeams()
+  const { teams, activeTeam: active, pendingTeamId, switchTeam } = useSession()
   const [createOpen, setCreateOpen] = useState(false)
 
   async function choose(teamId: string) {

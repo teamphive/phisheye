@@ -9,6 +9,7 @@ import {
 } from "lucide-react"
 
 import { ScoreMeter } from "@/components/score-meter"
+import { useSession } from "@/components/session-provider"
 import { VerdictBadge } from "@/components/verdict-badge"
 import {
   AlertDialog,
@@ -57,7 +58,6 @@ import {
   type Decision,
   type Queue,
 } from "@/mocks/analysis-detail"
-import { currentUser } from "@/mocks/session"
 import { NotFoundPage } from "@/pages/not-found"
 
 // How often a running analysis and the queue are asked again.
@@ -72,6 +72,7 @@ const scoreTone = {
 export function AnalysisDetailPage() {
   const { id = "" } = useParams()
   const navigate = useNavigate()
+  const { user, permissions } = useSession()
   const [loaded, setLoaded] = useState<{
     id: string
     data: AnalysisDetail
@@ -167,7 +168,7 @@ export function AnalysisDetailPage() {
   function decide(verdict: "phishing" | "clean") {
     setDecision({
       verdict,
-      by: currentUser.name,
+      by: user.name,
       at: new Date().toISOString(),
     })
   }
@@ -217,27 +218,35 @@ export function AnalysisDetailPage() {
                 ? "Als Phishing bestätigt"
                 : "Als falsch-positiv gemeldet"}{" "}
               von {decision.by} · {formatRelativeTime(decision.at)}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="ml-1 h-auto px-2 py-0.5 text-xs"
-                onClick={() => setDecision(null)}
-              >
-                Rückgängig
-              </Button>
+              {permissions.analyze ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="ml-1 h-auto px-2 py-0.5 text-xs"
+                  onClick={() => setDecision(null)}
+                >
+                  Rückgängig
+                </Button>
+              ) : null}
             </div>
           ) : (
             <div className="flex shrink-0 gap-2">
-              <Button variant="outline" onClick={() => decide("clean")}>
-                Falsch-positiv melden
-              </Button>
-              <Button onClick={() => decide("phishing")}>
-                Als Phishing bestätigen
-              </Button>
-              <Button variant="outline" onClick={() => setDeleteOpen(true)}>
-                <TrashIcon className="size-4" />
-                Löschen
-              </Button>
+              {permissions.analyze ? (
+                <>
+                  <Button variant="outline" onClick={() => decide("clean")}>
+                    Falsch-positiv melden
+                  </Button>
+                  <Button onClick={() => decide("phishing")}>
+                    Als Phishing bestätigen
+                  </Button>
+                </>
+              ) : null}
+              {permissions.deleteAnalyses ? (
+                <Button variant="outline" onClick={() => setDeleteOpen(true)}>
+                  <TrashIcon className="size-4" />
+                  Löschen
+                </Button>
+              ) : null}
             </div>
           )
         ) : null}
@@ -329,7 +338,7 @@ export function AnalysisDetailPage() {
             </CardContent>
           </Card>
 
-          {analysis.status === "failed" ? (
+          {analysis.status === "failed" && permissions.monitor ? (
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm">Ursache beheben</CardTitle>
@@ -405,6 +414,8 @@ function Row({
 }
 
 function RunningCard({ analysis }: { analysis: AnalysisDetail }) {
+  const { permissions } = useSession()
+
   return (
     <>
       <Card>
@@ -440,9 +451,11 @@ function RunningCard({ analysis }: { analysis: AnalysisDetail }) {
               Du kannst die Seite verlassen — die Benachrichtigung kommt, sobald
               die Analyse fertig ist.
             </p>
-            <Button variant="outline" size="sm">
-              Abbrechen
-            </Button>
+            {permissions.analyze ? (
+              <Button variant="outline" size="sm">
+                Abbrechen
+              </Button>
+            ) : null}
           </div>
         </CardContent>
       </Card>
@@ -529,6 +542,8 @@ function QueueCard() {
 }
 
 function FailedCard({ analysis }: { analysis: AnalysisDetail }) {
+  const { permissions } = useSession()
+
   if (!analysis.error) return null
 
   return (
@@ -563,7 +578,9 @@ function FailedCard({ analysis }: { analysis: AnalysisDetail }) {
             Die bereits ermittelten Signale bleiben gespeichert. Beim erneuten
             Start wird nur der fehlgeschlagene Schritt wiederholt.
           </p>
-          <Button size="sm">Erneut starten</Button>
+          {permissions.analyze ? (
+            <Button size="sm">Erneut starten</Button>
+          ) : null}
         </div>
       </CardContent>
     </Card>

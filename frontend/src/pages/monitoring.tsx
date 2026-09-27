@@ -102,7 +102,8 @@ export function MonitoringPage() {
     }
   }, [attempt])
 
-  if (error instanceof ForbiddenError) return <ForbiddenPage />
+  if (error instanceof ForbiddenError)
+    return <ForbiddenPage permission="monitor" />
 
   if (error) {
     return (
