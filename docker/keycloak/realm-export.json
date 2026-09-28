@@ -67,6 +67,13 @@
         "attributes": {}
       },
       {
+        "name": "operator",
+        "description": "Sieht das Monitoring über alle Teams",
+        "composite": false,
+        "clientRole": false,
+        "attributes": {}
+      },
+      {
         "id": "7c459ffc-ddbf-476b-a7f3-16caa89b863f",
         "name": "default-roles-phisheye",
         "description": "${role_default-roles}",
@@ -755,6 +762,20 @@
       "authenticationFlowBindingOverrides": {},
       "fullScopeAllowed": true,
       "nodeReRegistrationTimeout": -1,
+      "protocolMappers": [
+        {
+          "name": "audience phisheye-backend",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "phisheye-backend",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ],
       "defaultClientScopes": [
         "web-origins",
         "acr",
