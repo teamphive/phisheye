@@ -37,8 +37,11 @@ services:
       KC_BOOTSTRAP_ADMIN_PASSWORD: "${KEYCLOAK_ADMIN_PASSWORD}"
       # Keycloak writes this address into every token as issuer, the backend
       # checks it. Fixed instead of taken from each request, so it stays the
-      # same whether the browser or the backend asks.
-      KC_HOSTNAME: "${KEYCLOAK_PUBLIC_URL:-http://localhost:8080}"
+      # same whether the browser or the backend asks. Needs the /auth suffix
+      # here too, KC_HTTP_RELATIVE_PATH alone only affects where Keycloak's
+      # own HTTP server listens, not the public URLs it generates (login
+      # form action, theme assets, the issuer itself).
+      KC_HOSTNAME: "${KEYCLOAK_PUBLIC_URL:-http://localhost:8080}/auth"
       # so the frontend can expose Keycloak under its own domain at /auth,
       # see the /auth location in frontend/nginx.conf
       KC_HTTP_RELATIVE_PATH: /auth
