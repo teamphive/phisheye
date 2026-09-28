@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Keycloak theme jar, built by `npm run build-keycloak-theme`
+dist_keycloak

@@ -40,6 +40,28 @@ npm run build
 npm run lint
 ```
 
+## Keycloak-Theme
+
+Die Login-Seiten, die Keycloak ausliefert, kommen aus diesem Projekt: Keycloakify baut aus `src/keycloak-theme` ein Login-Theme im phisheye-Design. `src/main.tsx` entscheidet beim Start, ob die App oder das Theme läuft; innerhalb von Keycloak liegt `window.kcContext` vor.
+
+Eigene Seiten gibt es bisher für den Login (`login.ftl`) und die 2FA-Abfrage (`login-otp.ftl`) unter `src/keycloak-theme/login/pages`. Alle anderen Seiten zeigt Keycloakify vorerst im Standard-Look von Keycloak. `npm install` kopiert sie per `postinstall` nach `src/keycloak-theme/login` und hält sie aus Git heraus. Eine davon anpassen:
+
+```bash
+npx keycloakify own --path login/pages/<seite>/Page.tsx
+```
+
+Ohne Keycloak mit Beispieldaten ansehen. `?page=login-otp.ftl` wählt die Seite, `&error` zeigt einen Fehlversuch:
+
+```bash
+npm run dev-keycloak-theme
+```
+
+Die `.jar` für Keycloak landet in `dist_keycloak/phisheye-keycloak-theme.jar`. Dafür muss Maven installiert sein (`brew install maven`):
+
+```bash
+npm run build-keycloak-theme
+```
+
 ## Stand
 
 Grundgerüst via Vite aufgesetzt, shadcn/ui eingerichtet (`components.json`).

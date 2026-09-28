@@ -6,7 +6,13 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  // Keycloak's own scripts, copied into public/ by Keycloakify
+  globalIgnores([
+    'dist',
+    'dist_keycloak',
+    'public/keycloak-theme',
+    'public/keycloakify-dev-resources',
+  ]),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
@@ -25,6 +31,14 @@ export default defineConfig([
     files: ['src/components/ui/**/*.{ts,tsx}'],
     rules: {
       'react-refresh/only-export-components': 'off',
+    },
+  },
+  {
+    // Files synced from @keycloakify/login-ui start with a blanket
+    // eslint-disable, which would otherwise be reported as unused
+    files: ['src/keycloak-theme/**/*.{ts,tsx}'],
+    linterOptions: {
+      reportUnusedDisableDirectives: 'off',
     },
   },
 ])
