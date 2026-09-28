@@ -21,6 +21,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { KcFieldError } from "../../components/KcFieldError"
 import { KcMessage } from "../../components/KcMessage"
 import { PageShell } from "../../components/PageShell"
+import { RestartLogin } from "../../components/RestartLogin"
 import { TryAnotherWay } from "../../components/TryAnotherWay"
 import { useKcContext } from "../../KcContext"
 
@@ -31,7 +32,7 @@ export function Page() {
   const { kcContext } = useKcContext()
   assert(kcContext.pageId === "login-otp.ftl")
 
-  const { otpLogin, auth, url, messagesPerField } = kcContext
+  const { otpLogin, url, messagesPerField } = kcContext
   const formRef = useRef<HTMLFormElement>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -130,14 +131,7 @@ export function Page() {
 
         <Separator />
 
-        <p className="text-center text-xs text-faint">
-          {auth?.attemptedUsername && (
-            <>Angemeldet als {auth.attemptedUsername} · </>
-          )}
-          <a href={url.loginRestartFlowUrl} className="hover:underline">
-            abbrechen
-          </a>
-        </p>
+        <RestartLogin />
       </AuthCard>
     </PageShell>
   )

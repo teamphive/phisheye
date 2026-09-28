@@ -44,7 +44,7 @@ npm run lint
 
 Die Login-Seiten, die Keycloak ausliefert, kommen aus diesem Projekt: Keycloakify baut aus `src/keycloak-theme` ein Login-Theme im phisheye-Design. `src/main.tsx` entscheidet beim Start, ob die App oder das Theme läuft; innerhalb von Keycloak liegt `window.kcContext` vor.
 
-Eigene Seiten gibt es bisher für Login (`login.ftl`), 2FA-Abfrage (`login-otp.ftl`), Passwort vergessen (`login-reset-password.ftl`), neues Passwort (`login-update-password.ftl`) und 2FA einrichten (`login-config-totp.ftl`), alle unter `src/keycloak-theme/login/pages`. Alle anderen Seiten zeigt Keycloakify vorerst im Standard-Look von Keycloak. `npm install` kopiert sie per `postinstall` nach `src/keycloak-theme/login` und hält sie aus Git heraus. Eine davon anpassen:
+Eigene Seiten gibt es bisher für Login (`login.ftl`), 2FA-Abfrage (`login-otp.ftl`), Passwort vergessen (`login-reset-password.ftl`), neues Passwort (`login-update-password.ftl`), 2FA einrichten (`login-config-totp.ftl`), Backup-Codes sichern (`login-recovery-authn-code-config.ftl`) und eingeben (`login-recovery-authn-code-input.ftl`) sowie die Auswahl der Anmeldemethode (`select-authenticator.ftl`), alle unter `src/keycloak-theme/login/pages`. Alle anderen Seiten zeigt Keycloakify vorerst im Standard-Look von Keycloak. `npm install` kopiert sie per `postinstall` nach `src/keycloak-theme/login` und hält sie aus Git heraus. Eine davon anpassen:
 
 ```bash
 npx keycloakify own --path login/pages/<seite>/Page.tsx

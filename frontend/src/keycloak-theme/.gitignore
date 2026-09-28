@@ -5,8 +5,11 @@
 # login/pages/login-config-totp/Page.tsx
 # login/pages/login-otp/Page.tsx
 # login/pages/login-passkeys-conditional-authenticate/Page.tsx
+# login/pages/login-recovery-authn-code-config/Page.tsx
+# login/pages/login-recovery-authn-code-input/Page.tsx
 # login/pages/login-reset-password/Page.tsx
 # login/pages/login-update-password/Page.tsx
+# login/pages/select-authenticator/Page.tsx
 # === Owned files end =====
 
 # === @keycloakify/login-ui v250004.8.0 ===
@@ -74,10 +77,8 @@
 /login/pages/login-password/Page.tsx
 /login/pages/login-password/useScript.tsx
 /login/pages/login-recovery-authn-code-config/index.ts
-/login/pages/login-recovery-authn-code-config/Page.tsx
 /login/pages/login-recovery-authn-code-config/useScript.tsx
 /login/pages/login-recovery-authn-code-input/index.ts
-/login/pages/login-recovery-authn-code-input/Page.tsx
 /login/pages/login-reset-otp/index.ts
 /login/pages/login-reset-otp/Page.tsx
 /login/pages/login-reset-password/Form.tsx
@@ -101,7 +102,6 @@
 /login/pages/saml-post-form/index.ts
 /login/pages/saml-post-form/Page.tsx
 /login/pages/select-authenticator/index.ts
-/login/pages/select-authenticator/Page.tsx
 /login/pages/select-organization/index.ts
 /login/pages/select-organization/Page.tsx
 /login/pages/terms/index.ts

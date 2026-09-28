@@ -28,6 +28,17 @@ function fieldErrors(
   }
 }
 
+/** Twelve codes of twelve characters, like Keycloak generates them. */
+function recoveryCodes() {
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+  return Array.from({ length: 12 }, () =>
+    Array.from(
+      { length: 12 },
+      () => alphabet[Math.floor(Math.random() * alphabet.length)]
+    ).join("")
+  )
+}
+
 // As in realm-export.json, except that password reset is already on
 const realm = { registrationAllowed: false, rememberMe: false }
 
@@ -62,6 +73,49 @@ const mocks: Record<string, { label: string; kcContext: () => KcContext }> = {
           ...(withError && {
             messagesPerField: fieldErrors({
               totp: "Ungültiger One-time Code.",
+            }),
+          }),
+        },
+      }),
+  },
+  // "Andere Methode verwenden" on the 2FA page leads here
+  "select-authenticator.ftl": {
+    label: "Methode wählen",
+    kcContext: () =>
+      getKcContextMock({
+        pageId: "select-authenticator.ftl",
+        overrides: {
+          auth: {
+            attemptedUsername: user,
+            authenticationSelections: [
+              {
+                authExecId: "otp",
+                displayName: "otp-display-name",
+                helpText: "otp-help-text",
+                iconCssClass: "kcAuthenticatorOTPClass",
+              },
+              {
+                authExecId: "recovery-codes",
+                displayName: "recovery-authn-codes-display-name",
+                helpText: "recovery-authn-codes-help-text",
+                iconCssClass: "kcAuthenticatorDefaultClass",
+              },
+            ],
+          },
+        },
+      }),
+  },
+  "login-recovery-authn-code-input.ftl": {
+    label: "Backup-Code",
+    kcContext: () =>
+      getKcContextMock({
+        pageId: "login-recovery-authn-code-input.ftl",
+        overrides: {
+          auth: { attemptedUsername: user, showTryAnotherWayLink: true },
+          recoveryAuthnCodesInputBean: { codeNumber: 3 },
+          ...(withError && {
+            messagesPerField: fieldErrors({
+              recoveryCodeInput: "Ungültiger Wiederherstellungscode",
             }),
           }),
         },
@@ -126,6 +180,24 @@ const mocks: Record<string, { label: string; kcContext: () => KcContext }> = {
             }
           : {},
       }),
+  },
+  "login-recovery-authn-code-config.ftl": {
+    label: "Codes sichern",
+    kcContext: () => {
+      const codes = recoveryCodes()
+
+      return getKcContextMock({
+        pageId: "login-recovery-authn-code-config.ftl",
+        overrides: {
+          auth: { attemptedUsername: user },
+          recoveryAuthnCodesConfigBean: {
+            generatedRecoveryAuthnCodesList: codes,
+            generatedRecoveryAuthnCodesAsString: codes.join(","),
+            generatedAt: Date.now(),
+          },
+        },
+      })
+    },
   },
 }
 
