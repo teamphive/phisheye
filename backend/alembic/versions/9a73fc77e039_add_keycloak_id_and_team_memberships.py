@@ -1,7 +1,7 @@
 """add keycloak id and team memberships
 
 Revision ID: 9a73fc77e039
-Revises: 8c4c7c7e9e2d
+Revises: c3e8a1f05d72
 Create Date: 2026-09-18 18:15:23.543363
 
 """
@@ -15,7 +15,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "9a73fc77e039"
-down_revision: Union[str, Sequence[str], None] = "8c4c7c7e9e2d"
+down_revision: Union[str, Sequence[str], None] = "c3e8a1f05d72"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
