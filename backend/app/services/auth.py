@@ -73,8 +73,9 @@ async def get_current_user(
 ) -> User:
     """Validates the bearer token, returns the matching local user.
 
-    First sight: creates the user (`sub` becomes `keycloak_id`) and adds
-    it to the default team. phisheye has no invite flow yet.
+    First sight: links an existing row with the same email, otherwise
+    creates the user (`sub` becomes `keycloak_id`) and adds it to the
+    default team. phisheye has no invite flow yet.
     """
     if credentials is None:
         raise HTTPException(status_code=401, detail="Missing bearer token")
@@ -93,6 +94,22 @@ async def get_current_user(
         user = result.first()
 
         if user is None:
+            # The email may already have a row without a Keycloak link. Link
+            # it, a second row would break the unique email. Safe only because
+            # the realm has no self-registration, so emails come from admins.
+            result = await db.exec(select(User).where(User.email == email))
+            user = result.first()
+
+            if user is not None and user.keycloak_id is not None:
+                raise HTTPException(
+                    status_code=409, detail="Email belongs to another account"
+                )
+
+            if user is not None:
+                user.keycloak_id = keycloak_id
+                db.add(user)
+                return user
+
             user = User(
                 keycloak_id=keycloak_id,
                 email=email,
