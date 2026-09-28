@@ -20,22 +20,32 @@ _bearer = HTTPBearer(auto_error=False)
 _jwks: dict[str, Any] | None = None
 
 
-def _issuer() -> str:
-    url = os.getenv("KEYCLOAK_URL")
+OPERATOR_ROLE = "operator"
 
-    if not url:
+
+def _realm_url(base_url: str | None) -> str:
+    if not base_url:
         raise HTTPException(status_code=503, detail="Keycloak is not configured")
 
     realm = os.getenv("KEYCLOAK_REALM", "phisheye")
-    return f"{url.rstrip('/')}/realms/{realm}"
+    return f"{base_url.rstrip('/')}/realms/{realm}"
+
+
+def _issuer() -> str:
+    # Keycloak puts the address the browser used into `iss`. In compose the
+    # backend reaches Keycloak under another name, so both can differ.
+    public_url = os.getenv("KEYCLOAK_PUBLIC_URL") or os.getenv("KEYCLOAK_URL")
+    return _realm_url(public_url)
 
 
 async def _get_jwks() -> dict[str, Any]:
     global _jwks
 
     if _jwks is None:
+        realm_url = _realm_url(os.getenv("KEYCLOAK_URL"))
+
         async with httpx.AsyncClient() as client:
-            response = await client.get(f"{_issuer()}/protocol/openid-connect/certs")
+            response = await client.get(f"{realm_url}/protocol/openid-connect/certs")
             response.raise_for_status()
         _jwks = response.json()
 
@@ -61,10 +71,15 @@ async def _decode_token(token: str) -> dict[str, Any]:
             key,
             algorithms=["RS256"],
             issuer=_issuer(),
-            options={"verify_aud": False},
+            audience=os.getenv("KEYCLOAK_AUDIENCE", "phisheye-backend"),
         )
     except JWTError as exc:
         raise HTTPException(status_code=401, detail="Invalid token") from exc
+
+
+def _is_operator(claims: dict[str, Any]) -> bool:
+    roles = claims.get("realm_access", {}).get("roles", [])
+    return OPERATOR_ROLE in roles
 
 
 async def get_current_user(
@@ -76,6 +91,8 @@ async def get_current_user(
     First sight: links an existing row with the same email, otherwise
     creates the user (`sub` becomes `keycloak_id`) and adds it to the
     default team. phisheye has no invite flow yet.
+
+    `is_operator` follows the `operator` realm role on every request.
     """
     if credentials is None:
         raise HTTPException(status_code=401, detail="Missing bearer token")
@@ -107,28 +124,31 @@ async def get_current_user(
 
             if user is not None:
                 user.keycloak_id = keycloak_id
+            else:
+                user = User(
+                    keycloak_id=keycloak_id,
+                    email=email,
+                    name=name,
+                    password_hash="",
+                )
                 db.add(user)
-                return user
-
-            user = User(
-                keycloak_id=keycloak_id,
-                email=email,
-                name=name,
-                password_hash="",
-            )
-            db.add(user)
-            await db.flush()
-
-            team_result = await db.exec(
-                select(Team).where(Team.name == DEFAULT_TEAM_NAME)
-            )
-            team = team_result.first()
-
-            if team is None:
-                team = Team(name=DEFAULT_TEAM_NAME)
-                db.add(team)
                 await db.flush()
 
-            db.add(TeamMembership(team_id=team.id, user_id=user.id, role="member"))
+                team_result = await db.exec(
+                    select(Team).where(Team.name == DEFAULT_TEAM_NAME)
+                )
+                team = team_result.first()
+
+                if team is None:
+                    team = Team(name=DEFAULT_TEAM_NAME)
+                    db.add(team)
+                    await db.flush()
+
+                db.add(TeamMembership(team_id=team.id, user_id=user.id, role="member"))
+
+        # The role is granted in Keycloak, the column only mirrors it. Without
+        # a change SQLAlchemy writes nothing.
+        user.is_operator = _is_operator(claims)
+        db.add(user)
 
     return user

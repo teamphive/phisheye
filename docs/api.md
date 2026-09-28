@@ -18,7 +18,7 @@ Die Anmeldung läuft über Keycloak, nicht über die API. Das Frontend holt sich
 Authorization: Bearer <access token>
 ```
 
-Das Backend prüft die Signatur gegen die öffentlichen Schlüssel des Realms unter `/realms/phisheye/protocol/openid-connect/certs`. Ein Aufruf ohne gültiges Token wird mit 401 abgelehnt, ein Token mit zu schwacher Rolle mit 403. Das Frontend zeigt 403 als fehlende Berechtigung an und meldet niemanden ab.
+Das Backend prüft die Signatur gegen die öffentlichen Schlüssel des Realms unter `/realms/phisheye/protocol/openid-connect/certs`, außerdem den Aussteller (`iss`) und ob `aud` den Wert `phisheye-backend` enthält. `is_operator` ist die Realm-Rolle `operator` in Keycloak. Ein Aufruf ohne gültiges Token wird mit 401 abgelehnt, ein Token mit zu schwacher Rolle mit 403. Das Frontend zeigt 403 als fehlende Berechtigung an und meldet niemanden ab.
 
 Das Feld `sub` im Token ist die Keycloak-ID des Nutzers, nicht seine ID in unserer Datenbank. Beim ersten Aufruf muss das Backend den Nutzer anlegen und die beiden IDs verbinden.
 
