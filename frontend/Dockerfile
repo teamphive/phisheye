@@ -17,6 +17,9 @@ RUN npm run build
 # holds no Java code, so any JDK will do.
 FROM build AS theme
 RUN apk add --no-cache maven openjdk21-jdk
+# under x86_64 emulation on arm64 hosts (e.g. Colima), the JIT compiler
+# crashes maven with SIGSEGV, so it runs interpreted only
+ENV MAVEN_OPTS="-XX:TieredStopAtLevel=1"
 RUN npx keycloakify build
 
 # Keycloak with the theme, built by the keycloak service in docker-compose.yml.
