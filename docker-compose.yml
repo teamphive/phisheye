@@ -36,6 +36,9 @@ services:
       KC_BOOTSTRAP_ADMIN_USERNAME: "${KEYCLOAK_ADMIN_USER}"
       KC_BOOTSTRAP_ADMIN_PASSWORD: "${KEYCLOAK_ADMIN_PASSWORD}"
       KC_HOSTNAME: "${KEYCLOAK_PUBLIC_URL:-http://localhost:8080}/auth"
+      # hostname-v2 redirects everything to KC_HOSTNAME otherwise, even the
+      # admin console reached directly on the LAN, bypassing nginx
+      KC_HOSTNAME_ADMIN: "${KEYCLOAK_ADMIN_URL:-http://localhost:8080}/auth"
       # exposes Keycloak at /auth on the frontend's domain, see frontend/nginx.conf
       KC_HTTP_RELATIVE_PATH: /auth
       KC_PROXY_HEADERS: xforwarded
