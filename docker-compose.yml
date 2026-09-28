@@ -24,20 +24,22 @@ services:
     image: quay.io/keycloak/keycloak:26.7.3
     container_name: keycloak
     restart: always
-    command: start-dev --import-realm
+    entrypoint: ["/bin/bash", "/opt/keycloak/entrypoint.sh"]
+    command: ["start-dev", "--import-realm"]
     ports:
       - "127.0.0.1:8080:8080"
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: "${KEYCLOAK_ADMIN_USER}"
       KC_BOOTSTRAP_ADMIN_PASSWORD: "${KEYCLOAK_ADMIN_PASSWORD}"
       FRONTEND_URL: "${FRONTEND_URL:-http://localhost:5173}"
-      SMTP_HOST: "${SMTP_HOST}"
-      SMTP_PORT: "${SMTP_PORT}"
-      SMTP_USERNAME: "${SMTP_USERNAME}"
-      SMTP_PASSWORD: "${SMTP_PASSWORD}"
+      SMTP_HOST: "${SMTP_HOST:-smtp.strato.de}"
+      SMTP_PORT: "${SMTP_PORT:-465}"
+      SMTP_USERNAME: "${SMTP_USERNAME:-noreply@example.com}"
+      SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
     volumes:
       - keycloak-data:/opt/keycloak/data
-      - ./docker/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+      - ./docker/keycloak/realm-export.json:/opt/keycloak/template/realm-export.json:ro
+      - ./docker/keycloak/entrypoint.sh:/opt/keycloak/entrypoint.sh:ro
       - ./docker/keycloak/theme/phisheye-theme.jar:/opt/keycloak/providers/phisheye-theme.jar:ro
 
   pgadmin:

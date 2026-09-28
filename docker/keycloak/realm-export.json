@@ -730,11 +730,11 @@
       "clientAuthenticatorType": "client-secret",
       "redirectUris": [
         "http://localhost:5173/*",
-        "${FRONTEND_URL:http://localhost:5173}/*"
+        "__FRONTEND_URL__/*"
       ],
       "webOrigins": [
         "http://localhost:5173",
-        "${FRONTEND_URL:http://localhost:5173}"
+        "__FRONTEND_URL__"
       ],
       "notBefore": 0,
       "bearerOnly": false,
@@ -750,7 +750,7 @@
         "logout.confirmation.enabled": "false",
         "standard.token.exchange.enabled": "false",
         "oauth2.jwt.authorization.grant.enabled": "false",
-        "post.logout.redirect.uris": "http://localhost:5173/*##${FRONTEND_URL:http://localhost:5173}/*",
+        "post.logout.redirect.uris": "http://localhost:5173/*##__FRONTEND_URL__/*",
         "frontchannel.logout.session.required": "true",
         "oauth2.device.authorization.grant.enabled": "false",
         "backchannel.logout.revoke.offline.tokens": "false",
@@ -1632,13 +1632,13 @@
     "strictTransportSecurity": "max-age=31536000; includeSubDomains"
   },
   "smtpServer": {
-    "host": "${env.SMTP_HOST}",
-    "port": "${env.SMTP_PORT}",
+    "host": "__SMTP_HOST__",
+    "port": "__SMTP_PORT__",
     "ssl": "true",
     "auth": "true",
-    "user": "${env.SMTP_USERNAME}",
-    "password": "${env.SMTP_PASSWORD}",
-    "from": "${env.SMTP_USERNAME}"
+    "user": "__SMTP_USERNAME__",
+    "password": "__SMTP_PASSWORD__",
+    "from": "__SMTP_USERNAME__"
   },
   "eventsEnabled": false,
   "eventsListeners": [
