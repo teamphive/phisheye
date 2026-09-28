@@ -21,7 +21,11 @@ services:
       - db_local-data:/var/lib/postgresql
 
   keycloak:
-    image: quay.io/keycloak/keycloak:26.7.3
+    # stock Keycloak plus the phisheye login theme, see the keycloak stage in
+    # frontend/Dockerfile. After changes to the theme: up -d --build keycloak
+    build:
+      context: ./frontend
+      target: keycloak
     container_name: keycloak
     restart: always
     entrypoint: ["/bin/bash", "/opt/keycloak/entrypoint.sh"]
@@ -43,7 +47,6 @@ services:
       - keycloak-data:/opt/keycloak/data
       - ./docker/keycloak/realm-export.json:/opt/keycloak/template/realm-export.json:ro
       - ./docker/keycloak/entrypoint.sh:/opt/keycloak/entrypoint.sh:ro
-      - ./docker/keycloak/theme/phisheye-theme.jar:/opt/keycloak/providers/phisheye-theme.jar:ro
 
   pgadmin:
     image: dpage/pgadmin4:9.17

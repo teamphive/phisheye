@@ -62,6 +62,12 @@ Die `.jar` für Keycloak landet in `dist_keycloak/phisheye-keycloak-theme.jar`. 
 npm run build-keycloak-theme
 ```
 
+In Docker ist das nicht nötig: Der `keycloak`-Service baut sein Image aus der Stage `keycloak` im `Dockerfile` und packt das Theme dabei selbst. Nach Änderungen am Theme:
+
+```bash
+docker compose up -d --build keycloak
+```
+
 ## Stand
 
 Grundgerüst via Vite aufgesetzt, shadcn/ui eingerichtet (`components.json`).
