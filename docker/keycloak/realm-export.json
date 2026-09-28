@@ -1826,7 +1826,11 @@
       }
     ]
   },
-  "internationalizationEnabled": false,
+  "internationalizationEnabled": true,
+  "supportedLocales": [
+    "de"
+  ],
+  "defaultLocale": "de",
   "authenticationFlows": [
     {
       "id": "86076a1a-7a5e-4681-b2a9-73af8e69db7f",
