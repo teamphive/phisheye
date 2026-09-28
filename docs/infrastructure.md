@@ -50,7 +50,7 @@ Die Standardwerte laufen lokal auf dem Mac ohne eigene `.env`-Einträge. Auf dem
 
 | Variable | Lokal (Standard) | Server | Wirkung |
 | --- | --- | --- | --- |
-| `KEYCLOAK_PUBLIC_URL` | `http://localhost:8080` | `https://phisheye.neumann-it.org` | Adresse von Keycloak im Browser. Das Backend erwartet sie als Aussteller der Token, das Frontend meldet sich dort an. Ohne Slash am Ende. |
+| `KEYCLOAK_PUBLIC_URL` | `http://localhost:8080` | `https://phisheye.neumann-it.org` | Adresse von Keycloak im Browser. Keycloak trägt sie als Aussteller in jedes Token ein (`KC_HOSTNAME`), das Backend prüft sie, das Frontend meldet sich dort an. Ohne Slash am Ende. |
 | `FRONTEND_URL` | `http://localhost:5173` | `https://phisheye.neumann-it.org` | erlaubtes Ziel nach Login und Logout, gilt nur beim ersten Import des Realms |
 | `FRONTEND_PORT` | `5173` | Port, auf den der Nginx Proxy Manager zeigt | veröffentlichter Port des Frontends |
 

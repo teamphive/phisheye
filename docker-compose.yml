@@ -35,6 +35,14 @@ services:
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: "${KEYCLOAK_ADMIN_USER}"
       KC_BOOTSTRAP_ADMIN_PASSWORD: "${KEYCLOAK_ADMIN_PASSWORD}"
+      # Keycloak writes this address into every token as issuer, the backend
+      # checks it. Fixed instead of taken from each request, so it stays the
+      # same whether the browser or the backend asks.
+      KC_HOSTNAME: "${KEYCLOAK_PUBLIC_URL:-http://localhost:8080}"
+      # On the server a proxy ends TLS, its X-Forwarded headers tell Keycloak
+      # the original https request and client IP. Safe while the port is only
+      # bound to 127.0.0.1.
+      KC_PROXY_HEADERS: xforwarded
       FRONTEND_URL: "${FRONTEND_URL:-http://localhost:5173}"
       SMTP_HOST: "${SMTP_HOST:-smtp.strato.de}"
       SMTP_PORT: "${SMTP_PORT:-465}"
