@@ -2,8 +2,11 @@
 
 # === Owned files start ===
 # login/pages/login/Page.tsx
+# login/pages/login-config-totp/Page.tsx
 # login/pages/login-otp/Page.tsx
 # login/pages/login-passkeys-conditional-authenticate/Page.tsx
+# login/pages/login-reset-password/Page.tsx
+# login/pages/login-update-password/Page.tsx
 # === Owned files end =====
 
 # === @keycloakify/login-ui v250004.8.0 ===
@@ -52,7 +55,6 @@
 /login/pages/login/SocialProviders.tsx
 /login/pages/login/useScript.tsx
 /login/pages/login-config-totp/index.ts
-/login/pages/login-config-totp/Page.tsx
 /login/pages/login-idp-link-confirm/index.ts
 /login/pages/login-idp-link-confirm/Page.tsx
 /login/pages/login-idp-link-confirm-override/index.ts
@@ -80,9 +82,7 @@
 /login/pages/login-reset-otp/Page.tsx
 /login/pages/login-reset-password/Form.tsx
 /login/pages/login-reset-password/index.ts
-/login/pages/login-reset-password/Page.tsx
 /login/pages/login-update-password/index.ts
-/login/pages/login-update-password/Page.tsx
 /login/pages/login-update-profile/index.ts
 /login/pages/login-update-profile/Page.tsx
 /login/pages/login-username/index.ts

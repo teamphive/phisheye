@@ -19,6 +19,7 @@ import { KcFieldError } from "../../components/KcFieldError"
 import { KcMessage } from "../../components/KcMessage"
 import { PageShell } from "../../components/PageShell"
 import { useKcContext } from "../../KcContext"
+import { usernameField } from "../../usernameField"
 
 // Passkeys and social login are off in the realm, so this page leaves out
 // what the default login.ftl renders for them.
@@ -34,11 +35,7 @@ export function Page() {
   // message, so it belongs to both fields and shows up once below them.
   const hasError = messagesPerField.existsError("username", "password")
 
-  const usernameLabel = !realm.loginWithEmailAllowed
-    ? "Benutzername"
-    : realm.registrationEmailAsUsername
-      ? "E-Mail-Adresse"
-      : "E-Mail-Adresse oder Benutzername"
+  const username = usernameField(realm)
 
   return (
     <PageShell title="Anmelden">
@@ -74,16 +71,11 @@ export function Page() {
             </p>
           ) : (
             <div className="grid gap-1.5">
-              <Label htmlFor="username">{usernameLabel}</Label>
+              <Label htmlFor="username">{username.label}</Label>
               <Input
                 id="username"
                 name="username"
-                type={
-                  realm.loginWithEmailAllowed &&
-                  realm.registrationEmailAsUsername
-                    ? "email"
-                    : "text"
-                }
+                type={username.type}
                 autoComplete="username"
                 defaultValue={login.username ?? ""}
                 aria-invalid={hasError || undefined}
