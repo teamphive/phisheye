@@ -50,13 +50,7 @@ Der Nginx Proxy Manager gibt nur das Frontend frei, eine Domain reicht. Keycloak
 
 Folge: Backend und Frontend hängen `/auth` an `KEYCLOAK_URL` und `KEYCLOAK_PUBLIC_URL` an, dort wo sie Keycloak tatsächlich ansprechen (`docker-compose.yml`). Die Variablen selbst bleiben pfadlos, siehe Tabelle unten.
 
-Port `8080` ist im LAN offen, für die Admin-Console, am Router bleibt er zu. UFW beschränkt ihn aufs LAN, genauso wie SSH:
-
-```
-sudo ufw allow from 192.168.178.0/24 to any port 8080 proto tcp comment 'keycloak admin console'
-```
-
-Admin-Console dann unter `http://<server-ip>:8080/auth/admin/`. `/auth/admin` bleibt über die öffentliche Domain gesperrt, siehe `frontend/nginx.conf`.
+Die Admin-Console läuft unter `https://phisheye.neumann-it.org/auth/admin/`, öffentlich erreichbar, bewusst so entschieden. Absicherung über starkes Passwort und 2FA am Admin-Konto, nicht über Netzwerksperren. Port `8080` bleibt nur noch für einen SSH-Tunnel als Fallback an `127.0.0.1` gebunden, kein regulärer Zugangsweg.
 
 ## Eine `.env` für alles
 
