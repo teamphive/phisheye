@@ -36,6 +36,9 @@ services:
       SMTP_PORT: "${SMTP_PORT:-465}"
       SMTP_USERNAME: "${SMTP_USERNAME:-noreply@example.com}"
       SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
+    # the rendered realm goes here, an older volume has this folder owned by root
+    tmpfs:
+      - /opt/keycloak/data/import:mode=1777
     volumes:
       - keycloak-data:/opt/keycloak/data
       - ./docker/keycloak/realm-export.json:/opt/keycloak/template/realm-export.json:ro
@@ -97,7 +100,7 @@ services:
       REDIS_URL: redis://redis:6379/0
       S3_ENDPOINT_URL: http://minio:9000
       KEYCLOAK_URL: "http://keycloak:8080"
-      KEYCLOAK_PUBLIC_URL: "https://phisheye.neumann-it.org/"
+      KEYCLOAK_PUBLIC_URL: "${KEYCLOAK_PUBLIC_URL:-http://localhost:8080}"
     command: alembic upgrade head
     restart: "no"
     profiles: [app]
@@ -115,7 +118,7 @@ services:
       REDIS_URL: redis://redis:6379/0
       S3_ENDPOINT_URL: http://minio:9000
       KEYCLOAK_URL: "http://keycloak:8080"
-      KEYCLOAK_PUBLIC_URL: "https://phisheye.neumann-it.org/"
+      KEYCLOAK_PUBLIC_URL: "${KEYCLOAK_PUBLIC_URL:-http://localhost:8080}"
     restart: unless-stopped
     profiles: [app]
     depends_on:
@@ -136,7 +139,7 @@ services:
       REDIS_URL: redis://redis:6379/0
       S3_ENDPOINT_URL: http://minio:9000
       KEYCLOAK_URL: "http://keycloak:8080"
-      KEYCLOAK_PUBLIC_URL: "https://phisheye.neumann-it.org/"
+      KEYCLOAK_PUBLIC_URL: "${KEYCLOAK_PUBLIC_URL:-http://localhost:8080}"
     command: arq app.worker.settings.WorkerSettings
     restart: unless-stopped
     profiles: [app]
@@ -153,16 +156,16 @@ services:
       context: ./frontend
       args:
         VITE_API_URL: "${VITE_API_URL:-/api}"
-        VITE_KEYCLOAK_URL: "${VITE_KEYCLOAK_URL:-}"
-        VITE_KEYCLOAK_REALM: "${VITE_KEYCLOAK_REALM:-}"
-        VITE_KEYCLOAK_CLIENT_ID: "${VITE_KEYCLOAK_CLIENT_ID:-}"
+        VITE_KEYCLOAK_URL: "${KEYCLOAK_PUBLIC_URL:-http://localhost:8080}"
+        VITE_KEYCLOAK_REALM: "${VITE_KEYCLOAK_REALM:-phisheye}"
+        VITE_KEYCLOAK_CLIENT_ID: "${VITE_KEYCLOAK_CLIENT_ID:-phisheye-frontend}"
     container_name: frontend
     restart: unless-stopped
     profiles: [app]
     depends_on:
       - backend
     ports:
-      - "${FRONTEND_PORT:-8081}:80"
+      - "${FRONTEND_PORT:-5173}:80"
 
 volumes:
   db_local-data:
