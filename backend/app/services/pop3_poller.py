@@ -22,11 +22,10 @@ def _connect() -> poplib.POP3_SSL:
 
 
 def fetch_new_mails() -> list[tuple[str, bytes]]:
-    """Fetch pending mails, keyed by their POP3 UIDL.
+    """Fetches pending mails, keyed by POP3 UIDL.
 
-    Mails stay on the server until `delete_mails` confirms they were
-    analyzed and stored successfully, so a failure downstream does not
-    lose the mail.
+    Mails stay on the server until `delete_mails` confirms success. A
+    downstream failure loses nothing.
     """
     connection = _connect()
 
@@ -48,7 +47,7 @@ def fetch_new_mails() -> list[tuple[str, bytes]]:
 
 
 def delete_mails(uids: set[str]) -> None:
-    """Delete mails identified by their POP3 UIDL from the mailbox."""
+    """Delete mails identified by their POP3 UIDL from the mailbox"""
     if not uids:
         return
 

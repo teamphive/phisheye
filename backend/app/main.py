@@ -1,10 +1,11 @@
 from fastapi import FastAPI
 
-from .routes import analyze, webhooks
+from .routes import analyze, me, webhooks
 
 app = FastAPI(title="phisheye")
 
 app.include_router(analyze.router)
+app.include_router(me.router)
 app.include_router(webhooks.router)
 
 

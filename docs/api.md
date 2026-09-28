@@ -28,9 +28,9 @@ Endpunkte unter `/auth/` entfallen damit.
 
 | Methode | Pfad | Zweck |
 |---|---|---|
-| GET | `/me` | Angemeldeter Nutzer, seine Teams und die aktive Rolle |
+| GET | `/me` | Angemeldeter Nutzer, seine Teams und die aktive Rolle (umgesetzt) |
 | POST | `/me/team` | Wechselt den Team-Kontext, Body `team_id` |
-| PATCH | `/me` | Ändert den Anzeigenamen, Body `name` |
+| PATCH | `/me` | Ändert den Anzeigenamen, Body `name` (umgesetzt) |
 
 `GET /me` liefert `name`, `email`, `initials`, `is_operator` sowie die Teams mit `id`, `name`, `member_count` und `role`. Dazu `active_team_id`: das Team, für das der Server gerade antwortet, `null` ohne Team. Ohne dieses Feld weiß das Frontend nach einem Reload nicht, welches Team aktiv ist, und nimmt das erste der Liste.
 
