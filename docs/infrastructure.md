@@ -28,6 +28,34 @@ Bei Merge in main: Images bauen, zu GHCR pushen, per SSH auf die VM verbinden, `
 
 Team nutzt eh GitHub, kostenlos, kein zusätzlicher AWS-Service nötig.
 
+## Keycloak-Realm: Vorlage mit Marken
+
+`docker/keycloak/realm-export.json` ist eine Vorlage. Beim Start ersetzt `docker/keycloak/entrypoint.sh` die Marken aus der Umgebung des Containers:
+
+| Marke | Variable | Zweck |
+| --- | --- | --- |
+| `__FRONTEND_URL__` | `FRONTEND_URL` | öffentliche Adresse des Frontends, erlaubtes Ziel nach Login und Logout |
+| `__SMTP_HOST__`, `__SMTP_PORT__` | `SMTP_HOST`, `SMTP_PORT` | Mailserver für Keycloak-Mails |
+| `__SMTP_USERNAME__`, `__SMTP_PASSWORD__` | `SMTP_USERNAME`, `SMTP_PASSWORD` | Zugang und Absender |
+
+Keycloak löst Platzhalter der Form `${env.SMTP_USERNAME}` im Block `smtpServer` nicht auf und startet dann nicht. Deshalb gibt es die eigenen Marken.
+
+- `FRONTEND_URL` mit Schema, ohne Slash am Ende: `https://phisheye.neumann-it.org`.
+- Nach einem Neuexport aus der Admin-Console die Werte wieder durch die Marken ersetzen.
+- Der Import läuft nur beim ersten Start mit leerem Volume. Bei einem bestehenden Realm die Werte in der Admin-Console nachziehen oder das Volume `keycloak-data` neu anlegen.
+
+## Adressen lokal und auf dem Server
+
+Die Standardwerte laufen lokal auf dem Mac ohne eigene `.env`-Einträge. Auf dem Server gehören diese Werte in die `.env`:
+
+| Variable | Lokal (Standard) | Server | Wirkung |
+| --- | --- | --- | --- |
+| `KEYCLOAK_PUBLIC_URL` | `http://localhost:8080` | `https://phisheye.neumann-it.org` | Adresse von Keycloak im Browser. Das Backend erwartet sie als Aussteller der Token, das Frontend meldet sich dort an. Ohne Slash am Ende. |
+| `FRONTEND_URL` | `http://localhost:5173` | `https://phisheye.neumann-it.org` | erlaubtes Ziel nach Login und Logout, gilt nur beim ersten Import des Realms |
+| `FRONTEND_PORT` | `5173` | Port, auf den der Nginx Proxy Manager zeigt | veröffentlichter Port des Frontends |
+
+Das Frontend liest `KEYCLOAK_PUBLIC_URL` beim Build. Ändert sich der Wert, muss es neu gebaut werden (`docker compose --profile app up -d --build`).
+
 ## DNS: manuell beim bestehenden Provider
 
 Domain existiert bereits extern, Eintrag zeigt auf die Homelab-IP.

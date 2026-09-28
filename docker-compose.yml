@@ -1,5 +1,6 @@
 ---
 
+# app services only start with `--profile app`, plain `up` stays infra only
 services:
   db:
     image: postgres:18.6
@@ -11,21 +12,42 @@ services:
       POSTGRES_USER: "${POSTGRES_USER}"
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
       POSTGRES_DB: "${POSTGRES_DB}"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
     volumes:
       - db_local-data:/var/lib/postgresql
+
   keycloak:
-    image: quay.io/keycloak/keycloak:26.7.3
+    # stock Keycloak plus the phisheye login theme, see the keycloak stage in
+    # frontend/Dockerfile. After changes to the theme: up -d --build keycloak
+    build:
+      context: ./frontend
+      target: keycloak
     container_name: keycloak
     restart: always
-    command: start-dev --import-realm
+    entrypoint: ["/bin/bash", "/opt/keycloak/entrypoint.sh"]
+    command: ["start-dev", "--import-realm"]
     ports:
       - "127.0.0.1:8080:8080"
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: "${KEYCLOAK_ADMIN_USER}"
       KC_BOOTSTRAP_ADMIN_PASSWORD: "${KEYCLOAK_ADMIN_PASSWORD}"
+      FRONTEND_URL: "${FRONTEND_URL:-http://localhost:5173}"
+      SMTP_HOST: "${SMTP_HOST:-smtp.strato.de}"
+      SMTP_PORT: "${SMTP_PORT:-465}"
+      SMTP_USERNAME: "${SMTP_USERNAME:-noreply@example.com}"
+      SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
+    # the rendered realm goes here, an older volume has this folder owned by root
+    tmpfs:
+      - /opt/keycloak/data/import:mode=1777
     volumes:
       - keycloak-data:/opt/keycloak/data
-      - ./docker/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+      - ./docker/keycloak/realm-export.json:/opt/keycloak/template/realm-export.json:ro
+      - ./docker/keycloak/entrypoint.sh:/opt/keycloak/entrypoint.sh:ro
+
   pgadmin:
     image: dpage/pgadmin4:9.17
     container_name: pgadmin
@@ -71,6 +93,82 @@ services:
       MINIO_ROOT_PASSWORD: "${MINIO_ROOT_PASSWORD}"
     volumes:
       - minio-data:/data
+
+  migrate:
+    build: ./backend
+    image: phisheye-backend
+    env_file: backend/.env
+    environment:
+      POSTGRES_HOST: db
+      REDIS_URL: redis://redis:6379/0
+      S3_ENDPOINT_URL: http://minio:9000
+      KEYCLOAK_URL: "http://keycloak:8080"
+      KEYCLOAK_PUBLIC_URL: "${KEYCLOAK_PUBLIC_URL:-http://localhost:8080}"
+    command: alembic upgrade head
+    restart: "no"
+    profiles: [app]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  backend:
+    build: ./backend
+    image: phisheye-backend
+    container_name: backend
+    env_file: backend/.env
+    environment:
+      POSTGRES_HOST: db
+      REDIS_URL: redis://redis:6379/0
+      S3_ENDPOINT_URL: http://minio:9000
+      KEYCLOAK_URL: "http://keycloak:8080"
+      KEYCLOAK_PUBLIC_URL: "${KEYCLOAK_PUBLIC_URL:-http://localhost:8080}"
+    restart: unless-stopped
+    profiles: [app]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+      minio:
+        condition: service_started
+
+  worker:
+    build: ./backend
+    image: phisheye-backend
+    container_name: worker
+    env_file: backend/.env
+    environment:
+      POSTGRES_HOST: db
+      REDIS_URL: redis://redis:6379/0
+      S3_ENDPOINT_URL: http://minio:9000
+      KEYCLOAK_URL: "http://keycloak:8080"
+      KEYCLOAK_PUBLIC_URL: "${KEYCLOAK_PUBLIC_URL:-http://localhost:8080}"
+    command: arq app.worker.settings.WorkerSettings
+    restart: unless-stopped
+    profiles: [app]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+      minio:
+        condition: service_started
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: "${VITE_API_URL:-/api}"
+        VITE_KEYCLOAK_URL: "${KEYCLOAK_PUBLIC_URL:-http://localhost:8080}"
+        VITE_KEYCLOAK_REALM: "${VITE_KEYCLOAK_REALM:-phisheye}"
+        VITE_KEYCLOAK_CLIENT_ID: "${VITE_KEYCLOAK_CLIENT_ID:-phisheye-frontend}"
+    container_name: frontend
+    restart: unless-stopped
+    profiles: [app]
+    depends_on:
+      - backend
+    ports:
+      - "${FRONTEND_PORT:-5173}:80"
 
 volumes:
   db_local-data:

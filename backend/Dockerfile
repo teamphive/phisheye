@@ -22,5 +22,7 @@ ENV UV_NO_DEV=1
 WORKDIR /app
 RUN uv sync --locked
 
-# Presuming there is a `my_app` command provided by the project
-CMD ["uv", "run", "fastapi", "run", "app/main.py", "--host", "0.0.0.0", "--port", "8000"]
+# Run tools from the project environment without `uv run`
+ENV PATH="/app/.venv/bin:$PATH"
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
