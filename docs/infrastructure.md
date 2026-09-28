@@ -46,11 +46,17 @@ Keycloak löst Platzhalter der Form `${env.SMTP_USERNAME}` im Block `smtpServer`
 
 ## Keycloak öffentlich unter /auth statt eigener Subdomain
 
-Nur das Frontend wird im Nginx Proxy Manager freigegeben, eine Domain reicht. Keycloak läuft mit `KC_HTTP_RELATIVE_PATH=/auth`, der Frontend-nginx reicht `/auth/` unverändert an den Keycloak-Container weiter (`frontend/nginx.conf`). Damit ist Keycloak selbst nie direkt aus dem Internet erreichbar, nur über diese eine Route.
+Der Nginx Proxy Manager gibt nur das Frontend frei, eine Domain reicht. Keycloak läuft mit `KC_HTTP_RELATIVE_PATH=/auth`, der Frontend-nginx reicht `/auth/` unverändert an den Keycloak-Container weiter (`frontend/nginx.conf`). Keycloak selbst ist so nie direkt aus dem Internet erreichbar, nur über diese Route.
 
-Folge: `KEYCLOAK_URL` und `KEYCLOAK_PUBLIC_URL` bekommen `/auth` angehängt, dort wo sie das Backend oder das Frontend tatsächlich ansprechen (`docker-compose.yml`). Die Variablen selbst bleiben die reine Adresse ohne Pfad, siehe Tabelle unten.
+Folge: Backend und Frontend hängen `/auth` an `KEYCLOAK_URL` und `KEYCLOAK_PUBLIC_URL` an, dort wo sie Keycloak tatsächlich ansprechen (`docker-compose.yml`). Die Variablen selbst bleiben pfadlos, siehe Tabelle unten.
 
-Der Port `8080` bleibt trotzdem an `127.0.0.1` gebunden. Das ist nur für die Admin-Console gedacht, per SSH-Tunnel auf den Server.
+Port `8080` ist im LAN offen, für die Admin-Console, am Router bleibt er zu. UFW beschränkt ihn aufs LAN, genauso wie SSH:
+
+```
+sudo ufw allow from 192.168.178.0/24 to any port 8080 proto tcp comment 'keycloak admin console'
+```
+
+Admin-Console dann unter `http://<server-ip>:8080/auth/admin/`. `/auth/admin` bleibt über die öffentliche Domain gesperrt, siehe `frontend/nginx.conf`.
 
 ## Eine `.env` für alles
 

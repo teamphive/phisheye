@@ -11,9 +11,8 @@ ARG VITE_KEYCLOAK_CLIENT_ID
 # whole project first: the postinstall of keycloakify needs the vite config
 COPY . .
 RUN npm ci
-# docker only reruns a cached RUN step when a build arg it uses changes, and
-# only counts an arg as used when it appears literally in the command, hence
-# the otherwise pointless echo
+# docker only busts the cache on a build-arg change if the arg appears
+# literally in the command, hence the otherwise pointless echo
 RUN echo "building for $VITE_KEYCLOAK_URL" && npm run build
 
 # The login theme, packed into a jar by Keycloakify. It calls Maven, the jar
