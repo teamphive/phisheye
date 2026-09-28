@@ -1,7 +1,6 @@
 import { Link, useNavigate } from "react-router"
 
-import { AuthBrand, AuthSplit } from "@/components/auth-shell"
-import { Badge } from "@/components/ui/badge"
+import { AuthSplit, LoginAside } from "@/components/auth-shell"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
@@ -12,32 +11,7 @@ export function LoginPage() {
   const navigate = useNavigate()
 
   return (
-    <AuthSplit
-      aside={
-        <>
-          <AuthBrand />
-
-          <div className="flex flex-col gap-5">
-            <p className="max-w-[26ch] text-[19px] leading-snug font-medium tracking-tight">
-              Gemeldete Mails an einem Ort prüfen, bewerten und dokumentieren.
-            </p>
-            <div className="flex gap-2">
-              <Badge variant="phishing">Phishing</Badge>
-              <Badge variant="suspicious">Verdächtig</Badge>
-              <Badge variant="clean">Sauber</Badge>
-            </div>
-            <p className="text-muted-foreground max-w-[34ch] text-sm">
-              Header, Authentifizierung, Links und Anhänge werden nachvollziehbar
-              bewertet — mit Begründung je Kriterium.
-            </p>
-          </div>
-
-          <p className="text-faint font-mono text-[11px]">
-            Interne Anwendung der Hansa Logistik GmbH
-          </p>
-        </>
-      }
-    >
+    <AuthSplit aside={<LoginAside />}>
       <div>
         <h1 className="text-[22px] font-semibold tracking-tight">Anmelden</h1>
         <p className="text-muted-foreground mt-1.5 text-sm">

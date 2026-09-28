@@ -1,17 +1,10 @@
-import { StrictMode } from "react"
-import { createRoot } from "react-dom/client"
-
-import "./index.css"
-import App from "./App.tsx"
-import { AuthGate } from "@/components/auth-gate.tsx"
-import { ThemeProvider } from "@/components/theme-provider.tsx"
-
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <ThemeProvider>
-      <AuthGate>
-        <App />
-      </AuthGate>
-    </ThemeProvider>
-  </StrictMode>
-)
+// Keycloak serves the same bundle for its login pages and puts
+// window.kcContext on them, so one entry point starts either the theme or the
+// app. VITE_KC_DEV shows the theme with mock data, see README.
+if (window.kcContext !== undefined) {
+  import("./keycloak-theme/main")
+} else if (import.meta.env.VITE_KC_DEV === "true") {
+  import("./keycloak-theme/main.dev")
+} else {
+  import("./main-app")
+}

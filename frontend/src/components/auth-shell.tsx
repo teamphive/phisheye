@@ -1,6 +1,7 @@
 import type { ReactNode } from "react"
 
 import { BrandMark } from "@/components/brand-mark"
+import { Badge } from "@/components/ui/badge"
 
 export function AuthBrand({ centered = false }: { centered?: boolean }) {
   return (
@@ -10,6 +11,34 @@ export function AuthBrand({ centered = false }: { centered?: boolean }) {
       <BrandMark className="text-primary size-7" />
       <span className="text-[19px] font-bold tracking-tight">phisheye</span>
     </div>
+  )
+}
+
+/** Left column of the login page, shared with the Keycloak theme. */
+export function LoginAside() {
+  return (
+    <>
+      <AuthBrand />
+
+      <div className="flex flex-col gap-5">
+        <p className="max-w-[26ch] text-[19px] leading-snug font-medium tracking-tight">
+          Gemeldete Mails an einem Ort prüfen, bewerten und dokumentieren.
+        </p>
+        <div className="flex gap-2">
+          <Badge variant="phishing">Phishing</Badge>
+          <Badge variant="suspicious">Verdächtig</Badge>
+          <Badge variant="clean">Sauber</Badge>
+        </div>
+        <p className="text-muted-foreground max-w-[34ch] text-sm">
+          Header, Authentifizierung, Links und Anhänge werden nachvollziehbar
+          bewertet — mit Begründung je Kriterium.
+        </p>
+      </div>
+
+      <p className="text-faint font-mono text-[11px]">
+        Interne Anwendung der Hansa Logistik GmbH
+      </p>
+    </>
   )
 }
 
