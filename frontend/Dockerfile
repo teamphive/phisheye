@@ -11,12 +11,6 @@ ARG VITE_KEYCLOAK_CLIENT_ID
 # whole project first: the postinstall of keycloakify needs the vite config
 COPY . .
 RUN npm ci
-
-# login-ui ships useSetClassname.js, the generated Template.tsx imports
-# useSetClassName. macOS does not tell them apart, linux does.
-RUN cd node_modules/@keycloakify/login-ui/tools \
-    && for f in useSetClassname.*; do ln -s "$f" "useSetClassName${f#useSetClassname}"; done
-
 RUN npm run build
 
 FROM nginx:alpine
