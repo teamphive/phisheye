@@ -1,6 +1,7 @@
 {
   "id": "7613fc60-ff0f-4794-9e7a-6f3d48dcf583",
   "realm": "phisheye",
+  "loginTheme": "phisheye",
   "notBefore": 0,
   "defaultSignatureAlgorithm": "RS256",
   "revokeRefreshToken": false,
@@ -29,11 +30,11 @@
   "sslRequired": "external",
   "registrationAllowed": false,
   "registrationEmailAsUsername": false,
-  "rememberMe": false,
+  "rememberMe": true,
   "verifyEmail": false,
   "loginWithEmailAllowed": true,
   "duplicateEmailsAllowed": false,
-  "resetPasswordAllowed": false,
+  "resetPasswordAllowed": true,
   "editUsernameAllowed": false,
   "bruteForceProtected": false,
   "permanentLockout": false,
@@ -728,10 +729,12 @@
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
       "redirectUris": [
-        "http://localhost:5173/*"
+        "http://localhost:5173/*",
+        "${FRONTEND_URL:http://localhost:5173}/*"
       ],
       "webOrigins": [
-        "http://localhost:5173"
+        "http://localhost:5173",
+        "${FRONTEND_URL:http://localhost:5173}"
       ],
       "notBefore": 0,
       "bearerOnly": false,
@@ -747,7 +750,7 @@
         "logout.confirmation.enabled": "false",
         "standard.token.exchange.enabled": "false",
         "oauth2.jwt.authorization.grant.enabled": "false",
-        "post.logout.redirect.uris": "http://localhost:5173/*",
+        "post.logout.redirect.uris": "http://localhost:5173/*##${FRONTEND_URL:http://localhost:5173}/*",
         "frontchannel.logout.session.required": "true",
         "oauth2.device.authorization.grant.enabled": "false",
         "backchannel.logout.revoke.offline.tokens": "false",
@@ -1628,7 +1631,15 @@
     "contentSecurityPolicy": "frame-src 'self'; frame-ancestors 'self'; object-src 'none';",
     "strictTransportSecurity": "max-age=31536000; includeSubDomains"
   },
-  "smtpServer": {},
+  "smtpServer": {
+    "host": "${env.SMTP_HOST}",
+    "port": "${env.SMTP_PORT}",
+    "ssl": "true",
+    "auth": "true",
+    "user": "${env.SMTP_USERNAME}",
+    "password": "${env.SMTP_PASSWORD}",
+    "from": "${env.SMTP_USERNAME}"
+  },
   "eventsEnabled": false,
   "eventsListeners": [
     "jboss-logging"
@@ -1887,7 +1898,7 @@
         {
           "authenticator": "auth-recovery-authn-code-form",
           "authenticatorFlow": false,
-          "requirement": "DISABLED",
+          "requirement": "ALTERNATIVE",
           "priority": 50,
           "autheticatorFlow": false,
           "userSetupAllowed": false

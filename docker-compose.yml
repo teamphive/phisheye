@@ -1,17 +1,6 @@
 ---
 
 # app services only start with `--profile app`, plain `up` stays infra only
-x-backend: &backend
-  build: ./backend
-  image: phisheye-backend
-  env_file: backend/.env
-  environment:
-    POSTGRES_HOST: db
-    REDIS_URL: redis://redis:6379/0
-    S3_ENDPOINT_URL: http://minio:9000
-  restart: unless-stopped
-  profiles: [app]
-
 services:
   db:
     image: postgres:18.6
@@ -30,6 +19,7 @@ services:
       retries: 10
     volumes:
       - db_local-data:/var/lib/postgresql
+
   keycloak:
     image: quay.io/keycloak/keycloak:26.7.3
     container_name: keycloak
@@ -40,9 +30,16 @@ services:
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: "${KEYCLOAK_ADMIN_USER}"
       KC_BOOTSTRAP_ADMIN_PASSWORD: "${KEYCLOAK_ADMIN_PASSWORD}"
+      FRONTEND_URL: "${FRONTEND_URL:-http://localhost:5173}"
+      SMTP_HOST: "${SMTP_HOST}"
+      SMTP_PORT: "${SMTP_PORT}"
+      SMTP_USERNAME: "${SMTP_USERNAME}"
+      SMTP_PASSWORD: "${SMTP_PASSWORD}"
     volumes:
       - keycloak-data:/opt/keycloak/data
       - ./docker/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+      - ./docker/keycloak/theme/phisheye-theme.jar:/opt/keycloak/providers/phisheye-theme.jar:ro
+
   pgadmin:
     image: dpage/pgadmin4:9.17
     container_name: pgadmin
@@ -90,16 +87,35 @@ services:
       - minio-data:/data
 
   migrate:
-    <<: *backend
+    build: ./backend
+    image: phisheye-backend
+    env_file: backend/.env
+    environment:
+      POSTGRES_HOST: db
+      REDIS_URL: redis://redis:6379/0
+      S3_ENDPOINT_URL: http://minio:9000
+      KEYCLOAK_URL: "http://keycloak:8080"
+      KEYCLOAK_PUBLIC_URL: "https://phisheye.neumann-it.org/"
     command: alembic upgrade head
     restart: "no"
+    profiles: [app]
     depends_on:
       db:
         condition: service_healthy
 
   backend:
-    <<: *backend
+    build: ./backend
+    image: phisheye-backend
     container_name: backend
+    env_file: backend/.env
+    environment:
+      POSTGRES_HOST: db
+      REDIS_URL: redis://redis:6379/0
+      S3_ENDPOINT_URL: http://minio:9000
+      KEYCLOAK_URL: "http://keycloak:8080"
+      KEYCLOAK_PUBLIC_URL: "https://phisheye.neumann-it.org/"
+    restart: unless-stopped
+    profiles: [app]
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -109,9 +125,19 @@ services:
         condition: service_started
 
   worker:
-    <<: *backend
+    build: ./backend
+    image: phisheye-backend
     container_name: worker
+    env_file: backend/.env
+    environment:
+      POSTGRES_HOST: db
+      REDIS_URL: redis://redis:6379/0
+      S3_ENDPOINT_URL: http://minio:9000
+      KEYCLOAK_URL: "http://keycloak:8080"
+      KEYCLOAK_PUBLIC_URL: "https://phisheye.neumann-it.org/"
     command: arq app.worker.settings.WorkerSettings
+    restart: unless-stopped
+    profiles: [app]
     depends_on:
       migrate:
         condition: service_completed_successfully
