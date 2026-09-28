@@ -35,3 +35,4 @@ Voraussetzungen und AWS-Setup: [`setup.md`](setup.md). Start der einzelnen Teile
 - [UI-Mockup](docs/mockup.html)
 - [Features](docs/features.md)
 - [Infrastruktur-Entscheidungen](docs/infrastructure.md)
+- [Release und Changelog](docs/release.md)

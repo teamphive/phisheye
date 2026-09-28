@@ -1,0 +1,225 @@
+name: Release
+
+# Started by hand: Actions -> Release -> Run workflow on main, see docs/release.md.
+# 1. prepare: next version from the conventional commits since the last tag
+# 2. images: backend, frontend and keycloak image to ghcr.io
+# 3. release: CHANGELOG.md commit, tag and GitHub release
+# Images go first, so a broken Dockerfile stops the run before anything is tagged.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version without v, e.g. 0.2.0. Empty = computed from the commits"
+        required: false
+        default: ""
+      dry_run:
+        description: "Dry run: build the images and show the release notes, push nothing"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  GIT_CLIFF_VERSION: v2.14.2
+
+jobs:
+  prepare:
+    name: Version and release notes
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - name: Only from main
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::Releases are cut from main only, not from $GITHUB_REF_NAME"
+          exit 1
+
+      # git-cliff needs the whole history and all tags
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # checked here so only a plain version reaches the git-cliff arguments
+      - name: Read version input
+        id: input
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if [ -z "$VERSION" ]; then
+            echo "args=--bump" >> "$GITHUB_OUTPUT"
+          elif [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "args=--tag $VERSION" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::Version must look like 0.1.2, without v"
+            exit 1
+          fi
+
+      - name: Generate release notes
+        id: cliff
+        uses: orhun/git-cliff-action@v4
+        with:
+          version: ${{ env.GIT_CLIFF_VERSION }}
+          args: --unreleased --strip header ${{ steps.input.outputs.args }}
+        env:
+          OUTPUT: RELEASE_NOTES.md
+
+      - name: Check version
+        id: check
+        env:
+          VERSION: ${{ steps.cliff.outputs.version }}
+        run: |
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::git-cliff returned no valid version: $VERSION"
+            exit 1
+          fi
+          # without new commits git-cliff returns the last version again
+          if git rev-parse -q --verify "refs/tags/$VERSION" > /dev/null; then
+            echo "::error::Tag $VERSION exists already, no new commits since the last release?"
+            exit 1
+          fi
+          if ! grep -q '^- ' RELEASE_NOTES.md; then
+            echo "::error::No conventional commits since the last release, nothing to put in the changelog"
+            exit 1
+          fi
+          latest=$(git tag --list | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1)
+          if [ -n "$latest" ] && [ "$(printf '%s\n' "$latest" "$VERSION" | sort -V | tail -n 1)" != "$VERSION" ]; then
+            echo "::error::$VERSION is lower than the last release $latest"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          {
+            echo "# Release $VERSION"
+            echo
+            cat RELEASE_NOTES.md
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  images:
+    name: Image ${{ matrix.image }}
+    needs: prepare
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - image: backend
+            context: backend
+          - image: frontend
+            context: frontend
+            # Vite bakes these into the bundle, so they are the addresses the
+            # browser uses on the server. KEYCLOAK_PUBLIC_URL is a repository
+            # variable (Settings -> Secrets and variables -> Actions -> Variables).
+            build-args: |
+              VITE_API_URL=/api
+              VITE_KEYCLOAK_URL=${{ vars.KEYCLOAK_PUBLIC_URL || 'https://phisheye.neumann-it.org' }}
+              VITE_KEYCLOAK_REALM=phisheye
+              VITE_KEYCLOAK_CLIENT_ID=phisheye-frontend
+          # stock Keycloak plus the login theme, see the keycloak stage in frontend/Dockerfile
+          - image: keycloak
+            context: frontend
+            target: keycloak
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Log in to ghcr.io
+        if: ${{ !inputs.dry_run }}
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # 0.2.0, 0.2, latest and sha-<commit>. The fixed version tags are what a
+      # rollback on the server points to.
+      - name: Image tags
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ github.repository }}-${{ matrix.image }}
+          flavor: latest=false
+          tags: |
+            type=semver,pattern={{version}},value=${{ needs.prepare.outputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.prepare.outputs.version }}
+            type=raw,value=latest
+            type=sha
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: ${{ matrix.context }}
+          target: ${{ matrix.target }}
+          build-args: ${{ matrix.build-args }}
+          # the homelab VM is x86
+          platforms: linux/amd64
+          push: ${{ !inputs.dry_run }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+
+  release:
+    name: Changelog, tag and GitHub release
+    needs: [prepare, images]
+    if: ${{ !inputs.dry_run }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Update CHANGELOG.md
+        uses: orhun/git-cliff-action@v4
+        with:
+          version: ${{ env.GIT_CLIFF_VERSION }}
+          args: --tag ${{ env.VERSION }}
+        env:
+          OUTPUT: CHANGELOG.md
+
+      # HEAD is the commit the images were built from. If main moved on in the
+      # meantime, the push is rejected and nothing is tagged, run it again.
+      - name: Commit, tag and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          git commit -m "chore(release): $VERSION"
+          git tag -a "$VERSION" -m "$VERSION"
+          git push --atomic origin HEAD:main "refs/tags/$VERSION"
+
+      - name: Release notes
+        uses: orhun/git-cliff-action@v4
+        with:
+          version: ${{ env.GIT_CLIFF_VERSION }}
+          args: --latest --strip header
+        env:
+          OUTPUT: RELEASE_NOTES.md
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo
+            echo "### Docker images"
+            echo
+            echo '```'
+            for image in backend frontend keycloak; do
+              echo "ghcr.io/$GITHUB_REPOSITORY-$image:$VERSION"
+            done
+            echo '```'
+          } >> RELEASE_NOTES.md
+          gh release create "$VERSION" --title "$VERSION" --notes-file RELEASE_NOTES.md --verify-tag
+          echo "Released [$VERSION]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$VERSION)" >> "$GITHUB_STEP_SUMMARY"
