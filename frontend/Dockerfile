@@ -11,12 +11,17 @@ ARG VITE_KEYCLOAK_CLIENT_ID
 # whole project first: the postinstall of keycloakify needs the vite config
 COPY . .
 RUN npm ci
-RUN npm run build
+# docker only busts the cache on a build-arg change if the arg appears
+# literally in the command, hence the otherwise pointless echo
+RUN echo "building for $VITE_KEYCLOAK_URL" && npm run build
 
 # The login theme, packed into a jar by Keycloakify. It calls Maven, the jar
 # holds no Java code, so any JDK will do.
 FROM build AS theme
 RUN apk add --no-cache maven openjdk21-jdk
+# under x86_64 emulation on arm64 hosts (e.g. Colima), the JIT compiler
+# crashes maven with SIGSEGV, so it runs interpreted only
+ENV MAVEN_OPTS="-XX:TieredStopAtLevel=1"
 RUN npx keycloakify build
 
 # Keycloak with the theme, built by the keycloak service in docker-compose.yml.

@@ -7,7 +7,7 @@ services:
     container_name: postges
     restart: always
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     environment:
       POSTGRES_USER: "${POSTGRES_USER}"
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
@@ -31,17 +31,15 @@ services:
     entrypoint: ["/bin/bash", "/opt/keycloak/entrypoint.sh"]
     command: ["start-dev", "--import-realm"]
     ports:
+      # only for a local SSH tunnel if the public admin console is ever
+      # unreachable, not the regular way in
       - "127.0.0.1:8080:8080"
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: "${KEYCLOAK_ADMIN_USER}"
       KC_BOOTSTRAP_ADMIN_PASSWORD: "${KEYCLOAK_ADMIN_PASSWORD}"
-      # Keycloak writes this address into every token as issuer, the backend
-      # checks it. Fixed instead of taken from each request, so it stays the
-      # same whether the browser or the backend asks.
-      KC_HOSTNAME: "${KEYCLOAK_PUBLIC_URL:-http://localhost:8080}"
-      # On the server a proxy ends TLS, its X-Forwarded headers tell Keycloak
-      # the original https request and client IP. Safe while the port is only
-      # bound to 127.0.0.1.
+      KC_HOSTNAME: "${KEYCLOAK_PUBLIC_URL:-http://localhost:8080}/auth"
+      # exposes Keycloak at /auth on the frontend's domain, see frontend/nginx.conf
+      KC_HTTP_RELATIVE_PATH: /auth
       KC_PROXY_HEADERS: xforwarded
       FRONTEND_URL: "${FRONTEND_URL:-http://localhost:5173}"
       SMTP_HOST: "${SMTP_HOST:-smtp.strato.de}"
@@ -84,7 +82,7 @@ services:
     container_name: redis
     restart: always
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis-data:/data
 
@@ -94,7 +92,7 @@ services:
     restart: always
     command: server /data --console-address ":9001"
     ports:
-      - "9000:9000"
+      - "127.0.0.1:9000:9000"
       - "127.0.0.1:9001:9001"
     environment:
       MINIO_ROOT_USER: "${MINIO_ROOT_USER}"
@@ -105,13 +103,13 @@ services:
   migrate:
     build: ./backend
     image: phisheye-backend
-    env_file: backend/.env
+    env_file: .env
     environment:
       POSTGRES_HOST: db
       REDIS_URL: redis://redis:6379/0
       S3_ENDPOINT_URL: http://minio:9000
-      KEYCLOAK_URL: "http://keycloak:8080"
-      KEYCLOAK_PUBLIC_URL: "${KEYCLOAK_PUBLIC_URL:-http://localhost:8080}"
+      KEYCLOAK_URL: "http://keycloak:8080/auth"
+      KEYCLOAK_PUBLIC_URL: "${KEYCLOAK_PUBLIC_URL:-http://localhost:8080}/auth"
     command: alembic upgrade head
     restart: "no"
     profiles: [app]
@@ -123,13 +121,13 @@ services:
     build: ./backend
     image: phisheye-backend
     container_name: backend
-    env_file: backend/.env
+    env_file: .env
     environment:
       POSTGRES_HOST: db
       REDIS_URL: redis://redis:6379/0
       S3_ENDPOINT_URL: http://minio:9000
-      KEYCLOAK_URL: "http://keycloak:8080"
-      KEYCLOAK_PUBLIC_URL: "${KEYCLOAK_PUBLIC_URL:-http://localhost:8080}"
+      KEYCLOAK_URL: "http://keycloak:8080/auth"
+      KEYCLOAK_PUBLIC_URL: "${KEYCLOAK_PUBLIC_URL:-http://localhost:8080}/auth"
     restart: unless-stopped
     profiles: [app]
     depends_on:
@@ -144,13 +142,13 @@ services:
     build: ./backend
     image: phisheye-backend
     container_name: worker
-    env_file: backend/.env
+    env_file: .env
     environment:
       POSTGRES_HOST: db
       REDIS_URL: redis://redis:6379/0
       S3_ENDPOINT_URL: http://minio:9000
-      KEYCLOAK_URL: "http://keycloak:8080"
-      KEYCLOAK_PUBLIC_URL: "${KEYCLOAK_PUBLIC_URL:-http://localhost:8080}"
+      KEYCLOAK_URL: "http://keycloak:8080/auth"
+      KEYCLOAK_PUBLIC_URL: "${KEYCLOAK_PUBLIC_URL:-http://localhost:8080}/auth"
     command: arq app.worker.settings.WorkerSettings
     restart: unless-stopped
     profiles: [app]
@@ -167,7 +165,7 @@ services:
       context: ./frontend
       args:
         VITE_API_URL: "${VITE_API_URL:-/api}"
-        VITE_KEYCLOAK_URL: "${KEYCLOAK_PUBLIC_URL:-http://localhost:8080}"
+        VITE_KEYCLOAK_URL: "${KEYCLOAK_PUBLIC_URL:-http://localhost:8080}/auth"
         VITE_KEYCLOAK_REALM: "${VITE_KEYCLOAK_REALM:-phisheye}"
         VITE_KEYCLOAK_CLIENT_ID: "${VITE_KEYCLOAK_CLIENT_ID:-phisheye-frontend}"
     container_name: frontend
@@ -175,6 +173,7 @@ services:
     profiles: [app]
     depends_on:
       - backend
+      - keycloak
     ports:
       - "${FRONTEND_PORT:-5173}:80"
 
