@@ -177,7 +177,7 @@ jobs:
           notes="$RUNNER_TEMP/RELEASE_NOTES.md"
           {
             echo
-            echo "### Docker images"
+            echo "### 🐳 Docker images"
             echo
             echo '```'
             for image in backend frontend keycloak; do
