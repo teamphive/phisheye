@@ -104,6 +104,19 @@ describe("apiFetch", () => {
     })
   })
 
+  it("hands a file over as it came, with the token like every other call", async () => {
+    auth.enabled = true
+    const { apiBlob } = await loadApi()
+    fetchMock.mockResolvedValue(new Response("Subject: Rechnung\r\n"))
+
+    const file = await apiBlob("/analyses/1/eml")
+
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(url).toBe("https://phisheye.test/api/analyses/1/eml")
+    expect(init?.headers).toEqual({ Authorization: "Bearer access-token" })
+    expect(await file.text()).toBe("Subject: Rechnung\r\n")
+  })
+
   it("answers 204 with nothing", async () => {
     const { apiFetch } = await loadApi()
     fetchMock.mockResolvedValue(new Response(null, { status: 204 }))

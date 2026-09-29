@@ -97,13 +97,9 @@ export function errorMessage(error: unknown) {
 
 /**
  * Every call to the backend goes through here, so the token handling exists
- * exactly once. Throws on anything but a successful answer. Field names of the
- * answer arrive in camelCase, request bodies stay in the API's snake_case.
+ * exactly once. Throws on anything but a successful answer.
  */
-export async function apiFetch<T>(
-  path: string,
-  init: RequestInit = {}
-): Promise<T> {
+async function request(path: string, init: RequestInit = {}) {
   const response = await fetch(`${baseUrl}${path}`, {
     ...init,
     headers: { ...(await authorization()), ...init.headers },
@@ -121,7 +117,26 @@ export async function apiFetch<T>(
     throw new ApiError(response.status, await messageOf(response))
   }
 
+  return response
+}
+
+/**
+ * A JSON answer. Field names arrive in camelCase, request bodies stay in the
+ * API's snake_case.
+ */
+export async function apiFetch<T>(
+  path: string,
+  init: RequestInit = {}
+): Promise<T> {
+  const response = await request(path, init)
+
   return response.status === 204
     ? (undefined as T)
     : (fromApi(await response.json()) as T)
+}
+
+/** A file, handed over as the backend sent it. */
+export async function apiBlob(path: string) {
+  const response = await request(path)
+  return response.blob()
 }
