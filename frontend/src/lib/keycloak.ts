@@ -24,6 +24,44 @@ export const keycloak = new Keycloak({
   clientId: clientId ?? "",
 })
 
+/** Keycloak's REST API for the signed in user's own account. */
+export const accountUrl = `${url}/realms/${realm}/account`
+
+/** What Keycloak itself asks for on its own pages, in the login theme. */
+export type AccountAction =
+  | "UPDATE_PASSWORD"
+  | "CONFIGURE_TOTP"
+  | "CONFIGURE_RECOVERY_AUTHN_CODES"
+  | `delete_credential:${string}`
+
+export type FinishedAction = {
+  action: string
+  status: "success" | "cancelled" | "error"
+}
+
+let finished: FinishedAction | null = null
+
+// Set before init: keycloak-js reports the result while it reads the redirect
+keycloak.onActionUpdate = (status, action) => {
+  finished = { status, action: action ?? "" }
+}
+
+/**
+ * Sends the browser to one of Keycloak's pages for the account and back to
+ * where it was. Keycloak asks for the password again first if the last login
+ * is older than a few minutes.
+ */
+export function runAccountAction(action: AccountAction) {
+  return keycloak.login({ action, redirectUri: window.location.href })
+}
+
+/** The account action Keycloak just came back from, handed out only once. */
+export function takeFinishedAction() {
+  const value = finished
+  finished = null
+  return value
+}
+
 /**
  * keycloak-js sends the browser straight to the login page without ever asking
  * whether the server answers, so a stopped Keycloak would end in the browser's
@@ -71,7 +109,7 @@ export function logout() {
   return keycloak.logout({ redirectUri: window.location.origin })
 }
 
-/** Opens the Keycloak account console: password, second factor, devices. */
+/** Opens the Keycloak account console for everything the app does not show. */
 export function openAccount() {
   return keycloak.accountManagement()
 }
