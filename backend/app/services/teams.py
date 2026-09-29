@@ -44,3 +44,9 @@ async def get_active_membership(
         raise HTTPException(status_code=403, detail="You are not in any team yet")
 
     return membership
+
+
+# check if role is sufficient
+def require_role(membership: TeamMembership, *roles: str) -> None:
+    if membership.role not in roles:
+        raise HTTPException(status_code=403, detail="Your role cannot do this")
