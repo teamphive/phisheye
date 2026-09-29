@@ -14,6 +14,12 @@ just bump-version push
 
 `just bump-version` berechnet mit git-cliff die nächste Version, setzt den Tag auf `HEAD` und pusht ihn mit `push`. Ohne `push` bleibt der Tag lokal zum Prüfen, gepusht wird er dann mit `git push origin 0.2.0`. Eine eigene Version geht auch von Hand: `git tag -a 1.0.0 -m 1.0.0` und `git push origin 1.0.0`.
 
+Soll über den Notes ein Hinweis stehen, etwa zu einer neuen Variable in der `.env` (wie bei [zjstatus 0.25.0](https://github.com/dj95/zjstatus/releases/tag/v0.25.0)), kommt er in die Tag-Nachricht. `just bump-version` schreibt dort nur die Version hinein, die zeigt git-cliff nicht an. Mit Hinweis den Tag von Hand setzen und danach wie oben pushen, jedes `-m` wird ein Absatz:
+
+```bash
+git tag -a "$(git cliff --bumped-version)" -m "⚠️ Braucht KEYCLOAK_PUBLIC_URL in der .env."
+```
+
 Ablauf im Workflow:
 
 | Job | Macht |
@@ -40,7 +46,22 @@ Semantic Versioning ohne `v`: `0.1.0`, `0.1.1`, `0.2.0`. `just bump-version` rec
 | nur `fix`, `docs`, `chore` usw. | Patch, `0.1.3` → `0.1.4` |
 | Breaking Change (`feat!:` oder `BREAKING CHANGE:` im Body) | Minor, solange die Version unter `1.0.0` liegt |
 
-Ins Changelog kommen nur Commits nach [Conventional Commits](https://www.conventionalcommits.org), also `feat(frontend): ...`, `fix: ...`. Andere wie „Merge pull request“ oder „db schema“ fallen raus, `wip:` und `chore(release):` ebenso. Bei Squash-Merges zählt der PR-Titel, deshalb sollte der schon passen. Die PR-Nummer am Ende wird im Changelog verlinkt.
+Ins Changelog kommen nur Commits nach [Conventional Commits](https://www.conventionalcommits.org), also `feat(frontend): ...`, `fix: ...`. Andere wie „Merge pull request“ oder „db schema“ fallen raus, `wip:`, `chore(release):` und `chore(deps):` ebenso. Bei Squash-Merges zählt der PR-Titel, deshalb sollte der schon passen. Die PR-Nummer am Ende wird im Changelog verlinkt.
+
+Das Layout ist von [zjstatus](https://github.com/dj95/zjstatus/blob/main/cliff.toml) übernommen: Der Scope steht kursiv vor dem Eintrag (`*(frontend)* Show …`), Breaking Changes bekommen `[**breaking**]`, die Abschnitte haben Emojis und eine feste Reihenfolge:
+
+| Abschnitt | Commit-Typen |
+| --- | --- |
+| 🚀 Features | `feat` |
+| 🐛 Bug Fixes | `fix` |
+| 🚜 Refactor | `refactor`, `ref` |
+| 📚 Documentation | `docs` |
+| ⚡ Performance | `perf` |
+| 🎨 Styling | `style` |
+| 🧪 Testing | `test` |
+| ⚙️ Miscellaneous Tasks | `chore`, `ci`, `build` |
+| ◀️ Revert | `revert` |
+| 💼 Other | alle übrigen Typen |
 
 Vorschau auf das nächste Release lokal:
 
