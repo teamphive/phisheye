@@ -1,8 +1,8 @@
 # git-cliff config, used by .github/workflows/release.yml
 # https://git-cliff.org/docs/configuration
 #
-# Preview the next release locally (needs uv, see setup.md):
-#   uvx git-cliff@2.14.2 --unreleased --bump
+# Preview the next release locally (brew install git-cliff):
+#   git cliff --unreleased --bump
 
 [changelog]
 header = """

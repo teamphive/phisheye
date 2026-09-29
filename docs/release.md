@@ -1,26 +1,38 @@
 # Release und Changelog
 
-Releases laufen über den Workflow [`release.yml`](../.github/workflows/release.yml). Er berechnet die nächste Version aus den Commits, baut die Docker-Images, schiebt sie nach ghcr.io, schreibt `CHANGELOG.md` fort, setzt den Git-Tag und legt ein GitHub-Release an. Das Changelog erzeugt [git-cliff](https://git-cliff.org) mit der Konfiguration in [`cliff.toml`](../cliff.toml).
+Ein gepushter Versions-Tag wie `0.1.2` startet den Workflow [`release.yml`](../.github/workflows/release.yml). Er baut die Docker-Images, schiebt sie nach ghcr.io, legt ein GitHub-Release an und schreibt `CHANGELOG.md` auf `main` fort. Das Changelog erzeugt [git-cliff](https://git-cliff.org) mit der Konfiguration in [`cliff.toml`](../cliff.toml).
 
 ## Release erstellen
 
-1. GitHub → Actions → Release → Run workflow, Branch `main`.
-2. Feld „Version“ leer lassen, dann berechnet git-cliff die Version. Eine eigene Version wie `1.0.0` geht auch, sie muss aber höher als die letzte sein.
-3. Mit „Dry run“ werden nur die Images gebaut und die Release-Notes in der Zusammenfassung des Laufs angezeigt, gepusht wird nichts. Gut zum Testen nach Änderungen an Dockerfiles.
+Auf aktuellem `main`, braucht `just` und `git-cliff` (`brew install just git-cliff`):
+
+```bash
+git switch main
+git pull
+just bump-version push
+```
+
+`just bump-version` berechnet mit git-cliff die nächste Version, setzt den Tag auf `HEAD` und pusht ihn mit `push`. Ohne `push` bleibt der Tag lokal zum Prüfen, gepusht wird er dann mit `git push origin 0.2.0`. Eine eigene Version geht auch von Hand: `git tag -a 1.0.0 -m 1.0.0` und `git push origin 1.0.0`.
 
 Ablauf im Workflow:
 
 | Job | Macht |
 | --- | --- |
-| `prepare` | Version berechnen und prüfen (Format, Tag noch frei, höher als die letzte, mindestens ein Eintrag) |
+| `prepare` | Tag prüfen (Format `0.1.2`, Commit liegt auf `main`, neueste Version) und Release-Notes in der Zusammenfassung des Laufs zeigen |
 | `images` | Backend-, Frontend- und Keycloak-Image bauen und pushen |
-| `release` | `CHANGELOG.md` committen (`chore(release): 0.2.0`), Tag setzen, GitHub-Release mit den Notes anlegen |
+| `release` | GitHub-Release mit den Notes anlegen, dann `CHANGELOG.md` als `chore(release): 0.2.0` auf `main` committen |
 
-Die Images kommen vor dem Tag. Scheitert ein Build, ist noch nichts getaggt und der Lauf kann nach dem Fix einfach neu gestartet werden. Hat sich `main` während des Laufs bewegt, lehnt GitHub den Push ab und es entsteht kein Tag, dann den Workflow noch einmal starten.
+Der Tag bleibt, wo er gesetzt wurde. Der Changelog-Commit kommt danach auf `main`, der getaggte Stand enthält also noch das Changelog des vorigen Releases, das GitHub-Release hat die vollständigen Notes. Das Changelog wird aus dem Tag erzeugt, Commits, die nach dem Tag auf `main` gelandet sind, zählen zum nächsten Release.
+
+Wenn etwas schiefgeht:
+
+- Build kaputt: Der Tag existiert schon, es gibt aber weder Images noch Release. Tag löschen (`git push --delete origin 0.2.0` und `git tag -d 0.2.0`), Fix auf `main` bringen, neu taggen.
+- `main` hat sich während des Laufs bewegt: Der Push des Changelogs wird abgelehnt. Im Lauf „Re-run failed jobs“ klicken, Release und Changelog werden dabei nicht doppelt angelegt.
+- Tag auf einem Commit außerhalb von `main`: `prepare` bricht ab, Tag löschen und auf `main` neu setzen.
 
 ## Versionen
 
-Semantic Versioning ohne `v`: `0.1.0`, `0.1.1`, `0.2.0`. Das erste Release wird `0.1.0`.
+Semantic Versioning ohne `v`: `0.1.0`, `0.1.1`, `0.2.0`. `just bump-version` rechnet so:
 
 | Commits seit dem letzten Release | Nächste Version |
 | --- | --- |
@@ -30,10 +42,10 @@ Semantic Versioning ohne `v`: `0.1.0`, `0.1.1`, `0.2.0`. Das erste Release wird 
 
 Ins Changelog kommen nur Commits nach [Conventional Commits](https://www.conventionalcommits.org), also `feat(frontend): ...`, `fix: ...`. Andere wie „Merge pull request“ oder „db schema“ fallen raus, `wip:` und `chore(release):` ebenso. Bei Squash-Merges zählt der PR-Titel, deshalb sollte der schon passen. Die PR-Nummer am Ende wird im Changelog verlinkt.
 
-Vorschau auf das nächste Release lokal (braucht `uv`, siehe [setup.md](../setup.md)):
+Vorschau auf das nächste Release lokal:
 
 ```bash
-uvx git-cliff@2.14.2 --unreleased --bump
+git cliff --unreleased --bump
 ```
 
 ## Images
