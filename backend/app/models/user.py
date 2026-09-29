@@ -14,4 +14,6 @@ class User(SQLModel, table=True):
     totp_secret: str | None = None
     totp_enabled: bool = False
     is_operator: bool = False
+    # Every team route answers for this team. Null until the user picks one
+    active_team_id: int | None = Field(default=None, foreign_key="teams.id")
     created_at: datetime = Field(default_factory=datetime.utcnow)

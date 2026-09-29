@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -8,12 +8,17 @@ from ..models.team import Team
 from ..models.team_membership import TeamMembership
 from ..models.user import User
 from ..services.auth import get_current_user
+from ..services.teams import memberships_of, pick_active
 
 router = APIRouter(tags=["me"])
 
 
 class UpdateMeRequest(BaseModel):
     name: str
+
+
+class SelectTeamRequest(BaseModel):
+    team_id: int
 
 
 def _initials(name: str) -> str:
@@ -48,13 +53,34 @@ async def get_me(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    active = pick_active(user, await memberships_of(user, db))
+
     return {
         "name": user.name,
         "email": user.email,
         "initials": _initials(user.name),
         "is_operator": user.is_operator,
         "teams": await _teams_for(user, db),
+        "active_team_id": active.team_id if active else None,
     }
+
+
+@router.post("/me/team", status_code=204)
+async def select_team(
+    payload: SelectTeamRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    async with db.begin():
+        memberships = await memberships_of(user, db)
+
+        # Same answer as for a team that does not exist, so nobody can probe
+        # for the ids of other teams
+        if not any(m.team_id == payload.team_id for m in memberships):
+            raise HTTPException(status_code=404, detail="Team not found")
+
+        user.active_team_id = payload.team_id
+        db.add(user)
 
 
 @router.patch("/me")
