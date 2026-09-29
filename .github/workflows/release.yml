@@ -1,21 +1,14 @@
 name: Release
 
-# Started by hand: Actions -> Release -> Run workflow on main, see docs/release.md.
-# 1. prepare: next version from the conventional commits since the last tag
+# Runs on a pushed version tag like 0.1.2, e.g. from `just bump-version push`
+# on main, see docs/release.md.
+# 1. prepare: check the tag and show the release notes
 # 2. images: backend, frontend and keycloak image to ghcr.io
-# 3. release: CHANGELOG.md commit, tag and GitHub release
-# Images go first, so a broken Dockerfile stops the run before anything is tagged.
+# 3. release: GitHub release, then the CHANGELOG.md commit on main. The tag
+#    exists already, so the changelog commit lands after it.
 on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: "Version without v, e.g. 0.2.0. Empty = computed from the commits"
-        required: false
-        default: ""
-      dry_run:
-        description: "Dry run: build the images and show the release notes, push nothing"
-        type: boolean
-        default: false
+  push:
+    tags: ["[0-9]+.[0-9]+.[0-9]+"]
 
 permissions:
   contents: read
@@ -29,74 +22,54 @@ env:
 
 jobs:
   prepare:
-    name: Version and release notes
+    name: Check tag and release notes
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.check.outputs.version }}
     steps:
-      - name: Only from main
-        if: github.ref != 'refs/heads/main'
-        run: |
-          echo "::error::Releases are cut from main only, not from $GITHUB_REF_NAME"
-          exit 1
-
-      # git-cliff needs the whole history and all tags
+      # the tagged commit with the whole history, all tags and origin/main
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      # checked here so only a plain version reaches the git-cliff arguments
-      - name: Read version input
-        id: input
-        env:
-          VERSION: ${{ inputs.version }}
-        run: |
-          if [ -z "$VERSION" ]; then
-            echo "args=--bump" >> "$GITHUB_OUTPUT"
-          elif [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "args=--tag $VERSION" >> "$GITHUB_OUTPUT"
-          else
-            echo "::error::Version must look like 0.1.2, without v"
-            exit 1
-          fi
-
-      - name: Generate release notes
-        id: cliff
-        uses: orhun/git-cliff-action@v4
-        with:
-          version: ${{ env.GIT_CLIFF_VERSION }}
-          args: --unreleased --strip header ${{ steps.input.outputs.args }}
-        env:
-          OUTPUT: RELEASE_NOTES.md
-
-      - name: Check version
+      - name: Check tag
         id: check
-        env:
-          VERSION: ${{ steps.cliff.outputs.version }}
         run: |
+          VERSION="$GITHUB_REF_NAME"
           if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::git-cliff returned no valid version: $VERSION"
+            echo "::error::Tag must look like 0.1.2, without v"
             exit 1
           fi
-          # without new commits git-cliff returns the last version again
-          if git rev-parse -q --verify "refs/tags/$VERSION" > /dev/null; then
-            echo "::error::Tag $VERSION exists already, no new commits since the last release?"
+          # the changelog commit goes to main, so the tag has to be on main
+          if ! git merge-base --is-ancestor HEAD origin/main; then
+            echo "::error::Tag $VERSION is not on main. Delete it with 'git push --delete origin $VERSION' and tag a commit on main"
             exit 1
           fi
-          if ! grep -q '^- ' RELEASE_NOTES.md; then
-            echo "::error::No conventional commits since the last release, nothing to put in the changelog"
-            exit 1
-          fi
-          latest=$(git tag --list | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1)
-          if [ -n "$latest" ] && [ "$(printf '%s\n' "$latest" "$VERSION" | sort -V | tail -n 1)" != "$VERSION" ]; then
-            echo "::error::$VERSION is lower than the last release $latest"
+          highest=$(git tag --list | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1)
+          if [ "$highest" != "$VERSION" ]; then
+            echo "::error::$VERSION is not the newest version, $highest exists already"
             exit 1
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Release notes
+        uses: orhun/git-cliff-action@v4
+        with:
+          version: ${{ env.GIT_CLIFF_VERSION }}
+          args: --current --strip header
+        env:
+          OUTPUT: ${{ runner.temp }}/RELEASE_NOTES.md
+
+      - name: Show release notes
+        run: |
+          notes="$RUNNER_TEMP/RELEASE_NOTES.md"
+          if ! grep -q '^- ' "$notes"; then
+            echo "::warning::No conventional commits since the last release, the changelog entry stays empty"
+          fi
           {
-            echo "# Release $VERSION"
+            echo "# Release $GITHUB_REF_NAME"
             echo
-            cat RELEASE_NOTES.md
+            cat "$notes"
           } >> "$GITHUB_STEP_SUMMARY"
 
   images:
@@ -131,7 +104,6 @@ jobs:
       - uses: docker/setup-buildx-action@v4
 
       - name: Log in to ghcr.io
-        if: ${{ !inputs.dry_run }}
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
@@ -160,57 +132,48 @@ jobs:
           build-args: ${{ matrix.build-args }}
           # the homelab VM is x86
           platforms: linux/amd64
-          push: ${{ !inputs.dry_run }}
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}
 
   release:
-    name: Changelog, tag and GitHub release
+    name: GitHub release and changelog
     needs: [prepare, images]
-    if: ${{ !inputs.dry_run }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
     env:
       VERSION: ${{ needs.prepare.outputs.version }}
     steps:
+      # generated from the tag, not from main: commits merged after the tag
+      # belong to the next release
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - name: Update CHANGELOG.md
+      - name: Generate CHANGELOG.md
         uses: orhun/git-cliff-action@v4
         with:
           version: ${{ env.GIT_CLIFF_VERSION }}
-          args: --tag ${{ env.VERSION }}
         env:
-          OUTPUT: CHANGELOG.md
-
-      # HEAD is the commit the images were built from. If main moved on in the
-      # meantime, the push is rejected and nothing is tagged, run it again.
-      - name: Commit, tag and push
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add CHANGELOG.md
-          git commit -m "chore(release): $VERSION"
-          git tag -a "$VERSION" -m "$VERSION"
-          git push --atomic origin HEAD:main "refs/tags/$VERSION"
+          OUTPUT: ${{ runner.temp }}/CHANGELOG.md
 
       - name: Release notes
         uses: orhun/git-cliff-action@v4
         with:
           version: ${{ env.GIT_CLIFF_VERSION }}
-          args: --latest --strip header
+          args: --current --strip header
         env:
-          OUTPUT: RELEASE_NOTES.md
+          OUTPUT: ${{ runner.temp }}/RELEASE_NOTES.md
 
+      # edit instead of create on a re-run or when the release was made in the GitHub UI
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          notes="$RUNNER_TEMP/RELEASE_NOTES.md"
           {
             echo
             echo "### Docker images"
@@ -220,6 +183,26 @@ jobs:
               echo "ghcr.io/$GITHUB_REPOSITORY-$image:$VERSION"
             done
             echo '```'
-          } >> RELEASE_NOTES.md
-          gh release create "$VERSION" --title "$VERSION" --notes-file RELEASE_NOTES.md --verify-tag
+          } >> "$notes"
+          if gh release view "$VERSION" > /dev/null 2>&1; then
+            gh release edit "$VERSION" --notes-file "$notes"
+          else
+            gh release create "$VERSION" --title "$VERSION" --notes-file "$notes" --verify-tag
+          fi
           echo "Released [$VERSION]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$VERSION)" >> "$GITHUB_STEP_SUMMARY"
+
+      # Only main moves, the tag stays where it is. If main moved on during the
+      # run, the push is rejected: re-run this job.
+      - name: Commit CHANGELOG.md to main
+        run: |
+          git switch main
+          cp "$RUNNER_TEMP/CHANGELOG.md" CHANGELOG.md
+          if git diff --quiet -- CHANGELOG.md; then
+            echo "CHANGELOG.md is up to date already"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          git commit -m "chore(release): $VERSION"
+          git push origin HEAD:main
