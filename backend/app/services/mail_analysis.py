@@ -42,6 +42,7 @@ async def analyze_and_store(
                 "filename": part.get_filename() or "unnamed",
                 "sha256": hashlib.sha256(file_bytes).hexdigest(),
                 "mime_type": part.get_content_type(),
+                "size": len(file_bytes),
             }
         )
 
@@ -95,6 +96,7 @@ async def analyze_and_store(
                 status="completed",
                 storage_key=storage_key,
                 reported_by=reported_by,
+                raw_headers="\n".join(f"{key}: {value}" for key, value in msg.items()),
             )
 
             db.add(analysis)
@@ -109,6 +111,7 @@ async def analyze_and_store(
                         filename=result["filename"],
                         sha256=result["sha256"],
                         mime_type=result["mime_type"],
+                        size=result["size"],
                         vt_results=result["vt_results"],
                     )
                 )

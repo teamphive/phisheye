@@ -11,6 +11,7 @@ from app import models  # noqa: F401  registers every table for create_all
 from app.database import get_db
 from app.main import app
 from app.models.mail_analysis import MailAnalysis
+from app.models.mail_attachment import MailAttachment
 from app.models.team import Team
 from app.models.team_membership import TeamMembership
 from app.models.user import User
@@ -195,3 +196,104 @@ async def test_upload_rejects_empty_file(db, api):
     )
 
     assert response.status_code == 400
+
+
+async def join(db: AsyncSession, team, role: str, name: str) -> User:
+    (user,) = await add(
+        db, User(email=f"{name.lower()}@example.com", name=name, password_hash="")
+    )
+    await add(db, TeamMembership(team_id=team.id, user_id=user.id, role=role))
+
+    return user
+
+
+@pytest.mark.asyncio
+async def test_detail_has_the_documented_shape(db, api):
+    _, _, _, ben, analysis_b = await two_teams(db)
+    await add(
+        db,
+        MailAttachment(
+            mail_analysis_id=analysis_b.id,
+            filename="rechnung.pdf.htm",
+            sha256="3b19",
+            size=12698,
+            vt_results={
+                "Scanner A": {"category": "malicious"},
+                "Scanner B": {"category": "undetected"},
+            },
+        ),
+    )
+    login_as(ben)
+
+    detail = (await api.get(f"/analyses/{analysis_b.id}")).json()
+
+    # pending in the database, running for the frontend
+    assert detail["status"] == "running"
+    assert detail["thresholds"] == {"suspicious": 40, "phishing": 75}
+    assert detail["decision"] is None
+    assert detail["attachments"] == [
+        {
+            "filename": "rechnung.pdf.htm",
+            "size": 12698,
+            "sha256": "3b19",
+            "virus_total": "1 / 2",
+            "malicious": True,
+        }
+    ]
+
+
+@pytest.mark.asyncio
+async def test_decision_can_be_made_and_taken_back(db, api):
+    _, _, _, ben, analysis_b = await two_teams(db)
+    login_as(ben)
+    url = f"/analyses/{analysis_b.id}"
+
+    response = await api.post(f"{url}/decision", json={"verdict": "phishing"})
+    assert response.status_code == 200
+    assert response.json()["by"] == "Ben"
+
+    decision = (await api.get(url)).json()["decision"]
+    assert decision["verdict"] == "phishing"
+
+    response = await api.delete(f"{url}/decision")
+    assert response.status_code == 204
+    assert (await api.get(url)).json()["decision"] is None
+
+
+@pytest.mark.asyncio
+async def test_decision_only_accepts_phishing_or_clean(db, api):
+    _, _, _, ben, analysis_b = await two_teams(db)
+    login_as(ben)
+
+    response = await api.post(
+        f"/analyses/{analysis_b.id}/decision", json={"verdict": "suspicious"}
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_audit_cannot_decide(db, api):
+    _, team_b, _, _, analysis_b = await two_teams(db)
+    login_as(await join(db, team_b, "audit", "Audit"))
+
+    response = await api.post(
+        f"/analyses/{analysis_b.id}/decision", json={"verdict": "clean"}
+    )
+
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_only_admin_deletes_and_deleted_analyses_disappear(db, api):
+    _, team_b, _, ben, analysis_b = await two_teams(db)
+    url = f"/analyses/{analysis_b.id}"
+
+    login_as(ben)
+    assert (await api.delete(url)).status_code == 403
+
+    login_as(await join(db, team_b, "admin", "Admin"))
+    assert (await api.delete(url)).status_code == 204
+
+    assert (await api.get("/analyses")).json() == []
+    assert (await api.get(url)).status_code == 404

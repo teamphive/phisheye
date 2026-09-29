@@ -38,12 +38,12 @@ Endpunkte unter `/auth/` entfallen damit.
 
 | Methode | Pfad | Zweck |
 |---|---|---|
-| GET | `/analyses` | Liste für das aktive Team |
-| POST | `/analyses` | Upload einer `.eml` oder `.msg` als Feld `file` (multipart), startet den Job, antwortet mit dem Listeneintrag |
-| GET | `/analyses/{id}` | Detail |
-| DELETE | `/analyses/{id}` | Weich löschen, nur Admin |
-| POST | `/analyses/{id}/decision` | Verdikt bestätigen oder als falsch-positiv melden, Body `verdict`, antwortet mit `{ verdict, by, at }` |
-| DELETE | `/analyses/{id}/decision` | Entscheidung zurücknehmen |
+| GET | `/analyses` | Liste für das aktive Team (umgesetzt) |
+| POST | `/analyses` | Upload einer `.eml` oder `.msg` als Feld `file` (multipart), startet den Job, antwortet mit dem Listeneintrag (umgesetzt) |
+| GET | `/analyses/{id}` | Detail (umgesetzt, `criteria` und `links` noch leer) |
+| DELETE | `/analyses/{id}` | Weich löschen, nur Admin (umgesetzt) |
+| POST | `/analyses/{id}/decision` | Verdikt bestätigen oder als falsch-positiv melden, Body `verdict`, antwortet mit `{ verdict, by, at }` (umgesetzt) |
+| DELETE | `/analyses/{id}/decision` | Entscheidung zurücknehmen (umgesetzt) |
 | GET | `/analyses/search?q=` | Suche über Betreff, Absender, Link-Domain und Anhang-Hash, siehe unten |
 | GET | `/queue` | Wartende Jobs und Worker-Auslastung, für die Fortschrittsanzeige |
 

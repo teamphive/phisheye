@@ -77,6 +77,7 @@
 | filename | string | |
 | file_hash | string | sha256 |
 | mime_type | string | |
+| size | int, nullable | Bytes |
 | created_at | timestamp | |
 
 ## vt_results
