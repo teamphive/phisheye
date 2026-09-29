@@ -12,7 +12,7 @@ IaC für den AWS-Teil von phisheye via OpenTofu. Deckt nur noch Bedrock-Zugriff 
 ## Voraussetzungen
 
 - `tofu` installiert
-- AWS-Credentials konfiguriert (`aws configure`, siehe `docs/setup.md`)
+- AWS-Credentials konfiguriert (`aws configure`, siehe `setup.md` im Root)
 - Bootstrap (S3-Backend + DynamoDB-Lock) muss vorher einmalig laufen, siehe `infra/bootstrap/`
 
 ## Ausführen

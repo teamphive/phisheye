@@ -32,7 +32,7 @@ Voraussetzungen und AWS-Setup: [`setup.md`](setup.md). Start der einzelnen Teile
 - [Prüfkriterien](docs/detection-criteria.md)
 - [Seitenstruktur](docs/site-structure.md)
 - [API](docs/api.md)
-- [UI-Mockup](docs/mockup.html)
+- [UI-Mockup](assets/mockup.html)
 - [Features](docs/features.md)
 - [Infrastruktur-Entscheidungen](docs/infrastructure.md)
 - [Release und Changelog](docs/release.md)

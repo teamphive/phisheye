@@ -1,6 +1,6 @@
 # Seitenstruktur
 
-19 Seiten, 11 Overlays. Die Pfade sind Vorschläge fürs Routing und noch nicht mit dem Backend abgestimmt. Der Entwurf liegt in [mockup.html](mockup.html).
+19 Seiten, 11 Overlays. Die Pfade sind Vorschläge fürs Routing und noch nicht mit dem Backend abgestimmt. Der Entwurf liegt in [mockup.html](../assets/mockup.html).
 
 ## Zugang
 
