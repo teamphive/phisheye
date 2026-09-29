@@ -144,7 +144,8 @@ async def get_current_user(
                     db.add(team)
                     await db.flush()
 
-                db.add(TeamMembership(team_id=team.id, user_id=user.id, role="member"))
+                # new role at first login, analyst
+                db.add(TeamMembership(team_id=team.id, user_id=user.id, role="analyst"))
 
         # The role is granted in Keycloak, the column only mirrors it. Without
         # a change SQLAlchemy writes nothing.
