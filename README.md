@@ -7,15 +7,20 @@ Web-App zur Phishing-Analyse von E-Mails: `.eml` hochladen, Header und Metadaten
 ```dir
 ├── assets
 ├── backend
+├── docker      (Keycloak-Realm, pgAdmin)
 ├── docs
 ├── frontend
-└── infra
+├── infra       (OpenTofu, AWS)
+├── docker-compose.yml
+└── justfile
 ```
 
 ## Techstack
 
 - Backend: FastAPI, SQLModel + Alembic, PostgreSQL
-- Frontend: React + TypeScript (Vite), Tailwind, shadcn/ui
+- Login: Keycloak
+- Storage: MinIO (S3) für die EMLs
+- Frontend: React + TypeScript (Vite), Tailwind, shadcn/ui, nginx als Proxy für `/api` und `/auth`
 - Jobs: arq + Redis
 - Extern: VirusTotal-API, AWS Bedrock (LLM)
 - Infra: Homelab (Docker Compose, Nginx Proxy Manager), AWS nur für Bedrock + Budget (OpenTofu)
@@ -23,7 +28,14 @@ Web-App zur Phishing-Analyse von E-Mails: `.eml` hochladen, Header und Metadaten
 
 ## Schnellstart
 
-Voraussetzungen und AWS-Setup: [`setup.md`](setup.md). Start der einzelnen Teile jeweils im README von `backend/`, `frontend/` und `infra/main/`.
+```bash
+cp .env.example .env
+just dev
+```
+
+Voraussetzungen und erster Login: [`setup.md`](setup.md). Die einzelnen Teile stehen in den READMEs von `backend/`, `frontend/` und `infra/main/`.
+
+Kompletter Stack in Docker: `docker compose --profile app up -d --build`. Deployment auf den Server: [Infrastruktur](docs/infrastructure.md).
 
 ## Dokumentation
 
@@ -36,3 +48,5 @@ Voraussetzungen und AWS-Setup: [`setup.md`](setup.md). Start der einzelnen Teile
 - [Features](docs/features.md)
 - [Infrastruktur-Entscheidungen](docs/infrastructure.md)
 - [Release und Changelog](docs/release.md)
+- [VM-Zugriff](docs/vm-access.md)
+- [ADR: EML-Ablage](docs/adr-eml-storage.md)
