@@ -7,8 +7,8 @@ Was das Frontend braucht. Die Feldnamen stammen aus den Typen in `frontend/src/m
 - Der Team-Kontext kommt aus der Sitzung. Kein Pfad enthält eine Team-ID.
 - Zeiten als ISO 8601 in UTC.
 - Feldnamen in snake_case. Das Frontend wandelt sie beim Empfang zentral in camelCase um.
-- Fehler als einheitliches Objekt, nicht als FastAPIs `detail`.
-- Löschen ist weich, harte Löschung nach 10 Tagen.
+- Fehler kommen als FastAPI-Objekt `{ "detail": "..." }`, das Frontend liest `detail` (oder `message`).
+- Löschen ist weich (`deleted_at`, sofort unsichtbar). Nach 10 Tagen entfernt ein Cron-Job alles endgültig, samt `.eml` in MinIO. Der Job fehlt noch.
 
 ## Anmeldung
 
@@ -39,13 +39,14 @@ Endpunkte unter `/auth/` entfallen damit.
 | Methode | Pfad | Zweck |
 |---|---|---|
 | GET | `/analyses` | Liste für das aktive Team (umgesetzt) |
-| POST | `/analyses` | Upload einer `.eml` oder `.msg` als Feld `file` (multipart), startet den Job, antwortet mit dem Listeneintrag (umgesetzt) |
+| POST | `/analyses` | Upload einer `.eml` als Feld `file` (multipart), max. 25 MB (413 bei mehr), antwortet mit dem Listeneintrag (umgesetzt, läuft synchron im Request) |
 | GET | `/analyses/{id}` | Detail (umgesetzt, `criteria` und `links` noch leer) |
 | DELETE | `/analyses/{id}` | Weich löschen, nur Admin (umgesetzt) |
 | POST | `/analyses/{id}/decision` | Verdikt bestätigen oder als falsch-positiv melden, Body `verdict`, antwortet mit `{ verdict, by, at }` (umgesetzt) |
 | DELETE | `/analyses/{id}/decision` | Entscheidung zurücknehmen (umgesetzt) |
+| GET | `/analyses/{id}/eml` | Original-`.eml` aus MinIO herunterladen, geht über das Backend (MinIO ist von außen nicht erreichbar). Antwort mit `Content-Disposition: attachment` und `application/octet-stream`, die Datei kann Schadcode enthalten |
 | GET | `/analyses/search?q=` | Suche über Betreff, Absender, Link-Domain und Anhang-Hash, siehe unten |
-| GET | `/queue` | Wartende Jobs und Worker-Auslastung, für die Fortschrittsanzeige |
+| GET | `/queue` | Wartende Jobs und Worker-Auslastung, für die Fortschrittsanzeige. Sinnvoll erst, wenn die Analyse als arq-Job läuft |
 
 ## Team
 
@@ -71,6 +72,7 @@ Der letzte Admin kann sich weder herabstufen noch entfernen. Das Verlassen des l
 Mitarbeiter melden eine verdächtige Mail in Outlook, die Meldung geht an ein gemeinsames phisheye-Postfach. Das Backend holt es per POP3 ab und legt für jede Meldung eine Analyse an.
 
 - Welches Team die Meldung bekommt, entscheidet die Domain der meldenden Adresse, nicht die des ursprünglichen Absenders.
+- Kennt kein Team die Domain, geht die Meldung ans Standard-Team (`PHISHEYE_DEFAULT_TEAM_ID`, im Kern der Admin). Sie wird nicht verworfen.
 - Subdomains zählen mit: `firma.de` deckt auch `mail.firma.de` ab.
 - Eine Domain gehört höchstens einem Team. `POST /team/domains` antwortet mit 409, wenn ein anderes Team dieselbe Domain, eine übergeordnete oder eine Subdomain davon eingetragen hat. Die Antwort nennt das andere Team nicht.
 - Ein Nachweis, dass dem Team die Domain gehört, ist nicht vorgesehen. Wer zuerst einträgt, bekommt sie.
@@ -105,7 +107,9 @@ Das Frontend fragt `GET /notifications` alle 30 Sekunden neu, solange der Tab si
 | GET | `/monitoring` | Systemweit über alle Teams, nur für `is_operator` |
 | POST | `/monitoring/jobs/{id}/retry` | Fehlgeschlagenen Job neu einreihen, nur für `is_operator` |
 
-Liefert Warteschlange, Worker, Fehlerrate und das VirusTotal-Kontingent. Die Fehlerliste enthält keine Mailinhalte. Das Frontend fragt alle 10 Sekunden neu.
+Liefert Warteschlange, Worker, Fehlerrate, Analysen pro Stunde, das VirusTotal-Kontingent, die Dienste-Ampel und die Fehlerliste. Die Fehlerliste enthält keine Mailinhalte. Das Frontend fragt alle 10 Sekunden neu.
+
+Die App zeigt nur, was ein Operator jetzt wissen oder tun muss. Verlauf, Infrastruktur und Alarme (VM, Container, Postgres, Redis, MinIO, API-Latenz und 5xx, Job-Dauer, Logs) liegen in Grafana (Prometheus). Die App verlinkt dorthin über `VITE_LOGS_URL`. Der `/metrics`-Endpunkt für Prometheus läuft nicht über `/api`, damit er nicht öffentlich ist.
 
 ## Konto
 
@@ -199,15 +203,15 @@ Je Treffer:
 | jobs | `{ failed, total }` | letzte 24 Stunden, daraus rechnet das Frontend die Fehlerrate |
 | virus_total | `{ used, limit }` | Kontingent des Tages |
 | hourly | Liste aus `hour`, `count` | 24 Einträge, älteste zuerst, `hour` ist der Beginn der Stunde |
-| services | Liste aus `name`, `status`, `latency_ms` | `status` ist `ok`, `degraded` oder `down`, `latency_ms` null wenn keine Antwort |
+| services | Liste aus `name`, `status` | `status` ist `ok`, `degraded` oder `down`. Latenzen gibt es nur in Grafana |
 | failures | Liste aus `id`, `error`, `attempt`, `max_attempts`, `at` | fehlgeschlagene Jobs der letzten 24 Stunden, ohne Mailinhalte |
 
 ## Offen
 
-- IDs als UUID oder laufende Nummer.
+- Backend-Prüfung auf 25 MB mit 413. Bisher begrenzen nur das Frontend und der nginx (30 MB).
+- Cron-Job für die harte Löschung: täglich alles mit `deleted_at` älter als 10 Tage endgültig entfernen (Datenbank, Anhänge, `.eml` in MinIO).
+- Analyse als arq-Job statt im Request. Erst damit sind `running`, `step` und `GET /queue` echt. Wird mit einem Spam-Testskript geprüft.
 - Abbrechen einer laufenden Analyse. Die Oberfläche hat den Knopf, ein Endpunkt fehlt noch.
 - Erneut starten einer fehlgeschlagenen Analyse durch Analysten. `POST /monitoring/jobs/{id}/retry` gibt es nur für Operatoren, der Knopf auf der Detailseite hat noch keinen Endpunkt.
 - Einladung erneut senden. Die Oberfläche hat den Knopf, ein Endpunkt fehlt noch.
-- Was mit Meldungen von Domains passiert, die kein Team eingetragen hat: verwerfen oder dem Melder antworten.
 - Übernehmen einer gemeldeten Mail. Die Oberfläche zeigt `handler` null als „Niemand", ein Endpunkt zum Zuweisen fehlt.
-- `mail_analyses.submitted_by` ist laut [data-model.md](data-model.md) ein Pflichtverweis auf `users`. Meldende Personen sind meist keine phisheye-Nutzer. Ihre Adresse steht in `reported_by`, `submitted_by` zeigt bei Meldungen auf den Systemnutzer.

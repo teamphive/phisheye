@@ -33,7 +33,7 @@ flowchart LR
     neu["Neue Analyse"]
     liste["Analysen"]
     team["Team"]
-    mon["Monitoring<br>nur Admin"]
+    mon["Monitoring<br>nur Operator"]
   end
 
   subgraph top["Kopfleiste"]

@@ -51,7 +51,7 @@
 | --- | --- | --- |
 | id | PK | |
 | team_id | FK -> teams | |
-| submitted_by | FK -> users | |
+| submitted_by | FK -> users | bei Outlook-Meldungen der Systemnutzer, die Adresse der meldenden Person steht in `reported_by` |
 | subject | string | |
 | sender | string | Absender der gemeldeten Mail, nicht der meldenden Person |
 | reported_by | string, nullable | Adresse der meldenden Person, nur bei Meldung per Mail |
