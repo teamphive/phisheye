@@ -29,6 +29,19 @@ export const verdictLabel: Record<Verdict, string> = {
 }
 
 export const analyses: AnalysisListItem[] = [
+  // Done, but the detection gave no score, as the backend does for now
+  {
+    id: "a-2026-0132",
+    subject: "Einladung: Quartalsgespräch Vertrieb",
+    sender: "kalender@hansa-logistik.de",
+    status: "completed",
+    verdict: null,
+    score: null,
+    handler: null,
+    source: "upload",
+    reportedBy: null,
+    receivedAt: "2026-09-03T07:31:00Z",
+  },
   {
     id: "a-2026-0128",
     subject: "Ihre Rechnung RE-2024-88431 ist überfällig",

@@ -54,9 +54,21 @@ async function messageOf(response: Response) {
   }
 }
 
-/** The API speaks snake_case like the rest of the Python code. */
-function toCamelCase(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(toCamelCase)
+// The backend stores UTC but sends it without an offset, and new Date() reads
+// such a timestamp as local time. Its microseconds are more than every
+// browser parses, milliseconds are enough.
+const naiveTimestamp = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/
+
+/**
+ * The API speaks snake_case like the rest of the Python code, and its
+ * timestamps get the Z they are missing.
+ */
+function fromApi(value: unknown): unknown {
+  if (typeof value === "string" && naiveTimestamp.test(value)) {
+    return `${value.replace(/(\.\d{3})\d+$/, "$1")}Z`
+  }
+
+  if (Array.isArray(value)) return value.map(fromApi)
 
   if (value !== null && typeof value === "object") {
     return Object.fromEntries(
@@ -64,7 +76,7 @@ function toCamelCase(value: unknown): unknown {
         key.replace(/_([a-z0-9])/g, (_, letter: string) =>
           letter.toUpperCase()
         ),
-        toCamelCase(entry),
+        fromApi(entry),
       ])
     )
   }
@@ -111,5 +123,5 @@ export async function apiFetch<T>(
 
   return response.status === 204
     ? (undefined as T)
-    : (toCamelCase(await response.json()) as T)
+    : (fromApi(await response.json()) as T)
 }

@@ -190,6 +190,37 @@ const failed: AnalysisDetail = {
   },
 }
 
+// Finished without a score: no criteria and links, attachments and headers only
+const unrated: AnalysisDetail = {
+  ...completed,
+  id: "a-2026-0132",
+  subject: "Einladung: Quartalsgespräch Vertrieb",
+  sender: "kalender@hansa-logistik.de",
+  verdict: null,
+  score: null,
+  handler: null,
+  receivedAt: "2026-09-03T07:31:00Z",
+  durationSeconds: null,
+  criteria: [],
+  criteriaTotal: 0,
+  links: [],
+  attachments: [
+    {
+      filename: "Einladung.ics",
+      size: 2148,
+      sha256:
+        "9f2c4e81d07a5b3c6e8f1a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e2f4a6b8c0d",
+      virusTotal: "unbekannt",
+      malicious: false,
+    },
+  ],
+  rawHeaders: `From:            Kalender <kalender@hansa-logistik.de>
+To:              m.sandmann@hansa-logistik.de
+Date:            Thu, 03 Sep 2026 09:31:04 +0200
+Message-ID:      <c93e10@hansa-logistik.de>
+Auth-Results:    spf=pass dkim=pass dmarc=pass`,
+}
+
 /** Link hosts and attachment hashes, the parts of a mail the search looks into. */
 export function mockIndicators(id: string) {
   // Only the worked example carries links and attachments.
@@ -288,6 +319,7 @@ function baseAnalysis(id: string): AnalysisDetail {
   const byId: Record<string, AnalysisDetail> = {
     [running.id]: running,
     [failed.id]: failed,
+    [unrated.id]: unrated,
   }
 
   if (byId[id]) return byId[id]
