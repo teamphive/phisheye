@@ -88,10 +88,11 @@ jobs:
             context: frontend
             # Vite bakes these into the bundle, so they are the addresses the
             # browser uses on the server. KEYCLOAK_PUBLIC_URL is a repository
-            # variable (Settings -> Secrets and variables -> Actions -> Variables).
+            # variable (Settings -> Secrets and variables -> Actions -> Variables),
+            # without /auth like in .env, Keycloak itself answers under /auth.
             build-args: |
               VITE_API_URL=/api
-              VITE_KEYCLOAK_URL=${{ vars.KEYCLOAK_PUBLIC_URL || 'https://phisheye.neumann-it.org' }}
+              VITE_KEYCLOAK_URL=${{ vars.KEYCLOAK_PUBLIC_URL || 'https://phisheye.neumann-it.org' }}/auth
               VITE_KEYCLOAK_REALM=phisheye
               VITE_KEYCLOAK_CLIENT_ID=phisheye-frontend
           # stock Keycloak plus the login theme, see the keycloak stage in frontend/Dockerfile
