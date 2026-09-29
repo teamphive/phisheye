@@ -7,15 +7,13 @@ ARG VITE_API_URL=/api
 ARG VITE_KEYCLOAK_URL
 ARG VITE_KEYCLOAK_REALM
 ARG VITE_KEYCLOAK_CLIENT_ID
-# optional, empty hides "Logs öffnen" on the monitoring page
-ARG VITE_LOGS_URL
 
 # whole project first: the postinstall of keycloakify needs the vite config
 COPY . .
 RUN npm ci
 # docker only busts the cache on a build-arg change if the arg appears
 # literally in the command, hence the otherwise pointless echo
-RUN echo "building for $VITE_KEYCLOAK_URL, logs at $VITE_LOGS_URL" && npm run build
+RUN echo "building for $VITE_KEYCLOAK_URL" && npm run build
 
 # The login theme, packed into a jar by Keycloakify. It calls Maven, the jar
 # holds no Java code, so any JDK will do.

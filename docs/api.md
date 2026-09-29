@@ -109,7 +109,7 @@ Das Frontend fragt `GET /notifications` alle 30 Sekunden neu, solange der Tab si
 
 Liefert Warteschlange, Worker, Fehlerrate, Analysen pro Stunde, das VirusTotal-Kontingent, die Dienste-Ampel und die Fehlerliste. Die Fehlerliste enthält keine Mailinhalte. Das Frontend fragt alle 10 Sekunden neu.
 
-Die App zeigt nur, was ein Operator jetzt wissen oder tun muss. Verlauf, Infrastruktur und Alarme (VM, Container, Postgres, Redis, MinIO, API-Latenz und 5xx, Job-Dauer, Logs) liegen in Grafana (Prometheus). Die App verlinkt dorthin über `VITE_LOGS_URL`. Der `/metrics`-Endpunkt für Prometheus läuft nicht über `/api`, damit er nicht öffentlich ist.
+Die App zeigt nur, was ein Operator jetzt wissen oder tun muss. Verlauf, Infrastruktur und Alarme (VM, Container, Postgres, Redis, MinIO, API-Latenz und 5xx, Job-Dauer, Logs) liegen in Grafana (Prometheus) und werden von dort betreut, die App verlinkt nicht dorthin. Der `/metrics`-Endpunkt für Prometheus läuft nicht über `/api`, damit er nicht öffentlich ist.
 
 ## Konto
 

@@ -3,7 +3,6 @@ import {
   CheckIcon,
   CircleCheckIcon,
   CircleXIcon,
-  ExternalLinkIcon,
   TriangleAlertIcon,
 } from "lucide-react"
 import { toast } from "sonner"
@@ -11,10 +10,9 @@ import { toast } from "sonner"
 import { HourlyChart } from "@/components/hourly-chart"
 import { PageHeader } from "@/components/page-header"
 import { Badge } from "@/components/ui/badge"
-import { Button, buttonVariants } from "@/components/ui/button"
+import { Button } from "@/components/ui/button"
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -42,9 +40,6 @@ import type { FailedJob, Monitoring, ServiceHealth } from "@/mocks/monitoring"
 import { ForbiddenPage } from "@/pages/forbidden"
 
 const refreshInterval = 10_000
-
-/** Optional, where the logs live depends on the deployment. */
-const logsUrl = import.meta.env.VITE_LOGS_URL
 
 // Only the state, latencies over time are in Grafana
 const serviceState = {
@@ -318,19 +313,6 @@ function FailuresCard({ failures }: { failures: FailedJob[] }) {
         <CardDescription className="text-xs">
           Fehlgeschlagene Jobs der letzten 24 Stunden, ohne Mailinhalte
         </CardDescription>
-        {logsUrl ? (
-          <CardAction>
-            <a
-              href={logsUrl}
-              target="_blank"
-              rel="noreferrer"
-              className={buttonVariants({ variant: "ghost", size: "sm" })}
-            >
-              Logs öffnen
-              <ExternalLinkIcon className="size-3.5" />
-            </a>
-          </CardAction>
-        ) : null}
       </CardHeader>
       <CardContent className="px-0">
         <Table>

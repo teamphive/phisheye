@@ -90,13 +90,11 @@ jobs:
             # browser uses on the server. KEYCLOAK_PUBLIC_URL is a repository
             # variable (Settings -> Secrets and variables -> Actions -> Variables),
             # without /auth like in .env, Keycloak itself answers under /auth.
-            # LOGS_URL is optional, without it "Logs öffnen" stays hidden.
             build-args: |
               VITE_API_URL=/api
               VITE_KEYCLOAK_URL=${{ vars.KEYCLOAK_PUBLIC_URL || 'https://phisheye.neumann-it.org' }}/auth
               VITE_KEYCLOAK_REALM=phisheye
               VITE_KEYCLOAK_CLIENT_ID=phisheye-frontend
-              VITE_LOGS_URL=${{ vars.LOGS_URL }}
           # stock Keycloak plus the login theme, see the keycloak stage in frontend/Dockerfile
           - image: keycloak
             context: frontend
