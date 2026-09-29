@@ -4,7 +4,7 @@ FastAPI-Backend für phisheye.
 
 ## Voraussetzungen
 
-Postgres, Redis und MinIO laufen (`docker-compose.yml` im Root). `.env` aus `.env.example` befüllen. Der Bucket aus `S3_BUCKET` wird beim ersten Upload vom Backend angelegt.
+Postgres, Redis, MinIO und Keycloak laufen (`docker compose up -d` oder `just dev` im Root). `.env` aus `.env.example` befüllen. Der Bucket aus `S3_BUCKET` wird beim ersten Upload vom Backend angelegt.
 
 ## Ausführen
 

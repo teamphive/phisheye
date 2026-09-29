@@ -4,7 +4,7 @@ React + TypeScript + Vite Frontend für phisheye.
 
 ## Voraussetzungen
 
-Node muss installiert sein (siehe `docs/setup.md`).
+Node muss installiert sein (siehe `setup.md` im Root).
 
 ## Installieren
 

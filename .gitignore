@@ -54,3 +54,6 @@ logs/
 !*.tfvars.example
 crash.log
 crash.*.log
+
+# --- lokale Testmails ---
+/test.eml
