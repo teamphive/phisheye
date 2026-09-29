@@ -1,19 +1,13 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from "react"
+import { useState, type KeyboardEvent } from "react"
 
+import { useWidth } from "@/hooks/use-width"
+import { niceStep } from "@/lib/chart"
 import { formatTime } from "@/lib/format"
 import type { HourlyCount } from "@/mocks/monitoring"
 
 const height = 180
 const margin = { top: 12, right: 12, bottom: 26, left: 32 }
 const hour = 60 * 60 * 1000
-
-/** A tick step that splits the axis into at most four clean intervals. */
-function niceStep(max: number) {
-  const steps = [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 5000]
-  return (
-    steps.find((step) => max / step <= 4) ?? 10 ** Math.ceil(Math.log10(max))
-  )
-}
 
 function dayHint(iso: string) {
   const date = new Date(iso)
@@ -24,25 +18,6 @@ function dayHint(iso: string) {
   if (date.toDateString() === today.toDateString()) return " heute"
   if (date.toDateString() === yesterday.toDateString()) return " gestern"
   return ""
-}
-
-function useWidth() {
-  const ref = useRef<HTMLDivElement>(null)
-  const [width, setWidth] = useState(0)
-
-  useEffect(() => {
-    const element = ref.current
-    if (!element) return
-
-    const observer = new ResizeObserver(([entry]) =>
-      setWidth(entry.contentRect.width)
-    )
-    observer.observe(element)
-
-    return () => observer.disconnect()
-  }, [])
-
-  return [ref, width] as const
 }
 
 /** Analyses per hour as an area chart. Expects the hours oldest first. */

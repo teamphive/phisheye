@@ -48,6 +48,28 @@ Endpunkte unter `/auth/` entfallen damit.
 | GET | `/analyses/search?q=` | Suche über Betreff, Absender, Link-Domain und Anhang-Hash, siehe unten |
 | GET | `/queue` | Wartende Jobs und Worker-Auslastung, für die Fortschrittsanzeige. Sinnvoll erst, wenn die Analyse als arq-Job läuft |
 
+## Übersicht
+
+| Methode | Pfad | Zweck |
+|---|---|---|
+| GET | `/stats?from=&to=&tz=` | Kennzahlen des aktiven Teams für die Startseite, jede Rolle |
+
+Das Frontend schickt den Zeitraum fertig berechnet: `from` ist Mitternacht vor 6 bzw. 29 Tagen in der Zeitzone des Browsers, `to` ist jetzt, beide als ISO 8601 in UTC. `tz` ist die Zeitzone als IANA-Name (`Europe/Berlin`), nach ihr teilt das Backend die Tage für `daily` ein (`created_at AT TIME ZONE tz`). So entscheidet der Browser, wo ein Tag beginnt, und nicht die UTC-Mitternacht des Servers.
+
+Gezählt werden abgeschlossene, nicht gelöschte Analysen des aktiven Teams mit `created_at` in `[from, to)`. Das Verdikt einer Analyse ist die Entscheidung des Analysten (`decided_verdict`), wenn es eine gibt, sonst das der Erkennung. `suspicious` kommt deshalb nur aus der Erkennung. Laufende und fehlgeschlagene Analysen zählen nicht mit.
+
+| Feld | Typ | Bedeutung |
+|---|---|---|
+| counts | `{ phishing, suspicious, clean, unrated }` | Analysen im Zeitraum nach Verdikt, `unrated`: ohne Verdikt und ohne Entscheidung |
+| previous | wie `counts` | derselbe Zeitraum direkt davor, `[from - (to - from), from)`, für den Trend |
+| daily | Liste aus `day` und den vier Zahlen aus `counts` | ein Eintrag pro Kalendertag in `tz` von `from` bis `to`, älteste zuerst, Tage ohne Analysen mit 0. `day` als `YYYY-MM-DD` |
+| open | `{ total, items }` | abgeschlossen und noch ohne Entscheidung, **unabhängig vom Zeitraum**, damit nichts Offenes herausfällt. `items`: die 5 neuesten mit `id`, `subject`, `sender`, `status`, `verdict`, `score`, `received_at` |
+| decided | int | Entscheidungen an Analysen im Zeitraum |
+| false_positive_rate | 0 bis 1 oder null | von den entschiedenen Analysen mit Erkennung `phishing` oder `suspicious` der Anteil, den ein Analyst als `clean` eingestuft hat. null, wenn es keine solche Entscheidung gibt |
+| median_decision_minutes | Zahl oder null | Median von `decided_at - created_at` in Minuten über die entschiedenen Analysen im Zeitraum, null ohne Entscheidung |
+| top_domains | Liste aus `domain`, `count` | Domain aus der Absenderadresse (klein geschrieben) der Analysen mit Verdikt `phishing`, die 5 häufigsten, häufigste zuerst |
+| sources | `{ upload, report }` | Analysen im Zeitraum nach `source` |
+
 ## Team
 
 | Methode | Pfad | Zweck |
@@ -208,6 +230,7 @@ Je Treffer:
 
 ## Offen
 
+- `GET /stats` für die Übersicht, siehe oben. Bis dahin zeigt das Frontend ohne Backend Platzhalterzahlen, mit Backend die Fehlermeldung.
 - Backend-Prüfung auf 25 MB mit 413. Bisher begrenzen nur das Frontend und der nginx (30 MB).
 - Cron-Job für die harte Löschung: täglich alles mit `deleted_at` älter als 10 Tage endgültig entfernen (Datenbank, Anhänge, `.eml` in MinIO).
 - Analyse als arq-Job statt im Request. Erst damit sind `running`, `step` und `GET /queue` echt. Wird mit einem Spam-Testskript geprüft.
