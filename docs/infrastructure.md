@@ -67,8 +67,9 @@ Die Standardwerte laufen lokal auf dem Mac ohne eigene `.env`-Einträge. Auf dem
 | `KEYCLOAK_PUBLIC_URL` | `http://localhost:8080` | `https://phisheye.neumann-it.org` | Adresse von Keycloak im Browser, ohne `/auth` und ohne Slash am Ende. Keycloak trägt sie als Aussteller in jedes Token ein (`KC_HOSTNAME`), das Backend prüft sie, das Frontend meldet sich dort an. |
 | `FRONTEND_URL` | `http://localhost:5173` | `https://phisheye.neumann-it.org` | erlaubtes Ziel nach Login und Logout, gilt nur beim ersten Import des Realms |
 | `FRONTEND_PORT` | `5173` | Port, auf den der Nginx Proxy Manager zeigt | veröffentlichter Port des Frontends |
+| `LOGS_URL` | leer | Adresse von Grafana | Ziel von „Logs öffnen“ im Monitoring, leer blendet den Knopf aus. Steht im ausgelieferten JavaScript, ist also für jeden sichtbar. |
 
-Das Frontend liest `KEYCLOAK_PUBLIC_URL` beim Build. Ändert sich der Wert, muss es neu gebaut werden (`docker compose --profile app up -d --build`).
+Das Frontend liest `KEYCLOAK_PUBLIC_URL` und `LOGS_URL` beim Build. Ändert sich der Wert, muss es neu gebaut werden (`docker compose --profile app up -d --build`).
 
 ## DNS: manuell beim bestehenden Provider
 
