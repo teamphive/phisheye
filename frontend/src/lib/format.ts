@@ -116,8 +116,3 @@ export function formatNumber(value: number) {
 export function formatDecimal(value: number) {
   return oneDecimal.format(value)
 }
-
-/** Response times, milliseconds until a full second is reached. */
-export function formatLatency(ms: number) {
-  return ms < 1000 ? `${Math.round(ms)} ms` : `${formatDecimal(ms / 1000)} Sek`
-}

@@ -58,7 +58,7 @@ git cliff --unreleased --bump
 
 Jedes Image bekommt die Tags `0.2.0`, `0.2`, `latest` und `sha-<commit>`, nur für `linux/amd64`.
 
-Das Frontend liest die Keycloak-Adresse beim Build. Der Workflow nimmt dafür die Repository-Variable `KEYCLOAK_PUBLIC_URL` (Settings → Secrets and variables → Actions → Variables), ohne sie `https://phisheye.neumann-it.org`. Ändert sich die Domain, braucht es ein neues Release.
+Das Frontend liest die Keycloak-Adresse beim Build. Der Workflow nimmt dafür die Repository-Variable `KEYCLOAK_PUBLIC_URL` (Settings → Secrets and variables → Actions → Variables), ohne sie `https://phisheye.neumann-it.org`. Ändert sich die Domain, braucht es ein neues Release. Genauso kommt die Variable `LOGS_URL` ins Frontend, das Ziel von „Logs öffnen“ im Monitoring (Grafana). Ohne sie bleibt der Knopf ausgeblendet.
 
 ## Einmalig einrichten
 

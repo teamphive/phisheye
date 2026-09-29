@@ -33,7 +33,6 @@ import {
 import { errorMessage, ForbiddenError } from "@/lib/api"
 import {
   formatDecimal,
-  formatLatency,
   formatNumber,
   formatShortDateTime,
   formatTime,
@@ -47,12 +46,13 @@ const refreshInterval = 10_000
 /** Optional, where the logs live depends on the deployment. */
 const logsUrl = import.meta.env.VITE_LOGS_URL
 
+// Only the state, latencies over time are in Grafana
 const serviceState = {
   ok: { variant: "clean", icon: CircleCheckIcon, label: "erreichbar" },
   degraded: {
     variant: "suspicious",
     icon: TriangleAlertIcon,
-    label: "langsam",
+    label: "eingeschränkt",
   },
   down: { variant: "phishing", icon: CircleXIcon, label: "nicht erreichbar" },
 } as const
@@ -286,10 +286,7 @@ function ServiceBadge({ service }: { service: ServiceHealth }) {
   return (
     <Badge variant={state.variant}>
       <Icon />
-      <span className="sr-only">{state.label}, </span>
-      {service.status === "down" || service.latencyMs === null
-        ? "nicht erreichbar"
-        : formatLatency(service.latencyMs)}
+      {state.label}
     </Badge>
   )
 }

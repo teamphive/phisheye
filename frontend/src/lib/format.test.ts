@@ -6,7 +6,6 @@ import {
   formatDecimal,
   formatElapsed,
   formatFileSize,
-  formatLatency,
   formatNumber,
   formatRelativeTime,
   formatShortDateTime,
@@ -64,11 +63,6 @@ describe("numbers", () => {
   it("separates thousands and decimals the German way", () => {
     expect(formatNumber(1284)).toBe("1.284")
     expect(formatDecimal(1.24)).toBe("1,2")
-  })
-
-  it("switches latency to seconds from 1000 ms", () => {
-    expect(formatLatency(850)).toBe("850 ms")
-    expect(formatLatency(1240)).toBe("1,2 Sek")
   })
 })
 

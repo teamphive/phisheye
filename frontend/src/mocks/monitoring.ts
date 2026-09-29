@@ -6,8 +6,6 @@ export type ServiceStatus = "ok" | "degraded" | "down"
 export type ServiceHealth = {
   name: string
   status: ServiceStatus
-  /** Null while the service does not answer. */
-  latencyMs: number | null
 }
 
 /** A failed background job. Carries no mail content, only what went wrong. */
@@ -66,10 +64,10 @@ export function mockMonitoring(): Monitoring {
     virusTotal: { used: 412, limit: 500 },
     hourly,
     services: [
-      { name: "API (FastAPI)", status: "ok", latencyMs: 42 },
-      { name: "PostgreSQL", status: "ok", latencyMs: 6 },
-      { name: "Redis", status: "ok", latencyMs: 1 },
-      { name: "VirusTotal-API", status: "degraded", latencyMs: 1900 },
+      { name: "API (FastAPI)", status: "ok" },
+      { name: "PostgreSQL", status: "ok" },
+      { name: "Redis", status: "ok" },
+      { name: "VirusTotal-API", status: "degraded" },
     ],
     failures: [
       {

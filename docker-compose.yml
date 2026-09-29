@@ -171,6 +171,7 @@ services:
         VITE_KEYCLOAK_URL: "${KEYCLOAK_PUBLIC_URL:-http://localhost:8080}/auth"
         VITE_KEYCLOAK_REALM: "${VITE_KEYCLOAK_REALM:-phisheye}"
         VITE_KEYCLOAK_CLIENT_ID: "${VITE_KEYCLOAK_CLIENT_ID:-phisheye-frontend}"
+        VITE_LOGS_URL: "${LOGS_URL:-}"
     container_name: frontend
     restart: unless-stopped
     profiles: [app]
