@@ -3,13 +3,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
   formatDate,
   formatDateTime,
+  formatDay,
   formatDecimal,
+  formatDelta,
+  formatDuration,
   formatElapsed,
   formatFileSize,
   formatNumber,
+  formatPercent,
   formatRelativeTime,
   formatShortDateTime,
   formatTime,
+  formatWeekday,
   initialsOf,
   shortenHash,
 } from "@/lib/format"
@@ -63,6 +68,39 @@ describe("numbers", () => {
   it("separates thousands and decimals the German way", () => {
     expect(formatNumber(1284)).toBe("1.284")
     expect(formatDecimal(1.24)).toBe("1,2")
+  })
+
+  it("shows a share as percent with one decimal", () => {
+    expect(formatPercent(0.083)).toBe("8,3 %")
+    expect(formatPercent(0)).toBe("0,0 %")
+  })
+
+  it("puts a sign in front of a change, a real minus included", () => {
+    expect(formatDelta(8)).toBe("+8")
+    expect(formatDelta(-3)).toBe("−3")
+    expect(formatDelta(0)).toBe("±0")
+    expect(formatDelta(1284)).toBe("+1.284")
+  })
+})
+
+describe("formatDuration", () => {
+  it("keeps the two largest units", () => {
+    expect(formatDuration(47)).toBe("47 Min")
+    expect(formatDuration(125)).toBe("2 Std 5 Min")
+    expect(formatDuration(120)).toBe("2 Std")
+    expect(formatDuration(60 * 27)).toBe("1 Tag 3 Std")
+    expect(formatDuration(60 * 48)).toBe("2 Tage")
+  })
+
+  it("rounds to whole minutes", () => {
+    expect(formatDuration(46.6)).toBe("47 Min")
+  })
+})
+
+describe("calendar days from the API", () => {
+  it("formats the day itself, not the UTC midnight before it", () => {
+    expect(formatDay("2026-09-23")).toBe("23.09.")
+    expect(formatWeekday("2026-09-23")).toBe("Mi., 23.09.")
   })
 })
 
