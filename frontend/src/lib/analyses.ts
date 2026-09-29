@@ -1,4 +1,4 @@
-import { apiEnabled, apiFetch, mockLatency } from "@/lib/api"
+import { apiBlob, apiEnabled, apiFetch, mockLatency } from "@/lib/api"
 import { sessionUser } from "@/lib/session"
 import {
   mockAnalyses,
@@ -8,6 +8,7 @@ import {
 import {
   mockAnalysis,
   mockDecide,
+  mockEml,
   mockQueue,
   mockRevokeDecision,
   runningAnalysisId,
@@ -80,6 +81,16 @@ export async function createAnalysis(file: File) {
   body.append("file", file)
 
   return apiFetch<AnalysisListItem>("/analyses", { method: "POST", body })
+}
+
+/** The original mail as it was uploaded or reported, malware included. */
+export async function fetchEml(id: string) {
+  if (!apiEnabled) {
+    await mockLatency()
+    return mockEml(id)
+  }
+
+  return apiBlob(`/analyses/${encodeURIComponent(id)}/eml`)
 }
 
 /** Confirms the verdict or reports it as a false positive. */

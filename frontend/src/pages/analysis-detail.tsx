@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router"
 import {
   CheckIcon,
   CircleHelpIcon,
+  DownloadIcon,
   FlagIcon,
   Loader2Icon,
   TrashIcon,
@@ -50,10 +51,12 @@ import {
   decideAnalysis,
   deleteAnalysis,
   fetchAnalysis,
+  fetchEml,
   fetchQueue,
   revokeDecision,
 } from "@/lib/analyses"
 import { ApiError, errorMessage } from "@/lib/api"
+import { saveFile } from "@/lib/download"
 import {
   formatDateTime,
   formatElapsed,
@@ -430,6 +433,8 @@ export function AnalysisDetailPage() {
             </CardContent>
           </Card>
 
+          {analysis.storageKey ? <OriginalMailCard id={id} /> : null}
+
           {analysis.status === "failed" && permissions.monitor ? (
             <Card>
               <CardHeader>
@@ -469,6 +474,47 @@ export function AnalysisDetailPage() {
         </AlertDialogContent>
       </AlertDialog>
     </>
+  )
+}
+
+function OriginalMailCard({ id }: { id: string }) {
+  const [downloading, setDownloading] = useState(false)
+
+  async function download() {
+    setDownloading(true)
+    try {
+      // Named after the id, a name taken from the mail could be anything
+      saveFile(await fetchEml(id), `phisheye-${id}.eml`)
+    } catch (error) {
+      toast.error("Original-Mail konnte nicht geladen werden", {
+        description: errorMessage(error),
+      })
+    } finally {
+      setDownloading(false)
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm">Original-Mail</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-2.5">
+        <p className="text-xs text-muted-foreground">
+          Die Datei kann Schadcode enthalten. Nur in einer isolierten Umgebung
+          öffnen, nie im eigenen Mailprogramm.
+        </p>
+        <Button
+          variant="outline"
+          className="w-full"
+          disabled={downloading}
+          onClick={download}
+        >
+          {downloading ? <Spinner /> : <DownloadIcon className="size-4" />}
+          .eml herunterladen
+        </Button>
+      </CardContent>
+    </Card>
   )
 }
 

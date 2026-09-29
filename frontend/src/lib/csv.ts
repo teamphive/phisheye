@@ -1,3 +1,5 @@
+import { saveFile } from "@/lib/download"
+
 type Cell = string | number | null
 
 // Excel with a German locale splits on semicolons, and only reads umlauts
@@ -31,13 +33,6 @@ export function downloadCsv(filename: string, rows: Cell[][]) {
   const blob = new Blob([byteOrderMark + content], {
     type: "text/csv;charset=utf-8",
   })
-  const url = URL.createObjectURL(blob)
 
-  const link = document.createElement("a")
-  link.href = url
-  link.download = filename
-  link.click()
-
-  // Revoked a tick later, some browsers start the download asynchronously.
-  setTimeout(() => URL.revokeObjectURL(url), 0)
+  saveFile(blob, filename)
 }

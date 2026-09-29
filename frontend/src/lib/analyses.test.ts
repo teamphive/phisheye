@@ -48,6 +48,18 @@ describe("with a backend", () => {
     })
   })
 
+  it("fetches the original mail through the backend", async () => {
+    const { fetchEml } = await loadAnalyses()
+    fetchMock.mockResolvedValue(new Response("Subject: Rechnung\r\n"))
+
+    const file = await fetchEml("a-1")
+
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      "https://phisheye.test/api/analyses/a-1/eml"
+    )
+    expect(await file.text()).toBe("Subject: Rechnung\r\n")
+  })
+
   it.each([
     [
       "takes the decision back",

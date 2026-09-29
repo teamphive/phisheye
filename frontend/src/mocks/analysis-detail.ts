@@ -55,6 +55,8 @@ export type AnalysisDetail = {
   links: AnalysisLink[]
   attachments: Attachment[]
   rawHeaders: string
+  /** Where the original mail lies in MinIO, null if storing it failed. */
+  storageKey: string | null
   decision: Decision | null
   step: string | null
   startedAt: string | null
@@ -144,6 +146,7 @@ Date:            Thu, 03 Sep 2026 07:58:12 +0200
 Message-ID:      <a41b7f@srv14.mailer-out.top>
 X-Mailer:        PHPMailer 6.8.0
 Auth-Results:    spf=fail dkim=fail dmarc=fail (p=none)`,
+  storageKey: "5d1e7c2a-3b94-4f60-8a1d-9e2b7c4f0a13",
   decision: null,
   step: null,
   startedAt: null,
@@ -308,6 +311,14 @@ export function mockDecide(
 
 export function mockRevokeDecision(id: string) {
   decisions[id] = null
+}
+
+/** Stands in for the stored mail: the placeholder's headers and a note. */
+export function mockEml(id: string) {
+  const { rawHeaders, subject } = baseAnalysis(id)
+  const text = `${rawHeaders}\r\nSubject: ${subject}\r\n\r\nPlatzhalter, die echte Mail liefert das Backend.\r\n`
+
+  return new Blob([text], { type: "message/rfc822" })
 }
 
 export function mockAnalysis(id: string): AnalysisDetail {
