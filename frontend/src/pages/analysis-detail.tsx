@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { Link, useNavigate, useParams } from "react-router"
 import {
   CheckIcon,
+  CircleHelpIcon,
   FlagIcon,
   Loader2Icon,
   TrashIcon,
@@ -63,6 +64,7 @@ import {
 } from "@/lib/format"
 import {
   type AnalysisDetail,
+  type Attachment,
   type Decision,
   type Queue,
 } from "@/mocks/analysis-detail"
@@ -75,6 +77,33 @@ const scoreTone = {
   clean: "text-clean",
   suspicious: "text-suspicious",
   phishing: "text-phishing",
+}
+
+// Without a score there is no verdict to confirm or dispute, the analyst
+// classifies the mail from scratch.
+const decisionText = {
+  rated: {
+    action: {
+      phishing: "Als Phishing bestätigen",
+      clean: "Falsch-positiv melden",
+    },
+    done: {
+      phishing: "Als Phishing bestätigt",
+      clean: "Als falsch-positiv gemeldet",
+    },
+    status: { phishing: "Bestätigt", clean: "Falsch-positiv" },
+  },
+  unrated: {
+    action: {
+      phishing: "Als Phishing einstufen",
+      clean: "Als sauber einstufen",
+    },
+    done: {
+      phishing: "Als Phishing eingestuft",
+      clean: "Als sauber eingestuft",
+    },
+    status: { phishing: "Phishing", clean: "Sauber" },
+  },
 }
 
 export function AnalysisDetailPage() {
@@ -176,15 +205,13 @@ export function AnalysisDetailPage() {
     )
   }
 
+  const text = decisionText[analysis.score === null ? "unrated" : "rated"]
+
   async function decide(verdict: Decision["verdict"]) {
     setPending("decide")
     try {
       setDecision(await decideAnalysis(id, verdict))
-      toast.success(
-        verdict === "phishing"
-          ? "Als Phishing bestätigt"
-          : "Als falsch-positiv gemeldet"
-      )
+      toast.success(text.done[verdict])
     } catch (error) {
       toast.error("Entscheidung konnte nicht gespeichert werden", {
         description: errorMessage(error),
@@ -265,10 +292,8 @@ export function AnalysisDetailPage() {
           decision ? (
             <div className="flex shrink-0 items-center gap-2 rounded-md border border-clean/25 bg-clean-soft px-3 py-1.5 text-[13px] font-semibold text-clean">
               <CheckIcon className="size-4" />
-              {decision.verdict === "phishing"
-                ? "Als Phishing bestätigt"
-                : "Als falsch-positiv gemeldet"}{" "}
-              von {decision.by} · {formatRelativeTime(decision.at)}
+              {text.done[decision.verdict]} von {decision.by} ·{" "}
+              {formatRelativeTime(decision.at)}
               {permissions.analyze ? (
                 <Button
                   variant="ghost"
@@ -291,14 +316,14 @@ export function AnalysisDetailPage() {
                     disabled={pending !== null}
                     onClick={() => decide("clean")}
                   >
-                    Falsch-positiv melden
+                    {text.action.clean}
                   </Button>
                   <Button
                     disabled={pending !== null}
                     onClick={() => decide("phishing")}
                   >
                     {pending === "decide" ? <Spinner /> : null}
-                    Als Phishing bestätigen
+                    {text.action.phishing}
                   </Button>
                 </>
               ) : null}
@@ -347,9 +372,7 @@ export function AnalysisDetailPage() {
                       decision.verdict === "phishing" ? "phishing" : "clean"
                     }
                   >
-                    {decision.verdict === "phishing"
-                      ? "Bestätigt"
-                      : "Falsch-positiv"}
+                    {text.status[decision.verdict]}
                   </Badge>
                 ) : (
                   <VerdictBadge
@@ -447,6 +470,12 @@ export function AnalysisDetailPage() {
       </AlertDialog>
     </>
   )
+}
+
+// "unbekannt" is what the backend sends for a file VirusTotal never saw
+function virusTotalTone(file: Attachment): "phishing" | "outline" | "clean" {
+  if (file.malicious) return "phishing"
+  return file.virusTotal === "unbekannt" ? "outline" : "clean"
 }
 
 function EmptyRow({
@@ -655,6 +684,9 @@ function FailedCard({ analysis }: { analysis: AnalysisDetail }) {
 }
 
 function CompletedCards({ analysis }: { analysis: AnalysisDetail }) {
+  // The detection can finish without a result, attachments and headers are
+  // there all the same.
+  const rated = analysis.score !== null
   const score = analysis.score ?? 0
   const tone = analysis.verdict
     ? scoreTone[analysis.verdict]
@@ -666,37 +698,56 @@ function CompletedCards({ analysis }: { analysis: AnalysisDetail }) {
 
   return (
     <>
-      <Card>
-        <CardContent className="flex flex-col gap-4">
-          <div className="flex items-start gap-4">
-            <span
-              className={`${tone} text-[56px] leading-none font-semibold tracking-tighter`}
-            >
-              {score}
-              <span className="text-2xl font-medium"> %</span>
-            </span>
-            <div className="pt-1.5">
-              <div className="flex items-center gap-2">
-                <VerdictBadge
-                  status={analysis.status}
-                  verdict={analysis.verdict}
-                />
-                <Badge variant="outline">
-                  {triggered.length} von {analysis.criteria.length} Kriterien
-                  ausgelöst
-                </Badge>
+      {rated ? (
+        <Card>
+          <CardContent className="flex flex-col gap-4">
+            <div className="flex items-start gap-4">
+              <span
+                className={`${tone} text-[56px] leading-none font-semibold tracking-tighter`}
+              >
+                {score}
+                <span className="text-2xl font-medium"> %</span>
+              </span>
+              <div className="pt-1.5">
+                <div className="flex items-center gap-2">
+                  <VerdictBadge
+                    status={analysis.status}
+                    verdict={analysis.verdict}
+                  />
+                  <Badge variant="outline">
+                    {triggered.length} von {analysis.criteria.length} Kriterien
+                    ausgelöst
+                  </Badge>
+                </div>
+                <p className="mt-1.5 max-w-[42ch] text-xs text-muted-foreground">
+                  Der Score ist die gewichtete Summe der ausgelösten Prüfungen.
+                  Ab {analysis.thresholds.phishing} % wird eine Mail als
+                  Phishing eingestuft.
+                </p>
               </div>
-              <p className="mt-1.5 max-w-[42ch] text-xs text-muted-foreground">
-                Der Score ist die gewichtete Summe der ausgelösten Prüfungen. Ab{" "}
-                {analysis.thresholds.phishing} % wird eine Mail als Phishing
-                eingestuft.
+            </div>
+
+            <ScoreMeter score={score} thresholds={analysis.thresholds} />
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardContent className="flex items-center gap-3">
+            <span className="grid size-8 shrink-0 place-items-center rounded-full bg-secondary text-muted-foreground">
+              <CircleHelpIcon className="size-[18px]" />
+            </span>
+            <div>
+              <div className="text-[15px] font-semibold">
+                Noch nicht bewertet
+              </div>
+              <p className="mt-0.5 max-w-[56ch] text-[13px] text-muted-foreground">
+                Die Erkennung hat für diese Mail keinen Score geliefert. Anhänge
+                und Header stehen trotzdem unten.
               </p>
             </div>
-          </div>
-
-          <ScoreMeter score={score} thresholds={analysis.thresholds} />
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -715,7 +766,11 @@ function CompletedCards({ analysis }: { analysis: AnalysisDetail }) {
             </TableHeader>
             <TableBody>
               {analysis.links.length === 0 ? (
-                <EmptyRow colSpan={3}>Die Mail enthält keine Links.</EmptyRow>
+                <EmptyRow colSpan={3}>
+                  {rated
+                    ? "Die Mail enthält keine Links."
+                    : "Die Links werden erst mit der Bewertung ausgewertet."}
+                </EmptyRow>
               ) : null}
               {analysis.links.map((link) => (
                 <TableRow key={link.target}>
@@ -766,7 +821,7 @@ function CompletedCards({ analysis }: { analysis: AnalysisDetail }) {
                     {shortenHash(file.sha256)}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={file.malicious ? "phishing" : "clean"}>
+                    <Badge variant={virusTotalTone(file)}>
                       {file.virusTotal}
                     </Badge>
                   </TableCell>
@@ -777,65 +832,76 @@ function CompletedCards({ analysis }: { analysis: AnalysisDetail }) {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Ausgelöste Kriterien</CardTitle>
-          <p className="text-xs text-muted-foreground">
-            Jede Prüfung liefert Gewicht und Begründung
-          </p>
-        </CardHeader>
-        <CardContent className="px-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Kriterium</TableHead>
-                <TableHead>Befund</TableHead>
-                <TableHead className="text-right">Gewicht</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {triggered.length === 0 ? (
-                <EmptyRow colSpan={3}>Keine Prüfung hat angeschlagen.</EmptyRow>
-              ) : null}
-              {triggered.map((criterion) => (
-                <TableRow key={criterion.name}>
-                  <TableCell className="font-semibold">
-                    {criterion.name}
+      {rated ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Ausgelöste Kriterien</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Jede Prüfung liefert Gewicht und Begründung
+            </p>
+          </CardHeader>
+          <CardContent className="px-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Kriterium</TableHead>
+                  <TableHead>Befund</TableHead>
+                  <TableHead className="text-right">Gewicht</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {triggered.length === 0 ? (
+                  <EmptyRow colSpan={3}>
+                    Keine Prüfung hat angeschlagen.
+                  </EmptyRow>
+                ) : null}
+                {triggered.map((criterion) => (
+                  <TableRow key={criterion.name}>
+                    <TableCell className="font-semibold">
+                      {criterion.name}
+                    </TableCell>
+                    <TableCell className="font-mono text-muted-foreground">
+                      {criterion.finding}
+                    </TableCell>
+                    <TableCell className="text-right font-mono font-semibold text-phishing tabular-nums">
+                      +{criterion.weight}
+                    </TableCell>
+                  </TableRow>
+                ))}
+                <TableRow className="bg-secondary hover:bg-secondary">
+                  <TableCell
+                    colSpan={2}
+                    className="font-semibold text-muted-foreground"
+                  >
+                    Risiko-Score — Summe {analysis.criteriaTotal}, gekappt auf
+                    100
                   </TableCell>
-                  <TableCell className="font-mono text-muted-foreground">
-                    {criterion.finding}
-                  </TableCell>
-                  <TableCell className="text-right font-mono font-semibold text-phishing tabular-nums">
-                    +{criterion.weight}
+                  <TableCell
+                    className={`${tone} text-right font-mono text-sm font-bold tabular-nums`}
+                  >
+                    {score}
                   </TableCell>
                 </TableRow>
-              ))}
-              <TableRow className="bg-secondary hover:bg-secondary">
-                <TableCell
-                  colSpan={2}
-                  className="font-semibold text-muted-foreground"
-                >
-                  Risiko-Score — Summe {analysis.criteriaTotal}, gekappt auf 100
-                </TableCell>
-                <TableCell
-                  className={`${tone} text-right font-mono text-sm font-bold tabular-nums`}
-                >
-                  {score}
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader>
           <CardTitle className="text-sm">Header (Auszug)</CardTitle>
         </CardHeader>
         <CardContent>
-          <pre className="overflow-x-auto rounded-md border border-border bg-secondary p-4 font-mono text-[11.5px] leading-relaxed text-muted-foreground">
-            {analysis.rawHeaders}
-          </pre>
+          {analysis.rawHeaders ? (
+            <pre className="overflow-x-auto rounded-md border border-border bg-secondary p-4 font-mono text-[11.5px] leading-relaxed text-muted-foreground">
+              {analysis.rawHeaders}
+            </pre>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Zu dieser Mail sind keine Header gespeichert.
+            </p>
+          )}
         </CardContent>
       </Card>
     </>

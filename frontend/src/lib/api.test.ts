@@ -85,6 +85,25 @@ describe("apiFetch", () => {
     })
   })
 
+  it("reads timestamps without an offset as UTC", async () => {
+    const { apiFetch } = await loadApi()
+    fetchMock.mockResolvedValue(
+      jsonResponse({
+        received_at: "2026-09-29T11:16:24.123456",
+        decision: { at: "2026-09-29T11:20:00" },
+        started_at: "2026-09-29T13:16:24+02:00",
+        subject: "2026-09-29T11:16 Rechnung",
+      })
+    )
+
+    await expect(apiFetch("/analyses/1")).resolves.toEqual({
+      receivedAt: "2026-09-29T11:16:24.123Z",
+      decision: { at: "2026-09-29T11:20:00Z" },
+      startedAt: "2026-09-29T13:16:24+02:00",
+      subject: "2026-09-29T11:16 Rechnung",
+    })
+  })
+
   it("answers 204 with nothing", async () => {
     const { apiFetch } = await loadApi()
     fetchMock.mockResolvedValue(new Response(null, { status: 204 }))
