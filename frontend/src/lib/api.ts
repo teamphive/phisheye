@@ -96,11 +96,12 @@ export function errorMessage(error: unknown) {
 }
 
 /**
- * Every call to the backend goes through here, so the token handling exists
- * exactly once. Throws on anything but a successful answer.
+ * Every call with the user's token goes through here, to the backend and to
+ * Keycloak's account API, so the token handling exists exactly once. Throws
+ * on anything but a successful answer.
  */
-async function request(path: string, init: RequestInit = {}) {
-  const response = await fetch(`${baseUrl}${path}`, {
+export async function authorizedFetch(url: string, init: RequestInit = {}) {
+  const response = await fetch(url, {
     ...init,
     headers: { ...(await authorization()), ...init.headers },
   })
@@ -128,7 +129,7 @@ export async function apiFetch<T>(
   path: string,
   init: RequestInit = {}
 ): Promise<T> {
-  const response = await request(path, init)
+  const response = await authorizedFetch(`${baseUrl}${path}`, init)
 
   return response.status === 204
     ? (undefined as T)
@@ -137,6 +138,6 @@ export async function apiFetch<T>(
 
 /** A file, handed over as the backend sent it. */
 export async function apiBlob(path: string) {
-  const response = await request(path)
+  const response = await authorizedFetch(`${baseUrl}${path}`)
   return response.blob()
 }

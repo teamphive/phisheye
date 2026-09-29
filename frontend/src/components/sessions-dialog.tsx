@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -19,21 +20,38 @@ import {
   ItemGroup,
   ItemTitle,
 } from "@/components/ui/item"
+import { Spinner } from "@/components/ui/spinner"
+import { deviceName, signOutDevice, signOutOtherDevices } from "@/lib/account"
+import { errorMessage } from "@/lib/api"
 import { formatRelativeTime } from "@/lib/format"
-import { sessions as initialSessions } from "@/mocks/session"
+import type { Device } from "@/mocks/session"
 
-export function SessionsDialog() {
-  const [sessions, setSessions] = useState(initialSessions)
+/** The browsers Keycloak has sessions for, each can be signed out. */
+export function SessionsDialog({
+  devices,
+  onChange,
+}: {
+  devices: Device[]
+  /** Called after a sign out, the list comes fresh from Keycloak. */
+  onChange: () => void
+}) {
+  const [pending, setPending] = useState<string | null>(null)
 
-  function revoke(id: string) {
-    setSessions((current) => current.filter((session) => session.id !== id))
+  async function signOut(key: string, run: () => Promise<void>) {
+    setPending(key)
+    try {
+      await run()
+      onChange()
+    } catch (error) {
+      toast.error("Abmelden fehlgeschlagen", {
+        description: errorMessage(error),
+      })
+    } finally {
+      setPending(null)
+    }
   }
 
-  function revokeOthers() {
-    setSessions((current) => current.filter((session) => session.current))
-  }
-
-  const others = sessions.filter((session) => !session.current).length
+  const others = devices.filter((device) => !device.current).length
 
   return (
     <Dialog>
@@ -47,37 +65,43 @@ export function SessionsDialog() {
         </DialogHeader>
 
         <ItemGroup>
-          {sessions.map((session) => (
-            <Item key={session.id} variant="outline" className="p-3">
-              <ItemContent>
-                <ItemTitle>
-                  {session.agent}
-                  {session.current ? (
-                    <Badge variant="secondary">Dieses Gerät</Badge>
-                  ) : null}
-                </ItemTitle>
-                <ItemDescription>
-                  {session.location} · {session.ip} ·{" "}
-                  {session.current
-                    ? "gerade aktiv"
-                    : `zuletzt ${formatRelativeTime(session.lastActiveAt)}`}
-                </ItemDescription>
-              </ItemContent>
-              <ItemActions>
-                {session.current ? (
-                  <span className="text-sm text-faint">—</span>
-                ) : (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => revoke(session.id)}
-                  >
-                    Abmelden
-                  </Button>
-                )}
-              </ItemActions>
-            </Item>
-          ))}
+          {devices.map((device) => {
+            const key = device.sessionIds.join(",")
+
+            return (
+              <Item key={key} variant="outline" className="p-3">
+                <ItemContent>
+                  <ItemTitle>
+                    {deviceName(device)}
+                    {device.current ? (
+                      <Badge variant="secondary">Dieses Gerät</Badge>
+                    ) : null}
+                  </ItemTitle>
+                  <ItemDescription>
+                    {device.ipAddress} ·{" "}
+                    {device.current
+                      ? "gerade aktiv"
+                      : `zuletzt ${formatRelativeTime(device.lastAccess)}`}
+                  </ItemDescription>
+                </ItemContent>
+                <ItemActions>
+                  {device.current ? (
+                    <span className="text-sm text-faint">—</span>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={pending !== null}
+                      onClick={() => signOut(key, () => signOutDevice(device))}
+                    >
+                      {pending === key ? <Spinner /> : null}
+                      Abmelden
+                    </Button>
+                  )}
+                </ItemActions>
+              </Item>
+            )
+          })}
         </ItemGroup>
 
         <p className="text-xs text-muted-foreground">
@@ -90,9 +114,10 @@ export function SessionsDialog() {
           </DialogClose>
           <Button
             variant="destructive"
-            disabled={others === 0}
-            onClick={revokeOthers}
+            disabled={others === 0 || pending !== null}
+            onClick={() => signOut("others", signOutOtherDevices)}
           >
+            {pending === "others" ? <Spinner /> : null}
             Alle anderen abmelden
           </Button>
         </DialogFooter>

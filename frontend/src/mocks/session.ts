@@ -47,74 +47,95 @@ export function mockSelectTeam(teamId: string) {
   activeTeamId = teamId
 }
 
-export type Security = {
-  passwordChangedAt: string
-  twoFactorEnabled: boolean
-  twoFactorMethod: string
-  twoFactorSetUpAt: string
-  backupCodesTotal: number
-  backupCodesUnused: number
-  sessionCount: number
-  lastSessionAgent: string
-  lastSessionAt: string
-}
-
-export const security: Security = {
-  passwordChangedAt: "2026-06-04T09:12:00Z",
-  twoFactorEnabled: true,
-  twoFactorMethod: "Authenticator-App",
-  twoFactorSetUpAt: "2026-06-12T14:30:00Z",
-  backupCodesTotal: 8,
-  backupCodesUnused: 6,
-  sessionCount: 3,
-  lastSessionAgent: "Chrome auf Windows",
-  lastSessionAt: "2026-09-03T08:20:00Z",
-}
-
-export type DeviceSession = {
+/** A one time code app, as Keycloak lists it under the user's credentials. */
+export type Authenticator = {
   id: string
-  agent: string
-  location: string
-  ip: string
-  lastActiveAt: string
-  current: boolean
+  /** The name given while setting it up, null if left empty. */
+  label: string | null
+  createdAt: string
 }
 
-export const sessions: DeviceSession[] = [
+export type RecoveryCodes = {
+  id: string
+  /** Null when Keycloak does not say how many are used. */
+  used: number | null
+  total: number | null
+  createdAt: string
+}
+
+/** A browser Keycloak has sessions for, signing it out ends all of them. */
+export type Device = {
+  sessionIds: string[]
+  browser: string
+  os: string
+  ipAddress: string
+  lastAccess: string
+  current: boolean
+  mobile: boolean
+}
+
+/** What Keycloak knows about the signed in user's login, nothing of it in the app database. */
+export type AccountSecurity = {
+  /** When the current password was set, null without one. */
+  passwordChangedAt: string | null
+  authenticators: Authenticator[]
+  recoveryCodes: RecoveryCodes | null
+  devices: Device[]
+}
+
+// The placeholder Keycloak forgets signed out devices on the next reload.
+let devices: Device[] = [
   {
-    id: "win",
-    agent: "Chrome auf Windows",
-    location: "Bremen",
-    ip: "192.168.14.62",
-    lastActiveAt: "2026-09-10T07:55:00Z",
+    sessionIds: ["win"],
+    browser: "Chrome 140",
+    os: "Windows",
+    ipAddress: "192.168.14.62",
+    lastAccess: "2026-09-10T07:55:00Z",
     current: true,
+    mobile: false,
   },
   {
-    id: "mac",
-    agent: "Firefox auf macOS",
-    location: "Bremen",
-    ip: "192.168.14.90",
-    lastActiveAt: "2026-09-09T15:42:00Z",
+    sessionIds: ["mac"],
+    browser: "Firefox 143",
+    os: "macOS",
+    ipAddress: "192.168.14.90",
+    lastAccess: "2026-09-09T15:42:00Z",
     current: false,
+    mobile: false,
   },
   {
-    id: "ios",
-    agent: "Safari auf iPhone",
-    location: "Unbekannter Ort",
-    ip: "84.62.11.7",
-    lastActiveAt: "2026-08-29T09:10:00Z",
+    sessionIds: ["ios"],
+    browser: "Mobile Safari 18",
+    os: "iOS",
+    ipAddress: "84.62.11.7",
+    lastAccess: "2026-08-29T09:10:00Z",
     current: false,
+    mobile: true,
   },
 ]
 
-/** Freshly generated codes, shown once and never again. */
-export const backupCodes = [
-  "P7QK-2XMB",
-  "4RJD-9TLV",
-  "8CWN-5FZA",
-  "1HYE-6BQR",
-  "3MKT-0GUP",
-  "9VSD-7NXC",
-  "2LFB-4WHJ",
-  "6ZQA-1RKE",
-]
+export function mockAccountSecurity(): AccountSecurity {
+  return {
+    passwordChangedAt: "2026-06-04T09:12:00Z",
+    authenticators: [
+      { id: "otp-1", label: "iPhone", createdAt: "2026-06-12T14:30:00Z" },
+    ],
+    recoveryCodes: {
+      id: "codes",
+      used: 2,
+      total: 12,
+      createdAt: "2026-06-12T14:34:00Z",
+    },
+    devices: devices.map((device) => ({ ...device })),
+  }
+}
+
+export function mockSignOut(sessionIds: string[]) {
+  devices = devices.filter(
+    (device) => !device.sessionIds.some((id) => sessionIds.includes(id))
+  )
+}
+
+export function mockSignOutOthers() {
+  devices = devices.filter((device) => device.current)
+}

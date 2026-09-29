@@ -2,14 +2,11 @@ import { useState, type FormEvent } from "react"
 import { useNavigate } from "react-router"
 import { toast } from "sonner"
 
-import { BackupCodesDialog } from "@/components/backup-codes-dialog"
 import { PageHeader } from "@/components/page-header"
-import { PasswordDialog } from "@/components/password-dialog"
+import { SecurityCard } from "@/components/security-card"
 import { useSession } from "@/components/session-provider"
-import { SessionsDialog } from "@/components/sessions-dialog"
 import { useTheme } from "@/components/theme-provider"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -30,17 +27,14 @@ import {
   ItemActions,
   ItemContent,
   ItemDescription,
-  ItemGroup,
-  ItemSeparator,
   ItemTitle,
 } from "@/components/ui/item"
 import { Spinner } from "@/components/ui/spinner"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { errorMessage } from "@/lib/api"
-import { formatDate } from "@/lib/format"
-import { authEnabled, logout, openAccount } from "@/lib/keycloak"
+import { authEnabled, logout } from "@/lib/keycloak"
 import { updateProfile } from "@/lib/session"
-import { roleLabel, security } from "@/mocks/session"
+import { roleLabel } from "@/mocks/session"
 
 const schemes = [
   { value: "light", label: "Hell" },
@@ -131,110 +125,7 @@ export function SettingsPage() {
         </form>
       </Card>
 
-      <Card>
-        <CardHeader className="border-b">
-          <CardTitle className="text-sm">Sicherheit</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ItemGroup className="gap-0">
-            {authEnabled ? (
-              <>
-                <Item className="px-0 py-3.5">
-                  <ItemContent>
-                    <ItemTitle>Kontoeinstellungen</ItemTitle>
-                    <ItemDescription>
-                      Passwort, zweiter Faktor und angemeldete Geräte werden in
-                      Keycloak verwaltet.
-                    </ItemDescription>
-                  </ItemContent>
-                  <ItemActions>
-                    <Button variant="outline" size="sm" onClick={openAccount}>
-                      Öffnen
-                    </Button>
-                  </ItemActions>
-                </Item>
-
-                <ItemSeparator className="my-0" />
-              </>
-            ) : null}
-
-            <Item className="px-0 py-3.5">
-              <ItemContent>
-                <ItemTitle>Passwort</ItemTitle>
-                <ItemDescription>
-                  Zuletzt geändert am {formatDate(security.passwordChangedAt)}
-                </ItemDescription>
-              </ItemContent>
-              <ItemActions>
-                <PasswordDialog />
-              </ItemActions>
-            </Item>
-
-            <ItemSeparator className="my-0" />
-
-            <Item className="px-0 py-3.5">
-              <ItemContent>
-                <ItemTitle>
-                  Zwei-Faktor-Authentifizierung
-                  {security.twoFactorEnabled ? (
-                    <Badge variant="clean">
-                      <span className="size-1.5 rounded-full bg-current" />
-                      Aktiv
-                    </Badge>
-                  ) : null}
-                </ItemTitle>
-                <ItemDescription>
-                  {security.twoFactorMethod}, eingerichtet am{" "}
-                  {formatDate(security.twoFactorSetUpAt)}
-                </ItemDescription>
-              </ItemContent>
-              <ItemActions>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => navigate("/einrichtung/2fa")}
-                >
-                  Neu einrichten
-                </Button>
-                <Button variant="destructive" size="sm">
-                  Deaktivieren
-                </Button>
-              </ItemActions>
-            </Item>
-
-            <ItemSeparator className="my-0" />
-
-            <Item className="px-0 py-3.5">
-              <ItemContent>
-                <ItemTitle>Backup-Codes</ItemTitle>
-                <ItemDescription>
-                  {security.backupCodesUnused} von {security.backupCodesTotal}{" "}
-                  Codes noch nicht verwendet
-                </ItemDescription>
-              </ItemContent>
-              <ItemActions>
-                <BackupCodesDialog />
-              </ItemActions>
-            </Item>
-
-            <ItemSeparator className="my-0" />
-
-            <Item className="px-0 py-3.5">
-              <ItemContent>
-                <ItemTitle>Aktive Sitzungen</ItemTitle>
-                <ItemDescription>
-                  {security.sessionCount} Geräte · zuletzt{" "}
-                  {security.lastSessionAgent},{" "}
-                  {formatDate(security.lastSessionAt)}
-                </ItemDescription>
-              </ItemContent>
-              <ItemActions>
-                <SessionsDialog />
-              </ItemActions>
-            </Item>
-          </ItemGroup>
-        </CardContent>
-      </Card>
+      <SecurityCard />
 
       <Card>
         <CardHeader className="border-b">
