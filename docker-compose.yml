@@ -29,7 +29,8 @@ services:
     container_name: keycloak
     restart: always
     entrypoint: ["/bin/bash", "/opt/keycloak/entrypoint.sh"]
-    command: ["start-dev", "--import-realm"]
+    # production mode with the options the image was built with
+    command: ["start", "--optimized", "--import-realm"]
     ports:
       # only for a local SSH tunnel if the public admin console is ever
       # unreachable, not the regular way in
@@ -38,8 +39,10 @@ services:
       KC_BOOTSTRAP_ADMIN_USERNAME: "${KEYCLOAK_ADMIN_USER}"
       KC_BOOTSTRAP_ADMIN_PASSWORD: "${KEYCLOAK_ADMIN_PASSWORD}"
       KC_HOSTNAME: "${KEYCLOAK_PUBLIC_URL:-http://localhost:8080}/auth"
-      # exposes Keycloak at /auth on the frontend's domain, see frontend/nginx.conf
-      KC_HTTP_RELATIVE_PATH: /auth
+      # TLS ends at the Nginx Proxy Manager, Keycloak itself speaks plain HTTP.
+      # The /auth path is baked into the image (frontend/Dockerfile), a value
+      # here would be ignored by --optimized.
+      KC_HTTP_ENABLED: "true"
       KC_PROXY_HEADERS: xforwarded
       FRONTEND_URL: "${FRONTEND_URL:-http://localhost:5173}"
       SMTP_HOST: "${SMTP_HOST:-smtp.strato.de}"

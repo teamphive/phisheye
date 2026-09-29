@@ -28,6 +28,12 @@ RUN npx keycloakify build
 # Keycloak loads every jar in providers at startup.
 FROM quay.io/keycloak/keycloak:26.7.3 AS keycloak
 COPY --from=theme /app/dist_keycloak/phisheye-keycloak-theme.jar /opt/keycloak/providers/
+# Build time options, baked in once so `start --optimized` skips the rebuild on
+# every start. The database stays the H2 file in the keycloak-data volume, set
+# explicitly because the default is deprecated in production mode.
+ENV KC_DB=dev-file
+ENV KC_HTTP_RELATIVE_PATH=/auth
+RUN /opt/keycloak/bin/kc.sh build
 
 # last stage, so a build without target gives the app
 FROM nginx:alpine
