@@ -31,13 +31,14 @@ async def test_database_seed_creates_both_teams_once(db):
     users = (await db.exec(select(User))).all()
 
     assert sorted(teams) == ["Dev-Team", "Standard-Team"]
-    assert len(users) == 4
+    assert len(users) == 5
     assert sorted((m.team_id, m.role) for m in memberships) == sorted(
         [
             (teams["Dev-Team"], "admin"),
             (teams["Dev-Team"], "analyst"),
             (teams["Dev-Team"], "audit"),
             (teams["Standard-Team"], "admin"),
+            (teams["Standard-Team"], "audit"),
         ]
     )
 

@@ -73,6 +73,20 @@ Das Backend legt für eingeladene Personen ein Konto in Keycloak an, ohne Passwo
 
 Die Mails von Keycloak (Konto einrichten, Passwort zurücksetzen, E-Mail bestätigen) haben ein eigenes Design. Es liegt als Email-Theme in `frontend/email-theme/` und steckt im Keycloak-Image. Neue Realms nutzen es über die Vorlage. In einem bestehenden Realm einmal unter Realm settings, Themes, Email theme auf `phisheye-email` stellen. `just seed` macht das lokal.
 
+## Standard-Team und Instanz-Admin
+
+Das Standard-Team gibt es immer, der Name ist fest (`Standard-Team`), es lässt sich nicht umbenennen oder löschen. Es nimmt die Meldungen von Domains auf, die kein Team eingetragen hat. Dort gibt es nur Admin und Auditor. Beide sind **Instanz-Rollen**: Sie sehen alle Teams, der Admin darf überall ändern und Teams erstellen, der Auditor liest nur. Der Instanz-Admin ist automatisch Operator und sieht das Monitoring.
+
+Datenschutz: Beide sehen die Mails aller Teams. Die Rollen deshalb auf wenige Personen begrenzen. Das Backend protokolliert, wenn ein Instanz-Mitglied ein fremdes Team betritt. Im Abschlussbericht erwähnen.
+
+Der erste Instanz-Admin kommt auf dem Server so ins System:
+
+1. In der `.env` die eigene Adresse setzen: `PHISHEYE_ADMIN_EMAIL=<deine Adresse>`.
+2. Einmal ausführen: `docker compose --profile app exec backend python -m scripts.bootstrap_admin`. Das Skript legt das Konto in Keycloak an und schickt den Link zum Passwort-Setzen.
+3. Nach der Anmeldung ist die Adresse Admin im Standard-Team. Das gilt nur bei bestätigter E-Mail.
+
+Weitere Instanz-Admins und -Auditoren lädt der erste Admin im Standard-Team ein. Lokal legt `just seed` beide an.
+
 ## Eine `.env` für alles
 
 Backend, Worker, Migration und Docker Compose selbst lesen alle dieselbe `.env` im Root. Vorher gab es zusätzlich `backend/.env`, mit teils denselben Variablen. Weichten die Werte voneinander ab, zum Beispiel `POSTGRES_PASSWORD`, schlug die Anmeldung an Postgres fehl, ohne dass die Ursache in der Compose-Konfiguration selbst zu sehen war. Lokal ohne Docker (`just dev`) findet `python-dotenv` die Root-`.env` automatisch, sie sucht beim Start von `backend/app/database.py` aufwärts nach der nächsten `.env`.

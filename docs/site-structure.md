@@ -123,7 +123,18 @@ Die Rolle gilt pro Team, nicht pro Nutzer. Dieselbe Person kann in einem Team Ad
 
 **Audit** darf ausschließlich lesen. Für diese Rolle blendet die Oberfläche „Neue Analyse", die Verdikt-Knöpfe und die gesamte Team-Verwaltung aus.
 
-Davon getrennt gibt es ein systemweites Merkmal `is_operator` am Nutzer. Es steuert allein den Zugriff aufs Monitoring und hat mit den Team-Rollen nichts zu tun — ein Team-Admin ist nicht automatisch Operator.
+Dazu kommen die **Instanz-Rollen** im Standard-Team. Dort gibt es nur Admin und Auditor, keine Analysten:
+
+| Recht | Instanz-Admin | Instanz-Auditor |
+|-------|:-------------:|:---------------:|
+| Alle Teams sehen | ✓ | ✓ |
+| In fremden Teams ändern | ✓ | — |
+| Teams erstellen | ✓ | — |
+| Monitoring sehen | ✓ | — |
+
+In fremden Teams hat der Instanz-Admin die Rolle Admin und der Auditor die Rolle Audit. Das Standard-Team selbst nimmt die Meldungen von Domains auf, die kein Team eingetragen hat. Es lässt sich nicht umbenennen oder löschen.
+
+Das Monitoring steuert das Merkmal `is_operator`. Es gilt für Instanz-Admins automatisch und lässt sich zusätzlich über die Keycloak-Rolle `operator` vergeben.
 
 Durchgesetzt wird all das im Backend. Die Oberfläche blendet nur aus.
 

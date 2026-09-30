@@ -29,7 +29,7 @@
 | id | PK | |
 | team_id | FK -> teams | |
 | user_id | FK -> users | |
-| role | enum (admin, analyst, audit) | gilt nur in diesem Team |
+| role | enum (admin, analyst, audit) | gilt nur in diesem Team. Im Standard-Team nur `admin` und `audit`, diese Rollen gelten als Instanz-Rollen für alle Teams |
 | joined_at | timestamp | |
 | | unique constraint | (team_id, user_id) |
 

@@ -33,6 +33,14 @@ USERS = [
         "admin",
         True,
     ),
+    (
+        "auditor@phisheye.example",
+        "Instanz",
+        "Auditor",
+        DEFAULT_TEAM_NAME,
+        "audit",
+        False,
+    ),
 ]
 
 

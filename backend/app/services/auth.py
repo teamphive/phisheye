@@ -11,6 +11,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ..database import get_db
 from ..models.user import User
+from .instance import instance_role, make_instance_admin
 from .invitations import accept_invitations
 
 logger = logging.getLogger(__name__)
@@ -149,9 +150,20 @@ async def get_current_user(
         if claims.get("email_verified") is True:
             await accept_invitations(user, db)
 
-        # The role is granted in Keycloak, the column only mirrors it. Without
-        # a change SQLAlchemy writes nothing.
-        user.is_operator = _is_operator(claims)
+        # the first instance admin: the address from .env once it is verified
+        admin_email = os.getenv("PHISHEYE_ADMIN_EMAIL", "").strip().lower()
+        if (
+            admin_email
+            and claims.get("email_verified") is True
+            and email.lower() == admin_email
+        ):
+            await make_instance_admin(user, db)
+
+        # The role comes from Keycloak or from being instance admin, the column
+        # only mirrors it. Without a change SQLAlchemy writes nothing.
+        user.is_operator = (
+            _is_operator(claims) or await instance_role(user.id, db) == "admin"
+        )
         db.add(user)
 
     return user
