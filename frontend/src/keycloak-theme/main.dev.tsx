@@ -199,6 +199,95 @@ const mocks: Record<string, { label: string; kcContext: () => KcContext }> = {
       })
     },
   },
+  // The link in Keycloak's mail for an invited person leads here
+  "info.ftl": {
+    label: "Einrichten",
+    kcContext: () =>
+      getKcContextMock({
+        pageId: "info.ftl",
+        overrides: {
+          message: {
+            type: "info",
+            summary: "Führen Sie die folgenden Aktion(en) aus",
+          },
+          requiredActions: ["UPDATE_PASSWORD", "UPDATE_PROFILE"],
+          actionUri: "#",
+        },
+      }),
+  },
+  "login-update-profile.ftl": {
+    label: "Profil",
+    kcContext: () =>
+      getKcContextMock({
+        pageId: "login-update-profile.ftl",
+        overrides: withError
+          ? {
+              messagesPerField: fieldErrors({
+                firstName: "Bitte geben Sie einen Vornamen ein.",
+              }),
+            }
+          : {},
+      }),
+  },
+  // After the last step of the setup
+  "info-done": {
+    label: "Eingerichtet",
+    kcContext: () =>
+      getKcContextMock({
+        pageId: "info.ftl",
+        overrides: {
+          message: { type: "success", summary: "Ihr Konto wurde aktualisiert." },
+          messageHeader: undefined,
+          pageRedirectUri: "#",
+        },
+      }),
+  },
+  "error.ftl": {
+    label: "Fehler",
+    kcContext: () =>
+      getKcContextMock({
+        pageId: "error.ftl",
+        overrides: {
+          message: {
+            type: "error",
+            summary: "Die Aktion ist nicht mehr gültig.",
+          },
+          client: { baseUrl: "#" },
+        },
+      }),
+  },
+  "login-page-expired.ftl": {
+    label: "Abgelaufen",
+    kcContext: () => getKcContextMock({ pageId: "login-page-expired.ftl" }),
+  },
+  "login-verify-email.ftl": {
+    label: "Mail bestätigen",
+    kcContext: () =>
+      getKcContextMock({
+        pageId: "login-verify-email.ftl",
+        overrides: {
+          auth: { attemptedUsername: user },
+          user: { email: user },
+        },
+      }),
+  },
+  // "Entfernen" next to an authenticator app in the settings
+  "delete-credential.ftl": {
+    label: "Gerät entfernen",
+    kcContext: () =>
+      getKcContextMock({
+        pageId: "delete-credential.ftl",
+        overrides: { credentialLabel: "iPhone", isAppInitiatedAction: true },
+      }),
+  },
+  "logout-confirm.ftl": {
+    label: "Abmelden",
+    kcContext: () =>
+      getKcContextMock({
+        pageId: "logout-confirm.ftl",
+        overrides: { client: { baseUrl: "#" } },
+      }),
+  },
 }
 
 const pageId = params.get("page") ?? "login.ftl"

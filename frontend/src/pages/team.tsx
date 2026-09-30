@@ -59,6 +59,7 @@ import {
   leaveTeam,
   removeMember,
   renameTeam,
+  resendInvitation,
   revokeInvitation,
 } from "@/lib/team"
 import { roleLabel, type Team, type TeamRole } from "@/mocks/session"
@@ -133,6 +134,8 @@ function TeamView({ team }: { team: Team }) {
   const [members, setMembers] = useState<Member[] | null>(null)
   const [invitations, setInvitations] = useState<Invitation[]>([])
   const [loadError, setLoadError] = useState<string | null>(null)
+  // Counts up to fetch the roster again, the old one stays until then
+  const [rosterVersion, setRosterVersion] = useState(0)
   // The member or invitation a request is running for
   const [busyId, setBusyId] = useState<string | null>(null)
   const [teamName, setTeamName] = useState(team.name)
@@ -153,7 +156,7 @@ function TeamView({ team }: { team: Team }) {
     return () => {
       active = false
     }
-  }, [team.id])
+  }, [team.id, rosterVersion])
 
   // Every team keeps at least one admin, so the last one cannot step down.
   const adminCount = (members ?? []).filter(
@@ -246,6 +249,25 @@ function TeamView({ team }: { team: Team }) {
       toast.error("Einladung konnte nicht zurückgezogen werden", {
         description: errorMessage(error),
       })
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  async function resend(invitation: Invitation) {
+    setBusyId(invitation.id)
+    try {
+      const fresh = await resendInvitation(team.id, invitation)
+      setInvitations((current) =>
+        current.map((entry) => (entry.id === invitation.id ? fresh : entry))
+      )
+      toast.success(`Einladung an ${invitation.email} erneut verschickt`)
+    } catch (error) {
+      toast.error("Einladung konnte nicht erneut verschickt werden", {
+        description: errorMessage(error),
+      })
+      // It may be withdrawn already without the new one, the server knows
+      setRosterVersion((current) => current + 1)
     } finally {
       setBusyId(null)
     }
@@ -445,7 +467,12 @@ function TeamView({ team }: { team: Team }) {
                     <TableCell className="text-right whitespace-nowrap">
                       {canManage ? (
                         <>
-                          <Button variant="ghost" size="sm">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={busyId === invitation.id}
+                            onClick={() => resend(invitation)}
+                          >
                             Erneut senden
                           </Button>
                           <RemoveMemberDialog

@@ -2,14 +2,21 @@
 
 # === Owned files start ===
 # login/components/Template/Template.tsx
+# login/pages/delete-credential/Page.tsx
+# login/pages/error/Page.tsx
+# login/pages/info/Page.tsx
 # login/pages/login/Page.tsx
 # login/pages/login-config-totp/Page.tsx
 # login/pages/login-otp/Page.tsx
+# login/pages/login-page-expired/Page.tsx
 # login/pages/login-passkeys-conditional-authenticate/Page.tsx
 # login/pages/login-recovery-authn-code-config/Page.tsx
 # login/pages/login-recovery-authn-code-input/Page.tsx
 # login/pages/login-reset-password/Page.tsx
 # login/pages/login-update-password/Page.tsx
+# login/pages/login-update-profile/Page.tsx
+# login/pages/login-verify-email/Page.tsx
+# login/pages/logout-confirm/Page.tsx
 # login/pages/select-authenticator/Page.tsx
 # === Owned files end =====
 
@@ -41,15 +48,12 @@
 /login/pages/delete-account-confirm/index.ts
 /login/pages/delete-account-confirm/Page.tsx
 /login/pages/delete-credential/index.ts
-/login/pages/delete-credential/Page.tsx
 /login/pages/error/index.ts
-/login/pages/error/Page.tsx
 /login/pages/frontchannel-logout/index.ts
 /login/pages/frontchannel-logout/Page.tsx
 /login/pages/idp-review-user-profile/index.ts
 /login/pages/idp-review-user-profile/Page.tsx
 /login/pages/info/index.ts
-/login/pages/info/Page.tsx
 /login/pages/link-idp-action/index.ts
 /login/pages/link-idp-action/Page.tsx
 /login/pages/login/Form.tsx
@@ -70,7 +74,6 @@
 /login/pages/login-oauth2-device-verify-user-code/Page.tsx
 /login/pages/login-otp/index.ts
 /login/pages/login-page-expired/index.ts
-/login/pages/login-page-expired/Page.tsx
 /login/pages/login-passkeys-conditional-authenticate/index.ts
 /login/pages/login-passkeys-conditional-authenticate/useScript.tsx
 /login/pages/login-password/index.ts
@@ -85,16 +88,13 @@
 /login/pages/login-reset-password/index.ts
 /login/pages/login-update-password/index.ts
 /login/pages/login-update-profile/index.ts
-/login/pages/login-update-profile/Page.tsx
 /login/pages/login-username/index.ts
 /login/pages/login-username/Page.tsx
 /login/pages/login-username/useScript.tsx
 /login/pages/login-verify-email/index.ts
-/login/pages/login-verify-email/Page.tsx
 /login/pages/login-x509-info/index.ts
 /login/pages/login-x509-info/Page.tsx
 /login/pages/logout-confirm/index.ts
-/login/pages/logout-confirm/Page.tsx
 /login/pages/register/Form.tsx
 /login/pages/register/index.ts
 /login/pages/register/Page.tsx

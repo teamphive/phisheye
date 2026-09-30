@@ -30,8 +30,9 @@ export function SessionExpiredPage() {
         size="lg"
         className="w-full"
         onClick={() => {
+          // Without Keycloak there is no login, the app simply opens again
           if (authEnabled) login()
-          else navigate("/login")
+          else navigate("/")
         }}
       >
         Erneut anmelden

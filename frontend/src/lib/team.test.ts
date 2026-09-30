@@ -113,6 +113,39 @@ describe("with a backend", () => {
     })
   })
 
+  it("resends by withdrawing the invitation and making it anew", async () => {
+    const { team } = await load()
+    fetchMock
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: 9,
+            email: "neu@firma.de",
+            role: "audit",
+            invited_at: "2026-09-30T10:00:00Z",
+          }),
+          { headers: { "Content-Type": "application/json" } }
+        )
+      )
+
+    const fresh = await team.resendInvitation("itsec", {
+      id: "4",
+      email: "neu@firma.de",
+      role: "audit",
+      invitedAt: "2026-09-20T08:00:00Z",
+    })
+
+    expect(
+      fetchMock.mock.calls.map(([url, init]) => [init?.method, url])
+    ).toEqual([
+      ["DELETE", "https://phisheye.test/api/team/invitations/4"],
+      ["POST", "https://phisheye.test/api/team/invitations"],
+    ])
+    expect(lastRequest().body).toEqual({ email: "neu@firma.de", role: "audit" })
+    expect(fresh).toMatchObject({ invitedAt: "2026-09-30T10:00:00Z" })
+  })
+
   it("creates a team and hands its id on as a string", async () => {
     const { team } = await load()
     answer({ id: 7, name: "SOC Nord", member_count: 1, role: "admin" })
