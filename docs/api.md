@@ -40,7 +40,7 @@ Endpunkte unter `/auth/` entfallen damit.
 |---|---|---|
 | GET | `/analyses` | Liste für das aktive Team (umgesetzt) |
 | POST | `/analyses` | Upload einer `.eml` als Feld `file` (multipart), max. 25 MB (413 bei mehr), antwortet mit dem Listeneintrag (umgesetzt, läuft synchron im Request) |
-| GET | `/analyses/{id}` | Detail (umgesetzt, `criteria` und `links` noch leer) |
+| GET | `/analyses/{id}` | Detail (umgesetzt, `criteria` und `links` noch leer, `ai_assessment` fehlt noch) |
 | DELETE | `/analyses/{id}` | Weich löschen, nur Admin (umgesetzt) |
 | POST | `/analyses/{id}/decision` | Verdikt bestätigen oder als falsch-positiv melden, Body `verdict`, antwortet mit `{ verdict, by, at }` (umgesetzt) |
 | DELETE | `/analyses/{id}/decision` | Entscheidung zurücknehmen (umgesetzt) |
@@ -232,6 +232,7 @@ Je Treffer:
 ## Offen
 
 - `GET /stats` für die Übersicht, siehe oben. Bis dahin zeigt das Frontend ohne Backend Platzhalterzahlen, mit Backend die Fehlermeldung.
+- KI-Einschätzung mit JEV, Anleitung mit Beispiel-Anfrage und Python-Code in [ai-assessment.md](ai-assessment.md). Zu tun: `typesafe-sdk` als Abhängigkeit, `TYPESAFE_API_KEY` in `.env` und `.env.example` (Key nur auf dem Server), in `mail_analysis` die Spalten `ai_verdict`, `ai_confidence` und `ai_model` (nullable, mit Alembic-Migration), JEV als eigener Schritt der Analyse und `ai_assessment` in `GET /analyses/{id}`. Antwortet JEV nicht, bleibt `ai_assessment` null und die Analyse läuft trotzdem durch. Bis dahin zeigt die Detailseite „Keine KI-Einschätzung“.
 - Backend-Prüfung auf 25 MB mit 413. Bisher begrenzen nur das Frontend und der nginx (30 MB).
 - Cron-Job für die harte Löschung: täglich alles mit `deleted_at` älter als 10 Tage endgültig entfernen (Datenbank, Anhänge, `.eml` in MinIO).
 - Analyse als arq-Job statt im Request. Erst damit sind `running`, `step` und `GET /queue` echt. Wird mit einem Spam-Testskript geprüft.
