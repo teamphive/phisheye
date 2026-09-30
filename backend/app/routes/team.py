@@ -1,3 +1,4 @@
+import os
 from datetime import datetime
 from typing import Annotated, Literal
 
@@ -10,10 +11,12 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from ..database import get_db
 from ..models.mail_analysis import MailAnalysis
 from ..models.team import Team
+from ..models.team_domain import TeamDomain
 from ..models.team_invitation import TeamInvitation
 from ..models.team_membership import TeamMembership
 from ..models.user import User
 from ..services.auth import get_current_user
+from ..services.domains import DomainError, covered_by, normalize_domain
 from ..services.notifications import enqueue_team_invitation
 from ..services.teams import (
     get_active_membership,
@@ -48,6 +51,10 @@ Email = Annotated[
         pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$",
     ),
 ]
+
+
+class DomainRequest(BaseModel):
+    domain: str
 
 
 class InviteRequest(BaseModel):
@@ -343,3 +350,90 @@ async def revoke_invitation(
     async with db.begin():
         invitation = await _invitation_of_team(invitation_id, membership.team_id, db)
         await db.delete(invitation)
+
+
+def _domain(entry: TeamDomain, added_by: str) -> dict:
+    return {
+        "id": entry.id,
+        "domain": entry.domain,
+        "added_by": added_by,
+        "added_at": entry.created_at,
+    }
+
+
+@router.get("/team/domains")
+async def get_domains(
+    membership: TeamMembership = Depends(get_active_membership),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.exec(
+        select(TeamDomain, User.name)
+        .join(User, User.id == TeamDomain.added_by)
+        .where(TeamDomain.team_id == membership.team_id)
+        .order_by(TeamDomain.id)
+    )
+
+    return {
+        # the mailbox Outlook forwards to, the same for every team
+        "report_address": os.getenv("POP3_USERNAME", ""),
+        "domains": [_domain(entry, name) for entry, name in result.all()],
+    }
+
+
+@router.post("/team/domains", status_code=201)
+async def add_domain(
+    payload: DomainRequest,
+    user: User = Depends(get_current_user),
+    membership: TeamMembership = Depends(get_active_membership),
+    db: AsyncSession = Depends(get_db),
+):
+    require_role(membership, "admin")
+
+    try:
+        domain = normalize_domain(payload.domain)
+    except DomainError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    async with db.begin():
+        result = await db.exec(select(TeamDomain))
+
+        # a subdomain or a parent belongs to the same company, so it counts
+        for entry in result.all():
+            if not (
+                covered_by(domain, entry.domain) or covered_by(entry.domain, domain)
+            ):
+                continue
+
+            if entry.team_id != membership.team_id:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Die Domain gehört schon zu einem anderen Team.",
+                )
+
+            if entry.domain == domain:
+                raise HTTPException(
+                    status_code=409, detail="Die Domain ist schon eingetragen."
+                )
+
+        entry = TeamDomain(team_id=membership.team_id, domain=domain, added_by=user.id)
+        db.add(entry)
+        await db.flush()
+
+    return _domain(entry, user.name)
+
+
+@router.delete("/team/domains/{domain_id}", status_code=204)
+async def remove_domain(
+    domain_id: int,
+    membership: TeamMembership = Depends(get_active_membership),
+    db: AsyncSession = Depends(get_db),
+):
+    require_role(membership, "admin")
+
+    async with db.begin():
+        entry = await db.get(TeamDomain, domain_id)
+
+        if entry is None or entry.team_id != membership.team_id:
+            raise HTTPException(status_code=404, detail="Domain not found")
+
+        await db.delete(entry)

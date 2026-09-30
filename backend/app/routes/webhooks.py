@@ -6,9 +6,10 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ..database import get_db
+from ..services.domains import team_for_address
 from ..services.mail_analysis import analyze_and_store
 from ..services.mailgun import verify_mailgun_signature
-from ..services.pop3_poller import extract_eml
+from ..services.pop3_poller import extract_eml, extract_reporter
 from ..services.system_defaults import ensure_system_defaults
 
 router = APIRouter(tags=["webhooks"])
@@ -53,13 +54,14 @@ async def inbound_mail(
     content = extract_eml(outer_content)
     sender_domain = _sender_domain(content)
 
-    # TODO(domain-routing): resolve sender_domain against a DB mapping
-    # instead of always using the default team, once the frontend exists.
     default_team, system_user = await ensure_system_defaults(db)
+
+    # the team that owns the reporter's domain, otherwise the default
+    team_id = await team_for_address(extract_reporter(outer_content), db)
 
     analysis, results = await analyze_and_store(
         content=content,
-        team_id=default_team.id,
+        team_id=team_id or default_team.id,
         submitted_by=system_user.id,
         db=db,
     )

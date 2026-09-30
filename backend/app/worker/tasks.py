@@ -13,6 +13,7 @@ from ..models.mail_analysis import MailAnalysis
 from ..models.team import Team
 from ..models.team_invitation import TeamInvitation
 from ..models.user import User
+from ..services.domains import team_for_address
 from ..services.invitations import deliver_invitation
 from ..services.keycloak_admin import KeycloakAdminError
 from ..services.mail_analysis import analyze_and_store
@@ -57,16 +58,25 @@ async def _poll_report_mailbox() -> None:
     async for db in get_session():
         default_team, system_user = await ensure_system_defaults(db)
 
+        # a failed mail rolls the session back and expires these objects, so
+        # the loop keeps only their ids
+        default_team_id = default_team.id
+        system_user_id = system_user.id
+
         for uid, raw_mail in mails:
             content = extract_eml(raw_mail)
+            reporter = extract_reporter(raw_mail)
 
             try:
+                # the team that owns the reporter's domain, otherwise the default
+                team_id = await team_for_address(reporter, db) or default_team_id
+
                 await analyze_and_store(
                     content=content,
-                    team_id=default_team.id,
-                    submitted_by=system_user.id,
+                    team_id=team_id,
+                    submitted_by=system_user_id,
                     db=db,
-                    reported_by=extract_reporter(raw_mail),
+                    reported_by=reporter,
                 )
             except Exception:
                 logger.exception("Analysis of POP3 mail failed")

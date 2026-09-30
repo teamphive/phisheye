@@ -15,6 +15,7 @@ dependencies = [
     "httpx>=0.28.1",
     "load-dotenv>=0.1.0",
     "passlib[bcrypt]>=1.7.4",
+    "publicsuffixlist>=1.0.2.20260925",
     "pydantic-settings>=2.15.0",
     "python-jose[cryptography]>=3.5.0",
     "redis>=5.3.1",

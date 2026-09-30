@@ -83,9 +83,9 @@ Gezählt werden abgeschlossene, nicht gelöschte Analysen des aktiven Teams mit 
 | DELETE | `/team/invitations/{id}` | Einladung zurückziehen (umgesetzt, nur Admin) |
 | PATCH | `/team/members/{id}` | Rolle ändern, Body `role`, nur Admin (umgesetzt) |
 | DELETE | `/team/members/{id}` | Entfernen (nur Admin), oder selbst verlassen (umgesetzt) |
-| GET | `/team/domains` | Meldeadresse und Domains für Outlook-Meldungen |
-| POST | `/team/domains` | Domain eintragen, Body `domain`, nur Admin |
-| DELETE | `/team/domains/{id}` | Domain entfernen, nur Admin |
+| GET | `/team/domains` | Meldeadresse und Domains für Outlook-Meldungen (umgesetzt) |
+| POST | `/team/domains` | Domain eintragen, Body `domain`, nur Admin (umgesetzt) |
+| DELETE | `/team/domains/{id}` | Domain entfernen, nur Admin (umgesetzt) |
 
 Einladungen:
 
@@ -103,13 +103,14 @@ Der letzte Admin kann sich weder herabstufen noch entfernen. Das Verlassen des l
 Mitarbeiter melden eine verdächtige Mail in Outlook, die Meldung geht an ein gemeinsames phisheye-Postfach. Das Backend holt es per POP3 ab und legt für jede Meldung eine Analyse an.
 
 - Welches Team die Meldung bekommt, entscheidet die Domain der meldenden Adresse, nicht die des ursprünglichen Absenders.
-- Kennt kein Team die Domain, geht die Meldung ans Standard-Team (`PHISHEYE_DEFAULT_TEAM_ID`, im Kern der Admin). Sie wird nicht verworfen.
+- Kennt kein Team die Domain, geht die Meldung ans Standard-Team. Sie wird nicht verworfen.
 - Subdomains zählen mit: `firma.de` deckt auch `mail.firma.de` ab.
 - Eine Domain gehört höchstens einem Team. `POST /team/domains` antwortet mit 409, wenn ein anderes Team dieselbe Domain, eine übergeordnete oder eine Subdomain davon eingetragen hat. Die Antwort nennt das andere Team nicht.
 - Ein Nachweis, dass dem Team die Domain gehört, ist nicht vorgesehen. Wer zuerst einträgt, bekommt sie.
 - 422 bei ungültigen Domains, öffentlichen Mail-Anbietern wie `gmail.com` und öffentlichen Suffixen wie `co.uk` (Public Suffix List). Das Frontend zeigt die Meldung aus der Antwort an.
-- Das Frontend schickt die Domain in Kleinbuchstaben, ohne `@`, `www.` und Punkt am Ende, Umlaute als Punycode. Das Backend sollte trotzdem selbst normalisieren.
-- Ein Unique-Index reicht für die Subdomain-Regel nicht, die Prüfung muss in der Anwendung laufen, in derselben Transaktion wie das Eintragen.
+- Das Frontend schickt die Domain in Kleinbuchstaben, ohne `@`, `www.` und Punkt am Ende, Umlaute als Punycode. Das Backend normalisiert trotzdem selbst.
+- Ein Unique-Index reicht für die Subdomain-Regel nicht. Die Prüfung läuft in der Anwendung, in derselben Transaktion wie das Eintragen. Der Index fängt nur die gleiche Domain ab.
+- `report_address` ist das Postfach aus `POP3_USERNAME`. Passt die Domain eines Teams auf die meldende Adresse, geht die Meldung dorthin. Gelöschte Teams bekommen keine Meldungen mehr.
 
 ### Benachrichtigung per Mail
 
