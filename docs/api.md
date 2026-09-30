@@ -89,9 +89,10 @@ Gezählt werden abgeschlossene, nicht gelöschte Analysen des aktiven Teams mit 
 
 Einladungen:
 
-- Für neue Personen legt der Worker ein Konto in Keycloak an (Service-Account `phisheye-backend-admin`, ohne Passwort). Keycloak mailt einen Link, darüber setzt die Person Passwort, Profil und 2FA. Der Link gilt sieben Tage.
-- Wer schon ein Konto hat, bekommt unsere Einladungsmail mit dem Teamnamen.
-- Bei der nächsten Anfrage mit passender E-Mail wird die Person Mitglied, die Einladung verschwindet. Das gilt auch für bestehende Konten.
+- Jede Person bekommt zuerst unsere Einladungsmail mit dem Teamnamen.
+- Hat sie noch kein Konto oder kein Passwort, legt der Worker es in Keycloak an (Service-Account `phisheye-backend-admin`) und Keycloak schickt eine zweite Mail. Darüber setzt die Person Passwort und Profil. Der Link gilt sieben Tage. Ein Passwort kennt das Backend nie.
+- Wer schon ein Konto hat, bekommt nur unsere Mail, mit dem Link zur App.
+- Bei der nächsten Anfrage mit passender, von Keycloak bestätigter E-Mail wird die Person Mitglied, die Einladung verschwindet. Das gilt auch für bestehende Konten. Eine Adresse, die jemand selbst ändern kann, zählt erst nach der Bestätigung, sonst könnte man sich in fremde Einladungen eintragen. Legt ein Admin ein Konto von Hand an, muss er in Keycloak "Email verified" setzen.
 - Neue Konten starten ohne Team.
 - Gelöschte Teams und bestehende Mitgliedschaften werden übersprungen.
 

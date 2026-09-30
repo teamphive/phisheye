@@ -63,6 +63,8 @@ Das Backend legt für eingeladene Personen ein Konto in Keycloak an, ohne Passwo
 - Ohne Secret geht nur die Einladungsmail raus, das Konto muss dann schon existieren.
 - Keycloak mailt über den SMTP-Server aus dem Realm (`SMTP_*`).
 
+Die Mails von Keycloak (Konto einrichten, Passwort zurücksetzen, E-Mail bestätigen) haben ein eigenes Design. Es liegt als Email-Theme in `frontend/email-theme/` und steckt im Keycloak-Image. Neue Realms nutzen es über die Vorlage. In einem bestehenden Realm einmal unter Realm settings, Themes, Email theme auf `phisheye-email` stellen. `just seed` macht das lokal.
+
 ## Eine `.env` für alles
 
 Backend, Worker, Migration und Docker Compose selbst lesen alle dieselbe `.env` im Root. Vorher gab es zusätzlich `backend/.env`, mit teils denselben Variablen. Weichten die Werte voneinander ab, zum Beispiel `POSTGRES_PASSWORD`, schlug die Anmeldung an Postgres fehl, ohne dass die Ursache in der Compose-Konfiguration selbst zu sehen war. Lokal ohne Docker (`just dev`) findet `python-dotenv` die Root-`.env` automatisch, sie sucht beim Start von `backend/app/database.py` aufwärts nach der nächsten `.env`.

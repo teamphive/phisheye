@@ -96,9 +96,9 @@ async def get_current_user(
     """Validates the bearer token, returns the matching local user.
 
     First sight: links an existing row with the same email, otherwise
-    creates the user (`sub` becomes `keycloak_id`). Open invitations for the
-    email become memberships on every request, a new account has no team
-    before that.
+    creates the user (`sub` becomes `keycloak_id`). Open invitations for a
+    verified email become memberships on every request, a new account has no
+    team before that.
 
     `is_operator` follows the `operator` realm role on every request.
     """
@@ -144,7 +144,10 @@ async def get_current_user(
 
         # A new account starts without a team, the invitations for its email
         # are the way in
-        await accept_invitations(user, db)
+        # an address a person can change themselves counts only once Keycloak
+        # has verified it, otherwise anyone could take over an invitation
+        if claims.get("email_verified") is True:
+            await accept_invitations(user, db)
 
         # The role is granted in Keycloak, the column only mirrors it. Without
         # a change SQLAlchemy writes nothing.

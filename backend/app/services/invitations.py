@@ -48,21 +48,20 @@ async def accept_invitations(user: User, db: AsyncSession) -> None:
 async def deliver_invitation(
     email: str, team_name: str, inviter_name: str, role: str
 ) -> None:
-    # no account or no password yet: Keycloak mails the setup link, otherwise
-    # our invitation mail. Without the service account only the latter.
+    # our mail always goes out. Without an account or password Keycloak sends
+    # the setup mail after it, without the service account there is none.
+    setup = False
+
     if keycloak_admin.is_configured():
         user = await keycloak_admin.find_user(email)
-
-        if user is None:
-            await keycloak_admin.send_setup_email(
-                await keycloak_admin.create_user(email)
-            )
-            return
-
-        if not await keycloak_admin.has_password(user["id"]):
-            await keycloak_admin.send_setup_email(user["id"])
-            return
+        setup = user is None or not await keycloak_admin.has_password(user["id"])
     else:
         logger.warning("No Keycloak service account, the account must exist already")
 
-    await asyncio.to_thread(send_invitation_mail, email, team_name, inviter_name, role)
+    await asyncio.to_thread(
+        send_invitation_mail, email, team_name, inviter_name, role, setup
+    )
+
+    if setup:
+        user_id = user["id"] if user else await keycloak_admin.create_user(email)
+        await keycloak_admin.send_setup_email(user_id)

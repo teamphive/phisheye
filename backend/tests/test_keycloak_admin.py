@@ -54,7 +54,7 @@ async def test_new_person_gets_account_and_setup_mail_from_keycloak(mocked, sent
     assert request.url.params["client_id"] == "phisheye-frontend"
     assert request.url.params["redirect_uri"] == "https://phisheye.example/"
     assert b"UPDATE_PASSWORD" in request.content
-    assert sent == []
+    assert sent == [("neu@firma.de", "Team A", "Anna", "analyst", True)]
 
 
 @pytest.mark.asyncio
@@ -72,7 +72,7 @@ async def test_account_without_password_gets_the_setup_mail_again(mocked, sent):
     await invitations.deliver_invitation("neu@firma.de", "Team A", "Anna", "analyst")
 
     assert setup.called
-    assert sent == []
+    assert sent == [("neu@firma.de", "Team A", "Anna", "analyst", True)]
 
 
 @pytest.mark.asyncio
@@ -88,7 +88,7 @@ async def test_existing_account_gets_the_invitation_mail(mocked, sent):
     await invitations.deliver_invitation("neu@firma.de", "Team A", "Anna", "analyst")
 
     assert not setup.called
-    assert sent == [("neu@firma.de", "Team A", "Anna", "analyst")]
+    assert sent == [("neu@firma.de", "Team A", "Anna", "analyst", False)]
 
 
 @pytest.mark.asyncio
@@ -99,7 +99,7 @@ async def test_without_service_account_only_the_invitation_mail_goes_out(
 
     await invitations.deliver_invitation("neu@firma.de", "Team A", "Anna", "analyst")
 
-    assert sent == [("neu@firma.de", "Team A", "Anna", "analyst")]
+    assert sent == [("neu@firma.de", "Team A", "Anna", "analyst", False)]
 
 
 @pytest.mark.asyncio

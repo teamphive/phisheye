@@ -184,7 +184,12 @@ async def test_first_login_creates_user_without_team_then_joins_by_invitation(
     )
 
     async def claims(_token):
-        return {"sub": "kc-new", "email": "neu@firma.de", "name": "Neu"}
+        return {
+            "sub": "kc-new",
+            "email": "neu@firma.de",
+            "name": "Neu",
+            "email_verified": True,
+        }
 
     monkeypatch.setattr(auth, "_decode_token", claims)
     credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials="x")
@@ -222,3 +227,43 @@ def test_invitation_mail_escapes_names():
     assert "&lt;b&gt;" in html
     assert "https://phisheye.example" in text
     assert "Team" in subject
+
+
+def test_invitation_mail_announces_the_setup_mail_for_new_accounts():
+    _, text, html = render_invitation(
+        "Team", "Anna", "analyst", "https://phisheye.example", setup_follows=True
+    )
+
+    assert "zweite Mail" in text
+    assert "zweite Mail" in html
+    assert "https://phisheye.example" not in html
+
+
+@pytest.mark.asyncio
+async def test_unverified_email_does_not_join_by_invitation(db, monkeypatch):
+    team, (admin,) = await team_with(db, "admin")
+    await add(
+        db,
+        TeamInvitation(
+            team_id=team.id, email="neu@firma.de", role="analyst", invited_by=admin.id
+        ),
+    )
+
+    async def claims(_token):
+        return {
+            "sub": "kc-new",
+            "email": "neu@firma.de",
+            "name": "Neu",
+            "email_verified": False,
+        }
+
+    monkeypatch.setattr(auth, "_decode_token", claims)
+    credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials="x")
+
+    user = await auth.get_current_user(credentials, db)
+
+    rows = await db.exec(
+        select(TeamMembership).where(TeamMembership.user_id == user.id)
+    )
+    assert rows.all() == []
+    assert len((await db.exec(select(TeamInvitation))).all()) == 1

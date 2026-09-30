@@ -2,6 +2,7 @@
   "id": "7613fc60-ff0f-4794-9e7a-6f3d48dcf583",
   "realm": "phisheye",
   "loginTheme": "phisheye",
+  "emailTheme": "phisheye-email",
   "notBefore": 0,
   "defaultSignatureAlgorithm": "RS256",
   "revokeRefreshToken": false,

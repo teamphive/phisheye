@@ -94,25 +94,42 @@ _ROLE_LABELS = {"admin": "Admin", "analyst": "Analyst", "audit": "Audit (nur les
 
 
 def render_invitation(
-    team_name: str, inviter_name: str, role: str, url: str
+    team_name: str,
+    inviter_name: str,
+    role: str,
+    url: str,
+    setup_follows: bool = False,
 ) -> tuple[str, str, str]:
     """Returns subject, plain text and html of the invitation mail."""
     role_label = _ROLE_LABELS.get(role, role)
     html = _templates.get_template("invitation.html").render(
-        team_name=team_name, inviter_name=inviter_name, role_label=role_label, url=url
+        team_name=team_name,
+        inviter_name=inviter_name,
+        role_label=role_label,
+        url=url,
+        setup_follows=setup_follows,
     )
-    text = (
-        f"{inviter_name} hat dich in das Team {team_name} eingeladen.\n\n"
-        f"Rolle: {role_label}\n\n"
-        f"Melde dich mit dieser E-Mail-Adresse an: {url}\n"
-        "Danach bist du im Team. Ein Konto legt dein Admin an.\n"
-    )
+    text = f"{inviter_name} hat dich in das Team {team_name} eingeladen.\n\nRolle: {role_label}\n\n"
+    if setup_follows:
+        text += "Du bekommst gleich eine zweite Mail, mit der du dein Konto einrichtest. Danach bist du im Team.\n"
+    else:
+        text += (
+            f"Melde dich mit dieser E-Mail-Adresse an: {url}\nDanach bist du im Team.\n"
+        )
     return f"Einladung ins Team {team_name}", text, html
 
 
-def send_invitation_mail(to: str, team_name: str, inviter_name: str, role: str) -> None:
+def send_invitation_mail(
+    to: str,
+    team_name: str,
+    inviter_name: str,
+    role: str,
+    setup_follows: bool = False,
+) -> None:
     url = os.getenv("FRONTEND_URL", "http://localhost:5173")
-    subject, text, html = render_invitation(team_name, inviter_name, role, url)
+    subject, text, html = render_invitation(
+        team_name, inviter_name, role, url, setup_follows
+    )
     _send(to, subject, text, html)
 
 

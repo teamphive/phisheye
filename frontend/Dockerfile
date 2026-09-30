@@ -28,6 +28,8 @@ RUN npx keycloakify build
 # Keycloak loads every jar in providers at startup.
 FROM quay.io/keycloak/keycloak:26.7.3 AS keycloak
 COPY --from=theme /app/dist_keycloak/phisheye-keycloak-theme.jar /opt/keycloak/providers/
+# mail templates, plain files without a build step
+COPY email-theme/ /opt/keycloak/themes/phisheye-email/
 # Build time options, baked in once so `start --optimized` skips the rebuild on
 # every start. The database stays the H2 file in the keycloak-data volume, set
 # explicitly because the default is deprecated in production mode.
