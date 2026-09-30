@@ -9,6 +9,27 @@ from app.models.team_membership import TeamMembership
 from app.models.user import User
 
 
+async def instance_team(db, *roles):
+    """Like team_with, but the team is the default team."""
+    (team,) = await add(db, Team(name="Standard-Team"))
+    users = await add(
+        db,
+        *[
+            User(email=f"i{i}@example.com", name=f"Instance {i}", password_hash="")
+            for i in range(len(roles))
+        ],
+    )
+    await add(
+        db,
+        *[
+            TeamMembership(team_id=team.id, user_id=user.id, role=role)
+            for user, role in zip(users, roles, strict=True)
+        ],
+    )
+
+    return team, users
+
+
 async def team_with(db, *roles):
     """One team, one user per role (u0, u1, ...) in the order given."""
     (team,) = await add(db, Team(name="Team A"))
@@ -52,7 +73,7 @@ async def test_team_lists_members_with_counts(db, api):
 
 @pytest.mark.asyncio
 async def test_create_team_makes_creator_admin(db, api):
-    _, (user,) = await team_with(db, "analyst")
+    _, (user,) = await instance_team(db, "admin")
     login_as(user)
 
     response = await api.post("/teams", json={"name": "  Neues Team  "})
@@ -65,7 +86,7 @@ async def test_create_team_makes_creator_admin(db, api):
 
 @pytest.mark.asyncio
 async def test_create_team_rejects_empty_name(db, api):
-    _, (user,) = await team_with(db, "analyst")
+    _, (user,) = await instance_team(db, "admin")
     login_as(user)
 
     response = await api.post("/teams", json={"name": "   "})

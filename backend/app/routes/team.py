@@ -10,6 +10,7 @@ from sqlalchemy import func
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from ..constants import DEFAULT_TEAM_NAME
 from ..database import get_db
 from ..models.mail_analysis import MailAnalysis
 from ..models.team import Team
@@ -20,6 +21,7 @@ from ..models.user import User
 from ..services import keycloak_admin
 from ..services.auth import get_current_user
 from ..services.domains import DomainError, covered_by, normalize_domain
+from ..services.instance import INSTANCE_ROLES, instance_role
 from ..services.notifications import enqueue_team_invitation
 from ..services.teams import (
     get_active_membership,
@@ -87,6 +89,17 @@ async def _two_factor(keycloak_ids: list[str]) -> dict[str, bool]:
     except (keycloak_admin.KeycloakAdminError, httpx.HTTPError):
         logger.warning("Could not read two factor from Keycloak", exc_info=True)
         return {}
+
+
+# the default team only knows admins and auditors, see services/instance.py
+async def _check_role_for_team(team_id: int, role: str, db: AsyncSession) -> None:
+    team = await db.get(Team, team_id)
+
+    if team.name == DEFAULT_TEAM_NAME and role not in INSTANCE_ROLES:
+        raise HTTPException(
+            status_code=422,
+            detail="Im Standard-Team gibt es nur Admins und Auditoren.",
+        )
 
 
 async def _member_count(team_id: int, db: AsyncSession) -> int:
@@ -184,6 +197,9 @@ async def create_team(
     db: AsyncSession = Depends(get_db),
 ):
     async with db.begin():
+        if await instance_role(user.id, db) != "admin":
+            raise HTTPException(status_code=403, detail="Your role cannot do this")
+
         team = Team(name=payload.name)
         db.add(team)
         await db.flush()
@@ -202,6 +218,13 @@ async def rename_team(
 
     async with db.begin():
         team = await db.get(Team, membership.team_id)
+
+        if team.name == DEFAULT_TEAM_NAME:
+            raise HTTPException(
+                status_code=409,
+                detail="Das Standard-Team lässt sich nicht umbenennen.",
+            )
+
         team.name = payload.name
         db.add(team)
         member_count = await _member_count(team.id, db)
@@ -223,6 +246,12 @@ async def delete_team(
 
     async with db.begin():
         team = await db.get(Team, membership.team_id)
+
+        if team.name == DEFAULT_TEAM_NAME:
+            raise HTTPException(
+                status_code=409, detail="Das Standard-Team lässt sich nicht löschen."
+            )
+
         team.deleted_at = datetime.utcnow()
         db.add(team)
 
@@ -237,6 +266,7 @@ async def change_member_role(
     require_role(membership, "admin")
 
     async with db.begin():
+        await _check_role_for_team(membership.team_id, payload.role, db)
         target = await _membership_of_user(user_id, membership.team_id, db)
 
         if (
@@ -312,6 +342,8 @@ async def invite_member(
     require_role(membership, "admin")
 
     async with db.begin():
+        await _check_role_for_team(membership.team_id, payload.role, db)
+
         member = await db.exec(
             select(TeamMembership.id)
             .join(User, User.id == TeamMembership.user_id)
@@ -358,6 +390,7 @@ async def change_invitation_role(
     require_role(membership, "admin")
 
     async with db.begin():
+        await _check_role_for_team(membership.team_id, payload.role, db)
         invitation = await _invitation_of_team(invitation_id, membership.team_id, db)
         invitation.role = payload.role
         db.add(invitation)
