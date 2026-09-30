@@ -2585,7 +2585,7 @@
       "providerId": "UPDATE_PASSWORD",
       "enabled": true,
       "defaultAction": false,
-      "priority": 57,
+      "priority": 30,
       "config": {}
     },
     {
