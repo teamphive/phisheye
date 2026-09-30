@@ -6,7 +6,7 @@ Ziel sind 4 Punkte pro Mitglied, bei drei Mitgliedern also 12.
 
 | # | Feature | Punkte | Umsetzung |
 |---|---------|--------|-----------|
-| 1 | KI-Integration | 2 | Sprachmodell analysiert den Mailtext auf Phishing-Muster, Umsetzung noch offen |
+| 1 | KI-Integration | 2 | JEV von TypeSafe bewertet den Mailtext: Phishing ja oder nein mit Konfidenz, als eigene Karte auf der Detailseite, siehe [ai-assessment.md](ai-assessment.md) |
 | 2 | Team-Feature inkl. Rollenverwaltung | 2 | Teams mit den Rollen Admin und Analyst, geteilte Analyse-Historie |
 | 3 | Benachrichtigungs-System | 2 | Glocke im Header, Meldung sobald eine Analyse fertig ist, dazu E-Mail an die meldende Person |
 | 4 | Such-System | 2 | Suche über Absender, Domains, Hashes und frühere Analysen |

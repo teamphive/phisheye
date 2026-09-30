@@ -35,6 +35,15 @@ export type Decision = {
   at: string
 }
 
+/** JEV's reading of the mail text, made apart from the rules. */
+export type AiAssessment = {
+  verdict: "phishing" | "clean"
+  /** 0 to 1, how clearly JEV decided. Not the chance of phishing. */
+  confidence: number
+  /** The versioned model that answered, e.g. jev-1.13.0. */
+  model: string
+}
+
 export type AnalysisDetail = {
   id: string
   subject: string
@@ -43,6 +52,8 @@ export type AnalysisDetail = {
   verdict: Verdict | null
   score: number | null
   thresholds: { suspicious: number; phishing: number }
+  /** Null when JEV gave no answer, the verdict then rests on the rules alone. */
+  aiAssessment: AiAssessment | null
   /** Null for a report nobody has taken on yet. */
   handler: string | null
   source: AnalysisSource
@@ -79,6 +90,7 @@ const completed: AnalysisDetail = {
   verdict: "phishing",
   score: 100,
   thresholds,
+  aiAssessment: { verdict: "phishing", confidence: 0.94, model: "jev-1.13.0" },
   handler: "M. Sandmann",
   source: "upload",
   reportedBy: null,
@@ -161,6 +173,7 @@ const running: AnalysisDetail = {
   status: "running",
   verdict: null,
   score: null,
+  aiAssessment: null,
   handler: "T. Özdemir",
   receivedAt: "2026-09-03T07:23:00Z",
   durationSeconds: null,
@@ -201,6 +214,7 @@ const unrated: AnalysisDetail = {
   sender: "kalender@hansa-logistik.de",
   verdict: null,
   score: null,
+  aiAssessment: null,
   handler: null,
   receivedAt: "2026-09-03T07:31:00Z",
   durationSeconds: null,
@@ -326,6 +340,21 @@ export function mockAnalysis(id: string): AnalysisDetail {
   return id in decisions ? { ...base, decision: decisions[id] } : base
 }
 
+// JEV's answer to go with the list's verdict. The suspicious mails get an
+// unsure one, so every case of the card shows up somewhere.
+function mockAiAssessment(verdict: Verdict | null): AiAssessment | null {
+  const model = "jev-1.13.0"
+
+  if (verdict === "clean") return { verdict: "clean", confidence: 0.88, model }
+  if (verdict === "suspicious") {
+    return { verdict: "phishing", confidence: 0.36, model }
+  }
+  if (verdict === "phishing") {
+    return { verdict: "phishing", confidence: 0.94, model }
+  }
+  return null
+}
+
 function baseAnalysis(id: string): AnalysisDetail {
   const byId: Record<string, AnalysisDetail> = {
     [running.id]: running,
@@ -346,6 +375,7 @@ function baseAnalysis(id: string): AnalysisDetail {
     sender: item.sender,
     verdict: item.verdict,
     score: item.score,
+    aiAssessment: mockAiAssessment(item.verdict),
     handler: item.handler,
     source: item.source,
     reportedBy: item.reportedBy,

@@ -10,7 +10,7 @@ GitHub hat kein natives State-Backend. Bootstrap (Bucket + Lock-Tabelle) läuft 
 
 ## Kurswechsel: Homelab statt AWS-Compute
 
-Ursprünglich war die App komplett auf AWS geplant (ECS/Fargate, RDS, ElastiCache, S3+CloudFront). Entschieden, stattdessen alles im eigenen Homelab zu hosten (Proxmox-VM `neuserphis1c`, Docker Compose mit Backend, Frontend, Postgres, Redis, arq-Worker). AWS wird nur noch für Bedrock (LLM-Anbindung) und Kostenüberwachung (Budget) genutzt.
+Ursprünglich war die App komplett auf AWS geplant (ECS/Fargate, RDS, ElastiCache, S3+CloudFront). Entschieden, stattdessen alles im eigenen Homelab zu hosten (Proxmox-VM `neuserphis1c`, Docker Compose mit Backend, Frontend, Postgres, Redis, arq-Worker). AWS wird nur noch für die Kostenüberwachung (Budget) genutzt.
 
 ## Zugriff Kollegen/CI: Tailscale statt offenem SSH
 
@@ -74,10 +74,10 @@ Das Frontend liest `KEYCLOAK_PUBLIC_URL` beim Build. Ändert sich der Wert, muss
 
 Domain existiert bereits extern, Eintrag zeigt auf die Homelab-IP.
 
-## AWS Bedrock: eigener IAM-User statt persönlicher Credentials
+## KI: JEV statt AWS Bedrock
 
-Minimal berechtigter IAM-User nur mit `bedrock:InvokeModel`-Rechten, damit das Backend nicht mit persönlichen Admin-Credentials arbeitet.
+Geplant war ein Sprachmodell über AWS Bedrock mit eigenem IAM-User. Stattdessen bewertet [JEV](https://docs.typesafe.ai/introduction) von TypeSafe den Text der Mail. JEV liefert auf die Frage, ob die Mail Phishing ist, eine feste Antwort mit Konfidenz, ein Freitext muss nicht ausgewertet werden. Der Key liegt als `TYPESAFE_API_KEY` in der `.env` auf dem Server, Details in [ai-assessment.md](ai-assessment.md). Der IAM-User für Bedrock ist aus `infra/main` entfernt, in AWS verschwindet er beim nächsten `tofu apply`.
 
 ## Budget-Überwachung: monatliches Limit mit gestaffelten Alerts
 
-$50/Monat, Warnungen bei 50/80/100% per E-Mail. Deckt nur noch die Bedrock-Nutzung ab, da sonst nichts mehr über AWS läuft.
+$50/Monat, Warnungen bei 50/80/100% per E-Mail. Seit Bedrock weggefallen ist, laufen über AWS nur noch der State-Bucket und die Lock-Tabelle, das Budget bleibt als Absicherung.

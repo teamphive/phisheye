@@ -30,15 +30,15 @@ Firmenintern, Cyber Security Abteilung als Hauptnutzer. Mitarbeiter melden Mails
 - Backend: FastAPI, SQLModel + Alembic, PostgreSQL
 - Frontend: React + TypeScript (Vite), Tailwind, shadcn/ui
 - Jobs: arq + Redis
-- Extern: VirusTotal-API, AWS Bedrock (LLM)
-- Infra: Homelab (Docker Compose, Nginx Proxy Manager), AWS nur für Bedrock + Budget (OpenTofu)
+- Extern: VirusTotal-API, JEV von TypeSafe (KI-Einschätzung)
+- Infra: Homelab (Docker Compose, Nginx Proxy Manager), AWS nur für die Budget-Überwachung (OpenTofu)
 - CI/CD: GitHub Actions
 
 ## KI-Integration
 
-Neben den deterministischen Regeln wertet ein Sprachmodell den Text der Mail aus. Es beurteilt die Sprache auf Muster, die sich nicht in Regeln fassen lassen, etwa Zeitdruck, Drohungen oder Aufforderungen zur Herausgabe von Zugangsdaten, und liefert daraus eine eigene Einschätzung zum Verdikt.
+Neben den deterministischen Regeln wertet das KI-Modell JEV den Text der Mail aus. Es beurteilt die Sprache auf Muster, die sich nicht in Regeln fassen lassen, etwa Zeitdruck, Drohungen oder Aufforderungen zur Herausgabe von Zugangsdaten, und liefert daraus eine eigene Einschätzung zum Verdikt.
 
-Wie das technisch umgesetzt wird, ist noch offen.
+Umgesetzt wird das mit [JEV](https://docs.typesafe.ai/introduction) von TypeSafe statt mit AWS Bedrock. JEV beantwortet die Frage, ob die Mail Phishing ist, mit einer festen Antwort und einer Konfidenz, es muss kein Freitext ausgewertet werden. Details in [ai-assessment.md](ai-assessment.md).
 
 ## Wahlpflicht-Features
 
