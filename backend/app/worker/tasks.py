@@ -9,8 +9,15 @@ from sqlmodel import select
 
 from ..database import get_session
 from ..models.mail_analysis import MailAnalysis
+from ..models.team import Team
+from ..models.team_invitation import TeamInvitation
+from ..models.user import User
 from ..services.mail_analysis import analyze_and_store
-from ..services.notifications import is_notifiable, send_analysis_mail
+from ..services.notifications import (
+    is_notifiable,
+    send_analysis_mail,
+    send_invitation_mail,
+)
 from ..services.pop3_poller import (
     delete_mails,
     extract_eml,
@@ -106,3 +113,30 @@ async def send_analysis_ready(ctx, analysis_id: int) -> None:
 
         analysis.notified_at = datetime.utcnow()
         await db.commit()
+
+
+async def send_team_invitation(ctx, invitation_id: int) -> None:
+    async for db in get_session():
+        invitation = await db.get(TeamInvitation, invitation_id)
+
+        # revoked or accepted before the job ran
+        if invitation is None:
+            return
+
+        team = await db.get(Team, invitation.team_id)
+        inviter = await db.get(User, invitation.invited_by)
+
+        if team is None or team.deleted_at is not None or inviter is None:
+            return
+
+        try:
+            await asyncio.to_thread(
+                send_invitation_mail,
+                invitation.email,
+                team.name,
+                inviter.name,
+                invitation.role,
+            )
+        except (smtplib.SMTPException, OSError) as exc:
+            logger.exception("Invitation mail %s failed", invitation_id)
+            raise Retry(defer=ctx["job_try"] * 60) from exc

@@ -10,9 +10,11 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from ..database import get_db
 from ..models.mail_analysis import MailAnalysis
 from ..models.team import Team
+from ..models.team_invitation import TeamInvitation
 from ..models.team_membership import TeamMembership
 from ..models.user import User
 from ..services.auth import get_current_user
+from ..services.notifications import enqueue_team_invitation
 from ..services.teams import (
     get_active_membership,
     initials,
@@ -34,6 +36,32 @@ class TeamNameRequest(BaseModel):
 
 class RoleRequest(BaseModel):
     role: Role
+
+
+# no email-validator dependency, the mail server rejects what this lets through
+Email = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True,
+        to_lower=True,
+        max_length=254,
+        pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$",
+    ),
+]
+
+
+class InviteRequest(BaseModel):
+    email: Email
+    role: Role
+
+
+def _invitation(invitation: TeamInvitation) -> dict:
+    return {
+        "id": invitation.id,
+        "email": invitation.email,
+        "role": invitation.role,
+        "invited_at": invitation.created_at,
+    }
 
 
 async def _member_count(team_id: int, db: AsyncSession) -> int:
@@ -85,6 +113,12 @@ async def get_team(
     )
     rows = result.all()
 
+    invitations_result = await db.exec(
+        select(TeamInvitation)
+        .where(TeamInvitation.team_id == membership.team_id)
+        .order_by(TeamInvitation.id)
+    )
+
     counts_result = await db.exec(
         select(MailAnalysis.submitted_by, func.count())
         .where(MailAnalysis.team_id == membership.team_id)
@@ -108,8 +142,7 @@ async def get_team(
             }
             for row, member in rows
         ],
-        # Invitations follow with their own table
-        "invitations": [],
+        "invitations": [_invitation(i) for i in invitations_result.all()],
     }
 
 
@@ -224,3 +257,89 @@ async def remove_member(
             db.add(removed)
 
         await db.delete(target)
+
+
+async def _invitation_of_team(
+    invitation_id: int, team_id: int, db: AsyncSession
+) -> TeamInvitation:
+    invitation = await db.get(TeamInvitation, invitation_id)
+
+    # another team's invitation looks like a missing one
+    if invitation is None or invitation.team_id != team_id:
+        raise HTTPException(status_code=404, detail="Invitation not found")
+
+    return invitation
+
+
+@router.post("/team/invitations", status_code=201)
+async def invite_member(
+    payload: InviteRequest,
+    user: User = Depends(get_current_user),
+    membership: TeamMembership = Depends(get_active_membership),
+    db: AsyncSession = Depends(get_db),
+):
+    require_role(membership, "admin")
+
+    async with db.begin():
+        member = await db.exec(
+            select(TeamMembership.id)
+            .join(User, User.id == TeamMembership.user_id)
+            .where(TeamMembership.team_id == membership.team_id)
+            .where(func.lower(User.email) == payload.email)
+        )
+        if member.first() is not None:
+            raise HTTPException(
+                status_code=409,
+                detail=f"{payload.email} ist schon Mitglied des Teams.",
+            )
+
+        existing = await db.exec(
+            select(TeamInvitation.id)
+            .where(TeamInvitation.team_id == membership.team_id)
+            .where(TeamInvitation.email == payload.email)
+        )
+        if existing.first() is not None:
+            raise HTTPException(
+                status_code=409, detail=f"{payload.email} ist schon eingeladen."
+            )
+
+        invitation = TeamInvitation(
+            team_id=membership.team_id,
+            email=payload.email,
+            role=payload.role,
+            invited_by=user.id,
+        )
+        db.add(invitation)
+        await db.flush()
+
+    await enqueue_team_invitation(invitation.id)
+
+    return _invitation(invitation)
+
+
+@router.patch("/team/invitations/{invitation_id}", status_code=204)
+async def change_invitation_role(
+    invitation_id: int,
+    payload: RoleRequest,
+    membership: TeamMembership = Depends(get_active_membership),
+    db: AsyncSession = Depends(get_db),
+):
+    require_role(membership, "admin")
+
+    async with db.begin():
+        invitation = await _invitation_of_team(invitation_id, membership.team_id, db)
+        invitation.role = payload.role
+        db.add(invitation)
+
+
+@router.delete("/team/invitations/{invitation_id}", status_code=204)
+async def revoke_invitation(
+    invitation_id: int,
+    membership: TeamMembership = Depends(get_active_membership),
+    db: AsyncSession = Depends(get_db),
+):
+    require_role(membership, "admin")
+
+    async with db.begin():
+        invitation = await _invitation_of_team(invitation_id, membership.team_id, db)
+        await db.delete(invitation)

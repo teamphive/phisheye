@@ -9,11 +9,9 @@ from jose import JWTError, jwt
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from ..constants import DEFAULT_TEAM_NAME
 from ..database import get_db
-from ..models.team import Team
-from ..models.team_membership import TeamMembership
 from ..models.user import User
+from .invitations import accept_invitations
 
 logger = logging.getLogger(__name__)
 
@@ -98,8 +96,9 @@ async def get_current_user(
     """Validates the bearer token, returns the matching local user.
 
     First sight: links an existing row with the same email, otherwise
-    creates the user (`sub` becomes `keycloak_id`) and adds it to the
-    default team. phisheye has no invite flow yet.
+    creates the user (`sub` becomes `keycloak_id`). Open invitations for the
+    email become memberships on every request, a new account has no team
+    before that.
 
     `is_operator` follows the `operator` realm role on every request.
     """
@@ -143,18 +142,9 @@ async def get_current_user(
                 db.add(user)
                 await db.flush()
 
-                team_result = await db.exec(
-                    select(Team).where(Team.name == DEFAULT_TEAM_NAME)
-                )
-                team = team_result.first()
-
-                if team is None:
-                    team = Team(name=DEFAULT_TEAM_NAME)
-                    db.add(team)
-                    await db.flush()
-
-                # new role at first login, analyst
-                db.add(TeamMembership(team_id=team.id, user_id=user.id, role="analyst"))
+        # A new account starts without a team, the invitations for its email
+        # are the way in
+        await accept_invitations(user, db)
 
         # The role is granted in Keycloak, the column only mirrors it. Without
         # a change SQLAlchemy writes nothing.
