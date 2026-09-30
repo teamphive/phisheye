@@ -122,6 +122,15 @@ export async function revokeInvitation(teamId: string, id: string) {
   })
 }
 
+/**
+ * Sends the mails of an invitation again. The API has no resend, so the
+ * invitation is withdrawn and made anew, with a new id and today's date.
+ */
+export async function resendInvitation(teamId: string, invitation: Invitation) {
+  await revokeInvitation(teamId, invitation.id)
+  return inviteMember(teamId, invitation.email, invitation.role)
+}
+
 /** Answers 409 when the last admin would step down. */
 export async function changeMemberRole(
   teamId: string,

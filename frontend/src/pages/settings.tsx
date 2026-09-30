@@ -1,5 +1,4 @@
 import { useState, type FormEvent } from "react"
-import { useNavigate } from "react-router"
 import { toast } from "sonner"
 
 import { PageHeader } from "@/components/page-header"
@@ -43,7 +42,6 @@ const schemes = [
 ] as const
 
 export function SettingsPage() {
-  const navigate = useNavigate()
   const { theme, setTheme } = useTheme()
   const { user, activeTeam, refresh } = useSession()
   const [displayName, setDisplayName] = useState(user.name)
@@ -175,7 +173,11 @@ export function SettingsPage() {
                 size="sm"
                 onClick={() => {
                   if (authEnabled) logout()
-                  else navigate("/login")
+                  else
+                    toast.info("Geht nur mit Keycloak", {
+                      description:
+                        "Ohne Keycloak gibt es keine Anmeldung, die sich beenden ließe.",
+                    })
                 }}
               >
                 Abmelden

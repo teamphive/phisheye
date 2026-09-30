@@ -1,18 +1,20 @@
 # Seitenstruktur
 
-19 Seiten, 11 Overlays. Die Pfade sind Vorschläge fürs Routing und noch nicht mit dem Backend abgestimmt. Der Entwurf liegt in [mockup.html](../assets/mockup.html).
+Die Seiten der App liegen in `frontend/src/pages`. Login, 2FA und Passwörter zeigt Keycloak selbst, im phisheye-Design aus `frontend/src/keycloak-theme`. Der ursprüngliche Entwurf liegt in [mockup.html](../assets/mockup.html).
 
 ## Zugang
 
 ```mermaid
 flowchart LR
-  invite([Einladung per Mail]) --> reg["Registrierung"]
-  reg --> setup["2FA einrichten"]
-  setup --> noteam["Kein Team<br>Navigation gesperrt"]
-  noteam -->|Team erstellen| app[["Angemeldeter Bereich"]]
+  invite([Einladung per Mail]) --> setup["Konto einrichten<br>Link von Keycloak"]
+  setup --> pw["Passwort setzen"]
+  pw --> profile["Profil vervollständigen"]
+  profile --> login
 
-  login["Login"] -->|Passwort korrekt| twofa["2FA-Abfrage"]
-  twofa -->|Code korrekt| app
+  login["Login"] -->|Passwort korrekt| twofa["2FA-Abfrage<br>beim ersten Mal einrichten"]
+  twofa -->|Code korrekt| app[["Angemeldeter Bereich"]]
+  twofa -.->|Konto ohne Einladung| noteam["Kein Team<br>Navigation gesperrt"]
+  noteam -->|Team erstellen| app
   login -->|Passwort vergessen| forgot["Link anfordern"]
   forgot -->|Mail| reset["Neues Passwort setzen"]
   reset --> login
@@ -20,7 +22,7 @@ flowchart LR
   app -->|Abmelden| login
 ```
 
-Es gibt keine Selbstregistrierung. Der einzige Weg zu einem Konto führt über die Einladung eines Admins, und der einzige Weg aus dem Zustand ohne Team führt über das Anlegen eines Teams.
+Es gibt keine Selbstregistrierung. Konten entstehen über die Einladung eines Admins: Keycloak schickt einen Link, darüber setzt die Person Passwort und Profil, beim ersten Login richtet sie 2FA ein. Danach ist sie Mitglied des einladenden Teams. Ein Konto ohne Einladung landet im Zustand ohne Team und kommt nur über das Anlegen eines Teams weiter.
 
 ## Wege im angemeldeten Bereich
 
@@ -62,7 +64,7 @@ flowchart LR
   class e403,e404,fehler fehlerhaft
 ```
 
-Gestrichelte Pfeile führen zu Sonderfällen, nicht zu regulären Seiten. Overlays haben keine eigene Adresse und stehen nicht im Diagramm: Suchfenster, Glocken-Menü, Team-Umschalter sowie die Dialoge für Einladen, Team erstellen, Mitglied entfernen, Domain entfernen, Team verlassen und löschen, Analyse löschen, Passwort ändern, Backup-Codes und aktive Sitzungen.
+Gestrichelte Pfeile führen zu Sonderfällen, nicht zu regulären Seiten. Overlays haben keine eigene Adresse und stehen nicht im Diagramm: Suchfenster, Glocken-Menü, Team-Umschalter sowie die Dialoge für Einladen, Team erstellen, Mitglied entfernen, Domain entfernen, Team verlassen und löschen, Analyse löschen und aktive Sitzungen. Passwort, 2FA und Backup-Codes ändert man auf den Seiten von Keycloak.
 
 ## Angemeldet
 
@@ -83,15 +85,27 @@ Sidebar und Kopfleiste sind auf allen Seiten gleich.
 
 ## Ohne Login
 
-| Seite | Pfad | Erreichbar über |
-|-------|------|-----------------|
-| Login | `/login` | Abmelden, abgelaufene Sitzung |
-| 2FA-Abfrage | `/login/2fa` | nach korrektem Passwort |
-| Registrierung | `/registrierung?token=…` | nur über den Einladungslink, keine Selbstregistrierung |
-| 2FA einrichten | `/einrichtung/2fa` | nach der Registrierung, aus den Einstellungen |
-| Passwort vergessen | `/passwort-vergessen` | Link auf der Login-Seite |
-| Passwort zurücksetzen | `/passwort-neu?token=…` | Link aus der E-Mail |
-| Sitzung abgelaufen | `/login?abgelaufen=1` | nach 30 Minuten ohne Aktivität |
+Diese Seiten liefert Keycloak unter `/auth/realms/phisheye/` aus, im Design aus `frontend/src/keycloak-theme`.
+
+| Seite | Keycloak-Seite | Erreichbar über |
+|-------|----------------|-----------------|
+| Login | `login.ftl` | jeder Aufruf ohne Anmeldung, Abmelden, abgelaufene Sitzung |
+| 2FA-Abfrage | `login-otp.ftl` | nach korrektem Passwort |
+| Anmeldemethode wählen | `select-authenticator.ftl` | „Andere Methode“ auf der 2FA-Abfrage |
+| Backup-Code eingeben | `login-recovery-authn-code-input.ftl` | Anmeldemethode Backup-Code |
+| Passwort vergessen | `login-reset-password.ftl` | Link auf der Login-Seite |
+| Neues Passwort | `login-update-password.ftl` | Link aus der Mail, Einrichtung nach einer Einladung, Einstellungen |
+| Konto einrichten | `info.ftl` | Link aus Keycloaks Mail nach einer Einladung, zeigt die Schritte und am Ende den Abschluss |
+| Profil vervollständigen | `login-update-profile.ftl` | Einrichtung nach einer Einladung |
+| 2FA einrichten | `login-config-totp.ftl` | erster Login, Einstellungen |
+| Backup-Codes sichern | `login-recovery-authn-code-config.ftl` | Einstellungen |
+| E-Mail-Adresse bestätigen | `login-verify-email.ftl` | wenn Keycloak eine Bestätigung verlangt |
+| Gerät entfernen | `delete-credential.ftl` | Einstellungen, „Entfernen“ bei einer Authenticator-App |
+| Fehler | `error.ftl` | abgelaufener oder schon benutzter Link |
+| Seite abgelaufen | `login-page-expired.ftl` | Login zu lange offen oder in einem anderen Tab weiter |
+| Abmelden bestätigen | `logout-confirm.ftl` | Abmelden ohne Token, die App selbst überspringt die Seite |
+
+Zur App gehört nur „Sitzung abgelaufen“ unter `/sitzung-abgelaufen`. Sie erscheint, wenn sich die Anmeldung nicht mehr erneuern lässt, und führt zurück zum Login.
 
 ## Rollen
 
@@ -115,15 +129,15 @@ Durchgesetzt wird all das im Backend. Die Oberfläche blendet nur aus.
 
 ## Overlays
 
-Keine eigene Adresse, kein Router-Eintrag: Suchfenster (`Cmd/Strg + K`), Glocken-Menü, Team-Umschalter sowie die Dialoge für Mitglied einladen, Team erstellen, Mitglied entfernen, Domain entfernen, Team verlassen, Team löschen, Analyse löschen, Passwort ändern, Backup-Codes und aktive Sitzungen.
+Keine eigene Adresse, kein Router-Eintrag: Suchfenster (`Cmd/Strg + K`), Glocken-Menü, Team-Umschalter sowie die Dialoge für Mitglied einladen, Team erstellen, Mitglied entfernen, Domain entfernen, Team verlassen, Team löschen, Analyse löschen und aktive Sitzungen. Passwort, 2FA und Backup-Codes ändert man auf den Seiten von Keycloak.
 
 ## Zustände
 
 | Zustand | Wo |
 |---------|-----|
-| Kein Team | Team, direkt nach der Registrierung, Navigation gesperrt |
+| Kein Team | Team, bei einem Konto ohne Einladung, Navigation gesperrt |
 | Analyse läuft | Analyse-Detail, mit Warteschlange darunter |
-| Analyse fehlgeschlagen | Analyse-Detail, Ursache und erneut starten |
+| Analyse fehlgeschlagen | Analyse-Detail, Ursache. Operatoren reihen den Job im Monitoring neu ein |
 | Verdikt entschieden | Analyse-Detail, zurücknehmbar |
 | Noch keine Analysen | Analysen und Übersicht im frisch angelegten Team |
 | Keine Domain eingetragen | Team, Karte „Outlook-Meldungen", es kommen keine Meldungen an |
@@ -141,7 +155,7 @@ Keine eigene Adresse, kein Router-Eintrag: Suchfenster (`Cmd/Strg + K`), Glocken
 - Gemeldete Mails landen über die Domain der meldenden Adresse im Team. Eine Domain gehört höchstens einem Team, Subdomains zählen mit, ein Nachweis des Domainbesitzes ist nicht vorgesehen. Die Liste sehen alle Rollen, ändern dürfen sie nur Admins.
 - Das Monitoring zeigt systemweite Werte über alle Teams hinweg. Der Endpunkt ist deshalb nicht unter einem Team eingehängt, sondern `GET /monitoring`, und die Fehlerliste enthält keine Mailinhalte.
 - **Der Team-Kontext kommt aus der Sitzung, nicht aus dem Pfad.** Die Endpunkte heißen `/analyses`, nicht `/teams/{id}/analyses`. Der Umschalter ändert den serverseitigen Kontext, nicht die Adresse.
-- **`.eml` und `.msg` werden beide unterstützt.**
+- **Hochgeladen werden nur `.eml`-Dateien.** Outlooks `.msg` ist ein anderes Format, das Backend liest nur MIME.
 - **Löschen ist immer weich.** Teams und Analysen werden als gelöscht markiert und erst nach 10 Tagen endgültig entfernt. Dafür braucht es einen Aufräum-Job.
 - **Zeiten liefert die API als ISO 8601 in UTC.** Das Frontend formatiert in die Zeitzone des Browsers.
 - **Fehler kommen als einheitliches Objekt**, nicht als FastAPIs Standard-`detail`.

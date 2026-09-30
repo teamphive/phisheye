@@ -472,8 +472,9 @@ export function AnalysisDetailPage() {
               </CardHeader>
               <CardContent className="flex flex-col gap-2.5">
                 <p className="text-xs text-muted-foreground">
-                  Das VirusTotal-Kontingent setzt sich um 00:00 Uhr zurück. Der
-                  aktuelle Stand steht im Monitoring.
+                  Fehlgeschlagene Jobs, Worker und das VirusTotal-Kontingent
+                  stehen im Monitoring. Dort lässt sich der Job auch neu
+                  einreihen.
                 </p>
                 <Button
                   variant="outline"
@@ -586,8 +587,6 @@ function Row({
 }
 
 function RunningCard({ analysis }: { analysis: AnalysisDetail }) {
-  const { permissions } = useSession()
-
   return (
     <>
       <Card>
@@ -618,17 +617,11 @@ function RunningCard({ analysis }: { analysis: AnalysisDetail }) {
 
           <Separator />
 
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-xs text-muted-foreground">
-              Du kannst die Seite verlassen — die Benachrichtigung kommt, sobald
-              die Analyse fertig ist.
-            </p>
-            {permissions.analyze ? (
-              <Button variant="outline" size="sm">
-                Abbrechen
-              </Button>
-            ) : null}
-          </div>
+          {/* Cancelling waits for an endpoint, see docs/api.md */}
+          <p className="text-xs text-muted-foreground">
+            Du kannst die Seite verlassen — die Benachrichtigung kommt, sobald
+            die Analyse fertig ist.
+          </p>
         </CardContent>
       </Card>
 
@@ -713,9 +706,9 @@ function QueueCard() {
   )
 }
 
+// Starting it again waits for an endpoint, see docs/api.md. Operators can
+// requeue the job in the monitoring already.
 function FailedCard({ analysis }: { analysis: AnalysisDetail }) {
-  const { permissions } = useSession()
-
   if (!analysis.error) return null
 
   return (
@@ -741,18 +734,6 @@ function FailedCard({ analysis }: { analysis: AnalysisDetail }) {
             Versuch {analysis.error.attempt} von {analysis.error.maxAttempts}
           </Badge>
           <Badge variant="outline">{formatDateTime(analysis.error.at)}</Badge>
-        </div>
-
-        <Separator />
-
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-xs text-muted-foreground">
-            Die bereits ermittelten Signale bleiben gespeichert. Beim erneuten
-            Start wird nur der fehlgeschlagene Schritt wiederholt.
-          </p>
-          {permissions.analyze ? (
-            <Button size="sm">Erneut starten</Button>
-          ) : null}
         </div>
       </CardContent>
     </Card>

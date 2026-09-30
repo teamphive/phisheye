@@ -246,7 +246,7 @@ Je Treffer:
 - Backend-Prüfung auf 25 MB mit 413. Bisher begrenzen nur das Frontend und der nginx (30 MB).
 - Cron-Job für die harte Löschung: täglich alles mit `deleted_at` älter als 10 Tage endgültig entfernen (Datenbank, Anhänge, `.eml` in MinIO).
 - Analyse als arq-Job statt im Request. Erst damit sind `running`, `step` und `GET /queue` echt. Wird mit einem Spam-Testskript geprüft.
-- Abbrechen einer laufenden Analyse. Die Oberfläche hat den Knopf, ein Endpunkt fehlt noch.
-- Erneut starten einer fehlgeschlagenen Analyse durch Analysten. `POST /monitoring/jobs/{id}/retry` gibt es nur für Operatoren, der Knopf auf der Detailseite hat noch keinen Endpunkt.
-- Einladung erneut senden. Die Oberfläche hat den Knopf, ein Endpunkt fehlt noch.
+- Abbrechen einer laufenden Analyse. Ein Endpunkt fehlt, bis dahin zeigt die Detailseite keinen Knopf dafür.
+- Erneut starten einer fehlgeschlagenen Analyse durch Analysten. `POST /monitoring/jobs/{id}/retry` ist nur für Operatoren. Bis es einen Endpunkt für Analysten gibt, zeigt die Detailseite keinen Knopf und schickt Operatoren ins Monitoring.
 - Übernehmen einer gemeldeten Mail. Die Oberfläche zeigt `handler` null als „Niemand", ein Endpunkt zum Zuweisen fehlt.
+- `two_factor_enabled` in `GET /team` aus Keycloak lesen. Die Spalte `users.totp_enabled` wird nie gesetzt, deshalb zeigt die Team-Seite bei allen „Nicht eingerichtet“. Keycloak kennt den Stand: `GET /admin/realms/phisheye/users/{keycloak_id}/credentials` listet die Zugangsdaten, 2FA ist eingerichtet, sobald eine vom Typ `otp` dabei ist. Der Service-Account `phisheye-backend-admin` darf das mit `view-users` schon. Am besten mit einer Anfrage pro Mitglied parallel oder mit kurzem Cache, damit die Team-Seite nicht wartet.

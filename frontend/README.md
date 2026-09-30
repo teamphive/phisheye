@@ -44,7 +44,19 @@ npm run lint
 
 Die Login-Seiten, die Keycloak ausliefert, kommen aus diesem Projekt: Keycloakify baut aus `src/keycloak-theme` ein Login-Theme im phisheye-Design. `src/main.tsx` entscheidet beim Start, ob die App oder das Theme läuft; innerhalb von Keycloak liegt `window.kcContext` vor.
 
-Eigene Seiten gibt es bisher für Login (`login.ftl`), 2FA-Abfrage (`login-otp.ftl`), Passwort vergessen (`login-reset-password.ftl`), neues Passwort (`login-update-password.ftl`), 2FA einrichten (`login-config-totp.ftl`), Backup-Codes sichern (`login-recovery-authn-code-config.ftl`) und eingeben (`login-recovery-authn-code-input.ftl`) sowie die Auswahl der Anmeldemethode (`select-authenticator.ftl`), alle unter `src/keycloak-theme/login/pages`. Alle anderen Seiten zeigt Keycloakify vorerst im Standard-Look von Keycloak. `npm install` kopiert sie per `postinstall` nach `src/keycloak-theme/login` und hält sie aus Git heraus. Eine davon anpassen:
+Eigene Seiten, alle unter `src/keycloak-theme/login/pages`:
+
+| Seite | Datei |
+| --- | --- |
+| Login, 2FA-Abfrage, Anmeldemethode wählen | `login.ftl`, `login-otp.ftl`, `select-authenticator.ftl` |
+| Passwort vergessen, neues Passwort | `login-reset-password.ftl`, `login-update-password.ftl` |
+| 2FA einrichten, Backup-Codes sichern und eingeben | `login-config-totp.ftl`, `login-recovery-authn-code-config.ftl`, `login-recovery-authn-code-input.ftl` |
+| Konto einrichten nach einer Einladung: Schritte und Abschluss, Profil | `info.ftl`, `login-update-profile.ftl` |
+| E-Mail-Adresse bestätigen | `login-verify-email.ftl` |
+| Authenticator-Gerät entfernen, aus den Einstellungen | `delete-credential.ftl` |
+| Fehler, abgelaufene Seite, Abmelden bestätigen | `error.ftl`, `login-page-expired.ftl`, `logout-confirm.ftl` |
+
+Alle anderen Seiten zeigt Keycloakify im Standard-Look von Keycloak, sie kommen bei phisheye nicht vor. `npm install` kopiert sie per `postinstall` nach `src/keycloak-theme/login` und hält sie aus Git heraus. Eine davon anpassen:
 
 ```bash
 npx keycloakify own --path login/pages/<seite>/Page.tsx
@@ -70,6 +82,4 @@ docker compose up -d --build keycloak
 
 ## Stand
 
-Grundgerüst via Vite aufgesetzt, shadcn/ui eingerichtet (`components.json`).
-Anmeldung über Keycloak angebunden, Aufrufe ans Backend laufen über `src/lib/api.ts`.
-Die Seiteninhalte kommen noch aus `src/mocks`.
+Alle Seiten der App sind ans Backend angebunden, Aufrufe laufen über `src/lib/api.ts`. Ohne `VITE_API_URL` kommen die Inhalte aus `src/mocks`, ohne Keycloak-Variablen läuft die App ohne Anmeldung. Welche Endpunkte das Backend noch nicht hat, steht in [api.md](../docs/api.md) unter „Offen“.
