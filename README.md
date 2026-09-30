@@ -35,7 +35,7 @@ just dev
 
 Voraussetzungen und erster Login: [`setup.md`](setup.md). Die einzelnen Teile stehen in den READMEs von `backend/`, `frontend/` und `infra/main/`.
 
-Kompletter Stack in Docker: `docker compose --profile app up -d --build`. Deployment auf den Server: [Infrastruktur](docs/infrastructure.md).
+`just dev` startet den kompletten Stack in Docker. Deployment auf den Server: [Infrastruktur](docs/infrastructure.md).
 
 ## Dokumentation
 
