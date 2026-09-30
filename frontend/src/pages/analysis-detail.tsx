@@ -6,6 +6,9 @@ import {
   DownloadIcon,
   FlagIcon,
   Loader2Icon,
+  ShieldAlertIcon,
+  ShieldCheckIcon,
+  SparklesIcon,
   TrashIcon,
   TriangleAlertIcon,
 } from "lucide-react"
@@ -35,7 +38,14 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
@@ -65,7 +75,9 @@ import {
   initialsOf,
   shortenHash,
 } from "@/lib/format"
+import { verdictLabel, type Verdict } from "@/mocks/analyses"
 import {
+  type AiAssessment,
   type AnalysisDetail,
   type Attachment,
   type Decision,
@@ -106,6 +118,24 @@ const decisionText = {
       clean: "Als sauber eingestuft",
     },
     status: { phishing: "Phishing", clean: "Sauber" },
+  },
+}
+
+// Only for the display, after the three ranges in JEV's docs: below the
+// first JEV is unsure, from the second on it decided clearly.
+const unsureBelow = 0.5
+const clearFrom = 0.8
+
+const aiText = {
+  phishing: {
+    answer: "Ja, Phishing",
+    tone: "text-phishing",
+    icon: "bg-phishing-soft text-phishing",
+  },
+  clean: {
+    answer: "Nein, kein Phishing",
+    tone: "text-clean",
+    icon: "bg-clean-soft text-clean",
   },
 }
 
@@ -729,6 +759,126 @@ function FailedCard({ analysis }: { analysis: AnalysisDetail }) {
   )
 }
 
+function confidenceLabel(confidence: number) {
+  if (confidence >= clearFrom) return "hoch"
+  if (confidence >= unsureBelow) return "mittel"
+  return "gering"
+}
+
+// How JEV's answer stands to the verdict of the rules
+function agreement(ai: AiAssessment["verdict"], rules: Verdict | null) {
+  if (!rules) return "Die Regeln haben keinen Score geliefert."
+  if (rules === "suspicious")
+    return "Die Regeln stufen die Mail als verdächtig ein."
+  if (rules === ai) return "Deckt sich mit dem Verdikt der Regeln."
+  return `Weicht von den Regeln ab, dort: ${verdictLabel[rules]}.`
+}
+
+function AiAssessmentCard({
+  assessment,
+  rulesVerdict,
+}: {
+  assessment: AiAssessment | null
+  rulesVerdict: Verdict | null
+}) {
+  if (!assessment) {
+    return (
+      <Card>
+        <CardContent className="flex items-center gap-3">
+          <span className="grid size-8 shrink-0 place-items-center rounded-full bg-secondary text-muted-foreground">
+            <SparklesIcon className="size-[18px]" />
+          </span>
+          <div>
+            <div className="text-[15px] font-semibold">
+              Keine KI-Einschätzung
+            </div>
+            <p className="mt-0.5 max-w-[56ch] text-[13px] text-muted-foreground">
+              JEV hat zu dieser Mail nicht geantwortet.
+              {rulesVerdict
+                ? " Das Verdikt stützt sich nur auf die Regeln."
+                : ""}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  const text = aiText[assessment.verdict]
+  const percent = Math.round(assessment.confidence * 100)
+  const unsure = assessment.confidence < unsureBelow
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-1.5 text-sm">
+          <SparklesIcon className="size-4 text-muted-foreground" />
+          KI-Einschätzung
+        </CardTitle>
+        <CardDescription className="text-xs">
+          JEV bewertet den Text der Mail, unabhängig von den Regeln
+        </CardDescription>
+        <CardAction>
+          <span className="font-mono text-[11px] text-faint">
+            {assessment.model}
+          </span>
+        </CardAction>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        <div className="flex items-center gap-3">
+          <span
+            className={`grid size-10 shrink-0 place-items-center rounded-full ${text.icon}`}
+          >
+            {assessment.verdict === "phishing" ? (
+              <ShieldAlertIcon className="size-5" />
+            ) : (
+              <ShieldCheckIcon className="size-5" />
+            )}
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className={`text-lg font-semibold ${text.tone}`}>
+              {text.answer}
+            </div>
+            <p className="text-[13px] text-muted-foreground">
+              {agreement(assessment.verdict, rulesVerdict)}
+            </p>
+          </div>
+          <div className="shrink-0 text-right">
+            <div className="text-2xl leading-none font-semibold tabular-nums">
+              {percent} %
+            </div>
+            <div className="mt-1 text-[11.5px] text-muted-foreground">
+              Konfidenz {confidenceLabel(assessment.confidence)}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <div className="h-[7px] overflow-hidden rounded bg-secondary">
+            <div
+              className={`h-full rounded ${unsure ? "bg-suspicious" : "bg-primary"}`}
+              style={{ width: `${percent}%` }}
+            />
+          </div>
+          <p className="text-[11.5px] text-muted-foreground">
+            Wie eindeutig sich JEV entschieden hat, nicht die Wahrscheinlichkeit
+            für Phishing. Unter {unsureBelow * 100} % ist die Antwort unsicher,
+            ab {clearFrom * 100} % eindeutig.
+          </p>
+        </div>
+
+        {unsure ? (
+          <div className="flex items-start gap-2 rounded-md border border-suspicious/25 bg-suspicious-soft p-3 text-[13px]">
+            <TriangleAlertIcon className="mt-0.5 size-4 shrink-0 text-suspicious" />
+            JEV ist sich bei dieser Mail nicht sicher. Die Einschätzung besser
+            nicht als Grundlage für die Entscheidung nehmen.
+          </div>
+        ) : null}
+      </CardContent>
+    </Card>
+  )
+}
+
 function CompletedCards({ analysis }: { analysis: AnalysisDetail }) {
   // The detection can finish without a result, attachments and headers are
   // there all the same.
@@ -794,6 +944,11 @@ function CompletedCards({ analysis }: { analysis: AnalysisDetail }) {
           </CardContent>
         </Card>
       )}
+
+      <AiAssessmentCard
+        assessment={analysis.aiAssessment}
+        rulesVerdict={analysis.verdict}
+      />
 
       <Card>
         <CardHeader>

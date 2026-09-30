@@ -159,6 +159,7 @@ Passwort, zweiter Faktor, Backup-Codes und angemeldete Geräte verwaltet Keycloa
 | Feld | Typ | Beschreibung |
 |---|---|---|
 | thresholds | `{ suspicious, phishing }` | Schwellen kommen vom Server, das Frontend rechnet nichts nach |
+| ai_assessment | `{ verdict, confidence, model }` oder null | Einschätzung von JEV zum Text der Mail, siehe [ai-assessment.md](ai-assessment.md). `verdict` ist `phishing` oder `clean`, `confidence` 0 bis 1, `model` die Version, die geantwortet hat. null, wenn JEV nicht geantwortet hat |
 | criteria | Liste aus `name`, `finding`, `weight` | alle vier Prüfungen aus [detection-criteria.md](detection-criteria.md), nicht ausgelöste mit `weight` 0 |
 | criteria_total | number | Summe der Gewichte, bei 100 gekappt |
 | links | Liste aus `text`, `target`, `finding`, `tone` | |
