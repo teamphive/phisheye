@@ -1,3 +1,4 @@
+import asyncio
 import os
 
 import httpx
@@ -23,24 +24,27 @@ def _admin_url() -> str:
     return _realm_url().replace("/realms/", "/admin/realms/")
 
 
+async def _login(client: httpx.AsyncClient) -> str:
+    login = await client.post(
+        f"{_realm_url()}/protocol/openid-connect/token",
+        data={
+            "grant_type": "client_credentials",
+            "client_id": os.getenv(
+                "KEYCLOAK_SERVICE_CLIENT_ID", "phisheye-backend-admin"
+            ),
+            "client_secret": os.getenv("KEYCLOAK_SERVICE_CLIENT_SECRET", ""),
+        },
+    )
+
+    if login.status_code != 200:
+        raise KeycloakAdminError(f"Service account login: {login.status_code}")
+
+    return login.json()["access_token"]
+
+
 async def _request(method: str, path: str, **kwargs) -> httpx.Response:
     async with httpx.AsyncClient(timeout=15) as client:
-        login = await client.post(
-            f"{_realm_url()}/protocol/openid-connect/token",
-            data={
-                "grant_type": "client_credentials",
-                "client_id": os.getenv(
-                    "KEYCLOAK_SERVICE_CLIENT_ID", "phisheye-backend-admin"
-                ),
-                "client_secret": os.getenv("KEYCLOAK_SERVICE_CLIENT_SECRET", ""),
-            },
-        )
-
-        if login.status_code != 200:
-            raise KeycloakAdminError(f"Service account login: {login.status_code}")
-
-        token = login.json()["access_token"]
-
+        token = await _login(client)
         response = await client.request(
             method,
             f"{_admin_url()}{path}",
@@ -90,3 +94,25 @@ async def send_setup_email(user_id: str) -> None:
         },
         json=["UPDATE_PASSWORD", "UPDATE_PROFILE"],
     )
+
+
+# who has set up two factor: one login, one request per user, in parallel
+async def otp_users(user_ids: list[str]) -> dict[str, bool]:
+    async with httpx.AsyncClient(timeout=15) as client:
+        headers = {"Authorization": f"Bearer {await _login(client)}"}
+
+        async def has_otp(user_id: str) -> tuple[str, bool]:
+            response = await client.get(
+                f"{_admin_url()}/users/{user_id}/credentials", headers=headers
+            )
+
+            # the account is gone in Keycloak
+            if response.status_code == 404:
+                return user_id, False
+
+            if response.status_code >= 400:
+                raise KeycloakAdminError(f"credentials: {response.status_code}")
+
+            return user_id, any(c.get("type") == "otp" for c in response.json())
+
+        return dict(await asyncio.gather(*(has_otp(user_id) for user_id in user_ids)))

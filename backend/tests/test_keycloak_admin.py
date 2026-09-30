@@ -122,3 +122,28 @@ async def test_rejected_service_login_is_an_error(mocked):
 
     with pytest.raises(keycloak_admin.KeycloakAdminError):
         await keycloak_admin.find_user("neu@firma.de")
+
+
+@pytest.mark.asyncio
+async def test_otp_users_tells_who_has_two_factor(mocked):
+    mocked.get(f"{ADMIN}/users/a/credentials").mock(
+        return_value=httpx.Response(200, json=[{"type": "password"}, {"type": "otp"}])
+    )
+    mocked.get(f"{ADMIN}/users/b/credentials").mock(
+        return_value=httpx.Response(200, json=[{"type": "password"}])
+    )
+    mocked.get(f"{ADMIN}/users/c/credentials").mock(return_value=httpx.Response(404))
+
+    assert await keycloak_admin.otp_users(["a", "b", "c"]) == {
+        "a": True,
+        "b": False,
+        "c": False,
+    }
+
+
+@pytest.mark.asyncio
+async def test_otp_users_fails_when_keycloak_does(mocked):
+    mocked.get(f"{ADMIN}/users/a/credentials").mock(return_value=httpx.Response(500))
+
+    with pytest.raises(keycloak_admin.KeycloakAdminError):
+        await keycloak_admin.otp_users(["a"])

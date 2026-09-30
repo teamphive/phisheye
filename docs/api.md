@@ -74,7 +74,7 @@ Gezählt werden abgeschlossene, nicht gelöschte Analysen des aktiven Teams mit 
 
 | Methode | Pfad | Zweck |
 |---|---|---|
-| GET | `/team` | Mitglieder und offene Einladungen des aktiven Teams (umgesetzt, `two_factor_enabled` noch nicht aus Keycloak) |
+| GET | `/team` | Mitglieder und offene Einladungen des aktiven Teams (umgesetzt) |
 | POST | `/teams` | Team anlegen, Body `name`, der Nutzer wird Admin. Antwortet mit dem Team wie in `GET /me` (umgesetzt) |
 | PATCH | `/team` | Umbenennen, Body `name`, nur Admin (umgesetzt) |
 | DELETE | `/team` | Weich löschen, nur Admin (umgesetzt) |
@@ -215,7 +215,7 @@ Je Treffer:
 
 | Feld | Typ | Beschreibung |
 |---|---|---|
-| members | Liste aus `id`, `name`, `email`, `initials`, `role`, `two_factor_enabled`, `analysis_count`, `is_self` | `is_self` markiert den angemeldeten Nutzer |
+| members | Liste aus `id`, `name`, `email`, `initials`, `role`, `two_factor_enabled`, `analysis_count`, `is_self` | `is_self` markiert den angemeldeten Nutzer. `two_factor_enabled` kommt aus Keycloak (Zugangsdaten vom Typ `otp`), `false` heißt nicht eingerichtet, ohne Konto ebenfalls `false`. Antwortet Keycloak nicht, ist der Wert `null` (unbekannt). |
 | invitations | Liste aus `id`, `email`, `role`, `invited_at` | nur offene Einladungen |
 
 `GET /team/domains`:
@@ -249,4 +249,3 @@ Je Treffer:
 - Abbrechen einer laufenden Analyse. Ein Endpunkt fehlt, bis dahin zeigt die Detailseite keinen Knopf dafür.
 - Erneut starten einer fehlgeschlagenen Analyse durch Analysten. `POST /monitoring/jobs/{id}/retry` ist nur für Operatoren. Bis es einen Endpunkt für Analysten gibt, zeigt die Detailseite keinen Knopf und schickt Operatoren ins Monitoring.
 - Übernehmen einer gemeldeten Mail. Die Oberfläche zeigt `handler` null als „Niemand", ein Endpunkt zum Zuweisen fehlt.
-- `two_factor_enabled` in `GET /team` aus Keycloak lesen. Die Spalte `users.totp_enabled` wird nie gesetzt, deshalb zeigt die Team-Seite bei allen „Nicht eingerichtet“. Keycloak kennt den Stand: `GET /admin/realms/phisheye/users/{keycloak_id}/credentials` listet die Zugangsdaten, 2FA ist eingerichtet, sobald eine vom Typ `otp` dabei ist. Der Service-Account `phisheye-backend-admin` darf das mit `view-users` schon. Am besten mit einer Anfrage pro Mitglied parallel oder mit kurzem Cache, damit die Team-Seite nicht wartet.
