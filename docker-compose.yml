@@ -126,6 +126,9 @@ services:
     image: phisheye-backend
     container_name: backend
     env_file: .env
+    ports:
+      # metrics for Prometheus, on the server METRICS_BIND is the LAN address
+      - "${METRICS_BIND:-127.0.0.1}:9101:9101"
     environment:
       POSTGRES_HOST: db
       REDIS_URL: redis://redis:6379/0

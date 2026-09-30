@@ -24,6 +24,14 @@ Kein Umweg über AWS nötig, NPM läuft bereits im Homelab, terminiert TLS (Let'
 
 Bei Merge in main: Images bauen, zu GHCR pushen, per SSH auf die VM verbinden, `docker compose pull && up -d`.
 
+## Monitoring: Grafana für Technik, die App für KPIs
+
+Was ein Operator jetzt wissen oder tun muss, zeigt die App (`GET /monitoring`): Warteschlange, Worker, Fehlerrate, Analysen pro Stunde, VirusTotal-Kontingent, Dienste-Ampel und die Fehlerliste mit Retry. Verlauf, Infrastruktur und Alarme liegen in Grafana.
+
+Der Stack (Prometheus, Grafana, Loki, Blackbox, ntfy) läuft im Repo `monitoring-stack` auf einem eigenen Host. Er holt die Werte von der VM ab: `node_exporter`, cAdvisor, Redis (mit Länge der arq-Queue), Postgres und die API-Metriken des Backends. Die Logs schickt Alloy an Loki. Die Exporter und ihre Einrichtung stehen in [deployment/monitoring](../deployment/monitoring/README.md).
+
+Die Metriken des Backends laufen über einen eigenen Port (9101), nicht unter der App-URL. Unter `/api/metrics` gibt es nichts.
+
 ## Registry: GHCR statt ECR
 
 Team nutzt eh GitHub, kostenlos, kein zusätzlicher AWS-Service nötig.
