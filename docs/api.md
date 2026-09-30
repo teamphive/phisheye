@@ -74,20 +74,20 @@ Gezählt werden abgeschlossene, nicht gelöschte Analysen des aktiven Teams mit 
 
 | Methode | Pfad | Zweck |
 |---|---|---|
-| GET | `/team` | Mitglieder und offene Einladungen des aktiven Teams |
-| POST | `/teams` | Team anlegen, Body `name`, der Nutzer wird Admin. Antwortet mit dem Team wie in `GET /me` |
-| PATCH | `/team` | Umbenennen, Body `name`, nur Admin |
-| DELETE | `/team` | Weich löschen, nur Admin |
+| GET | `/team` | Mitglieder und offene Einladungen des aktiven Teams (umgesetzt, `invitations` noch leer, `two_factor_enabled` noch nicht aus Keycloak) |
+| POST | `/teams` | Team anlegen, Body `name`, der Nutzer wird Admin. Antwortet mit dem Team wie in `GET /me` (umgesetzt) |
+| PATCH | `/team` | Umbenennen, Body `name`, nur Admin (umgesetzt) |
+| DELETE | `/team` | Weich löschen, nur Admin (umgesetzt) |
 | POST | `/team/invitations` | Einladen, Body `email` und `role`, antwortet mit der Einladung wie in `GET /team`. 409, wenn die Adresse schon Mitglied oder eingeladen ist |
 | PATCH | `/team/invitations/{id}` | Rolle einer offenen Einladung ändern, Body `role` |
 | DELETE | `/team/invitations/{id}` | Einladung zurückziehen |
-| PATCH | `/team/members/{id}` | Rolle ändern, Body `role` |
-| DELETE | `/team/members/{id}` | Entfernen, oder selbst verlassen |
+| PATCH | `/team/members/{id}` | Rolle ändern, Body `role`, nur Admin (umgesetzt) |
+| DELETE | `/team/members/{id}` | Entfernen (nur Admin), oder selbst verlassen (umgesetzt) |
 | GET | `/team/domains` | Meldeadresse und Domains für Outlook-Meldungen |
 | POST | `/team/domains` | Domain eintragen, Body `domain`, nur Admin |
 | DELETE | `/team/domains/{id}` | Domain entfernen, nur Admin |
 
-Der letzte Admin kann sich weder herabstufen noch entfernen. Das Verlassen des letzten Teams wird abgelehnt.
+Der letzte Admin kann sich weder herabstufen noch entfernen. Das Verlassen des letzten Teams wird abgelehnt. Beides antwortet mit 409. Die `id` eines Mitglieds ist die Nutzer-ID.
 
 ## Outlook-Meldungen
 
