@@ -905,6 +905,22 @@
         "offline_access",
         "microprofile-jwt"
       ]
+    },
+    {
+      "clientId": "phisheye-backend-admin",
+      "name": "phisheye backend (user management)",
+      "description": "Service account of the backend: creates accounts for invited people",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "__KEYCLOAK_SERVICE_CLIENT_SECRET__",
+      "bearerOnly": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "fullScopeAllowed": true
     }
   ],
   "clientScopes": [
@@ -2686,5 +2702,19 @@
   },
   "clientPolicies": {
     "policies": []
-  }
+  },
+  "users": [
+    {
+      "username": "service-account-phisheye-backend-admin",
+      "enabled": true,
+      "serviceAccountClientId": "phisheye-backend-admin",
+      "clientRoles": {
+        "realm-management": [
+          "view-users",
+          "query-users",
+          "manage-users"
+        ]
+      }
+    }
+  ]
 }

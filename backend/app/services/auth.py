@@ -79,7 +79,7 @@ async def _decode_token(token: str) -> dict[str, Any]:
             audience=os.getenv("KEYCLOAK_AUDIENCE", "phisheye-backend"),
         )
     except JWTError as exc:
-        # the client only sees a plain 401, the reason belongs in the log
+        # the client only sees 401, the reason goes to the log
         logger.warning("Token rejected: %s", exc)
         raise HTTPException(status_code=401, detail="Invalid token") from exc
 

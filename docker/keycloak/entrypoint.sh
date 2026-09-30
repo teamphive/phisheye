@@ -11,7 +11,7 @@ json_escape() {
     printf '%s' "${value//\"/\\\"}"
 }
 
-names=(FRONTEND_URL SMTP_HOST SMTP_PORT SMTP_USERNAME SMTP_PASSWORD)
+names=(FRONTEND_URL SMTP_HOST SMTP_PORT SMTP_USERNAME SMTP_PASSWORD KEYCLOAK_SERVICE_CLIENT_SECRET)
 values=()
 for name in "${names[@]}"; do
     values+=("$(json_escape "${!name-}")")

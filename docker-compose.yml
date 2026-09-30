@@ -49,6 +49,7 @@ services:
       SMTP_PORT: "${SMTP_PORT:-465}"
       SMTP_USERNAME: "${SMTP_USERNAME:-noreply@example.com}"
       SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
+      KEYCLOAK_SERVICE_CLIENT_SECRET: "${KEYCLOAK_SERVICE_CLIENT_SECRET}"
     # the rendered realm goes here, an older volume has this folder owned by root
     tmpfs:
       - /opt/keycloak/data/import:mode=1777

@@ -87,12 +87,13 @@ Gezählt werden abgeschlossene, nicht gelöschte Analysen des aktiven Teams mit 
 | POST | `/team/domains` | Domain eintragen, Body `domain`, nur Admin |
 | DELETE | `/team/domains/{id}` | Domain entfernen, nur Admin |
 
-Einladungen laufen ohne Token oder Link:
+Einladungen:
 
-- Die Einladung speichert E-Mail (klein geschrieben) und Rolle und schickt eine Mail mit dem Link zur App (`FRONTEND_URL`). Den Versand übernimmt der Worker, bei einem SMTP-Fehler gibt es weitere Versuche.
-- Ein Konto legt der Admin in Keycloak an. Bei der nächsten Anfrage mit einer passenden E-Mail wird die Person Mitglied mit der eingeladenen Rolle, die Einladung verschwindet. Das gilt auch für bestehende Konten.
-- Ein neues Konto startet ohne Team, nur Einladungen führen hinein.
-- Gelöschte Teams und bestehende Mitgliedschaften werden dabei übersprungen.
+- Für neue Personen legt der Worker ein Konto in Keycloak an (Service-Account `phisheye-backend-admin`, ohne Passwort). Keycloak mailt einen Link, darüber setzt die Person Passwort, Profil und 2FA. Der Link gilt sieben Tage.
+- Wer schon ein Konto hat, bekommt unsere Einladungsmail mit dem Teamnamen.
+- Bei der nächsten Anfrage mit passender E-Mail wird die Person Mitglied, die Einladung verschwindet. Das gilt auch für bestehende Konten.
+- Neue Konten starten ohne Team.
+- Gelöschte Teams und bestehende Mitgliedschaften werden übersprungen.
 
 Der letzte Admin kann sich weder herabstufen noch entfernen. Das Verlassen des letzten Teams wird abgelehnt. Beides antwortet mit 409. Die `id` eines Mitglieds ist die Nutzer-ID.
 

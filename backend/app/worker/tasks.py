@@ -3,6 +3,7 @@ import logging
 import smtplib
 from datetime import datetime, timedelta
 
+import httpx
 from arq import Retry
 from sqlalchemy import func
 from sqlmodel import select
@@ -12,12 +13,10 @@ from ..models.mail_analysis import MailAnalysis
 from ..models.team import Team
 from ..models.team_invitation import TeamInvitation
 from ..models.user import User
+from ..services.invitations import deliver_invitation
+from ..services.keycloak_admin import KeycloakAdminError
 from ..services.mail_analysis import analyze_and_store
-from ..services.notifications import (
-    is_notifiable,
-    send_analysis_mail,
-    send_invitation_mail,
-)
+from ..services.notifications import is_notifiable, send_analysis_mail
 from ..services.pop3_poller import (
     delete_mails,
     extract_eml,
@@ -130,13 +129,14 @@ async def send_team_invitation(ctx, invitation_id: int) -> None:
             return
 
         try:
-            await asyncio.to_thread(
-                send_invitation_mail,
-                invitation.email,
-                team.name,
-                inviter.name,
-                invitation.role,
+            await deliver_invitation(
+                invitation.email, team.name, inviter.name, invitation.role
             )
-        except (smtplib.SMTPException, OSError) as exc:
-            logger.exception("Invitation mail %s failed", invitation_id)
+        except (
+            smtplib.SMTPException,
+            OSError,
+            httpx.HTTPError,
+            KeycloakAdminError,
+        ) as exc:
+            logger.exception("Invitation %s failed", invitation_id)
             raise Retry(defer=ctx["job_try"] * 60) from exc

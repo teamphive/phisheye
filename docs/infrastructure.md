@@ -54,6 +54,15 @@ Folge: `KEYCLOAK_URL` und `KEYCLOAK_PUBLIC_URL` bleiben überall pfadlos (lokal,
 
 Die Admin-Console läuft unter `https://phisheye.neumann-it.org/auth/admin/`, öffentlich erreichbar, bewusst so entschieden. Absicherung über starkes Passwort und 2FA am Admin-Konto, nicht über Netzwerksperren. Port `8080` bleibt nur noch für einen SSH-Tunnel als Fallback an `127.0.0.1` gebunden, kein regulärer Zugangsweg.
 
+## Konten für Eingeladene
+
+Das Backend legt für eingeladene Personen ein Konto in Keycloak an, ohne Passwort. Keycloak mailt einen Link zum Setzen. Dafür nutzt das Backend den Client `phisheye-backend-admin` (Service-Account mit `view-users`, `query-users` und `manage-users`). ID und Secret stehen in der `.env`.
+
+- Neue Realms bekommen den Client beim ersten Import.
+- Bei einem bestehenden Realm den Client einmal von Hand anlegen: Clients, Create, Client ID `phisheye-backend-admin`, Client authentication an, Service accounts roles an. Das Secret unter Credentials in die `.env` kopieren. Unter Service accounts roles die drei Rollen aus `realm-management` zuweisen.
+- Ohne Secret geht nur die Einladungsmail raus, das Konto muss dann schon existieren.
+- Keycloak mailt über den SMTP-Server aus dem Realm (`SMTP_*`).
+
 ## Eine `.env` für alles
 
 Backend, Worker, Migration und Docker Compose selbst lesen alle dieselbe `.env` im Root. Vorher gab es zusätzlich `backend/.env`, mit teils denselben Variablen. Weichten die Werte voneinander ab, zum Beispiel `POSTGRES_PASSWORD`, schlug die Anmeldung an Postgres fehl, ohne dass die Ursache in der Compose-Konfiguration selbst zu sehen war. Lokal ohne Docker (`just dev`) findet `python-dotenv` die Root-`.env` automatisch, sie sucht beim Start von `backend/app/database.py` aufwärts nach der nächsten `.env`.
