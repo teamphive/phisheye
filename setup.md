@@ -34,11 +34,23 @@ docker compose --profile app up -d --build
 
 ### Erster Login
 
-Ohne User kein Login. Einmalig anlegen:
+```bash
+uv run --directory backend alembic upgrade head
+just seed
+```
 
-1. http://localhost:8080 öffnen, mit `KEYCLOAK_ADMIN_USER` und `KEYCLOAK_ADMIN_PASSWORD` aus der `.env` anmelden.
-2. Realm `phisheye` wählen, Users, Add user (E-Mail setzen, Passwort unter Credentials).
-3. Bei Bedarf unter Role mapping die Rolle `operator` zuweisen.
+`just seed` legt vier User an, alle mit dem Passwort `phisheye` und ohne 2FA:
+
+| User | Team und Rolle |
+| --- | --- |
+| `admin@phisheye.example` | Dev-Team, Admin (und Operator) |
+| `analyst@phisheye.example` | Dev-Team, Analyst |
+| `audit@phisheye.example` | Dev-Team, Audit |
+| `standard@phisheye.example` | Standard-Team, Admin (und Operator) |
+
+Das Standard-Team bekommt die Outlook-Meldungen von Domains, die kein Team eingetragen hat.
+
+Dazu legt es den Client `phisheye-backend-admin` in Keycloak an, falls er fehlt. Es läuft nur lokal und lässt sich beliebig oft wiederholen.
 
 Server: [docs/infrastructure.md](docs/infrastructure.md).
 

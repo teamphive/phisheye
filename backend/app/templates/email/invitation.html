@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Einladung ins Team {{ team_name }}{% endblock %}
+{% block preheader %}{{ inviter_name }} hat dich in ein Team eingeladen.{% endblock %}
+{% block content %}
+<h1 style="margin:0 0 10px 0;font-size:22px;line-height:28px;font-weight:700;letter-spacing:-0.3px;">Einladung ins Team {{ team_name }}</h1>
+{% if setup_follows %}
+<p class="text-muted" style="margin:0;font-size:15px;line-height:23px;color:#5c687f;">{{ inviter_name }} hat dich als {{ role_label }} eingeladen. Du bekommst gleich eine zweite Mail, mit der du dein Konto einrichtest. Danach bist du im Team.</p>
+{% else %}
+<p class="text-muted" style="margin:0 0 16px 0;font-size:15px;line-height:23px;color:#5c687f;">{{ inviter_name }} hat dich als {{ role_label }} eingeladen. Melde dich mit dieser E-Mail-Adresse an, danach bist du im Team.</p>
+<p style="margin:0;font-size:15px;line-height:23px;"><a href="{{ url }}" style="color:#2b5ce6;">{{ url }}</a></p>
+{% endif %}
+{% endblock %}
+{% block footer %}Diese Nachricht kommt automatisch von phisheye, weil dich jemand in ein Team eingeladen hat. Bitte antworte nicht darauf.{% endblock %}

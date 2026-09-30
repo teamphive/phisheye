@@ -3,7 +3,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routes import analyze, me, webhooks
+from .routes import analyze, me, team, webhooks
 
 app = FastAPI(title="phisheye")
 
@@ -18,6 +18,7 @@ app.add_middleware(
 
 app.include_router(analyze.router)
 app.include_router(me.router)
+app.include_router(team.router)
 app.include_router(webhooks.router)
 
 

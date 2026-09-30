@@ -297,3 +297,14 @@ async def test_only_admin_deletes_and_deleted_analyses_disappear(db, api):
 
     assert (await api.get("/analyses")).json() == []
     assert (await api.get(url)).status_code == 404
+
+
+def test_vt_results_become_plain_json():
+    import json
+    from collections import UserDict
+
+    from app.services.mail_analysis import _plain
+
+    results = UserDict({"Engine": UserDict({"category": "malicious"})})
+
+    assert json.dumps(_plain(results)) == '{"Engine": {"category": "malicious"}}'

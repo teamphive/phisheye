@@ -3,12 +3,19 @@ import logging
 import smtplib
 from datetime import datetime, timedelta
 
+import httpx
 from arq import Retry
 from sqlalchemy import func
 from sqlmodel import select
 
 from ..database import get_session
 from ..models.mail_analysis import MailAnalysis
+from ..models.team import Team
+from ..models.team_invitation import TeamInvitation
+from ..models.user import User
+from ..services.domains import team_for_address
+from ..services.invitations import deliver_invitation
+from ..services.keycloak_admin import KeycloakAdminError
 from ..services.mail_analysis import analyze_and_store
 from ..services.notifications import is_notifiable, send_analysis_mail
 from ..services.pop3_poller import (
@@ -51,16 +58,25 @@ async def _poll_report_mailbox() -> None:
     async for db in get_session():
         default_team, system_user = await ensure_system_defaults(db)
 
+        # a failed mail rolls the session back and expires these objects, so
+        # the loop keeps only their ids
+        default_team_id = default_team.id
+        system_user_id = system_user.id
+
         for uid, raw_mail in mails:
             content = extract_eml(raw_mail)
+            reporter = extract_reporter(raw_mail)
 
             try:
+                # the team that owns the reporter's domain, otherwise the default
+                team_id = await team_for_address(reporter, db) or default_team_id
+
                 await analyze_and_store(
                     content=content,
-                    team_id=default_team.id,
-                    submitted_by=system_user.id,
+                    team_id=team_id,
+                    submitted_by=system_user_id,
                     db=db,
-                    reported_by=extract_reporter(raw_mail),
+                    reported_by=reporter,
                 )
             except Exception:
                 logger.exception("Analysis of POP3 mail failed")
@@ -106,3 +122,31 @@ async def send_analysis_ready(ctx, analysis_id: int) -> None:
 
         analysis.notified_at = datetime.utcnow()
         await db.commit()
+
+
+async def send_team_invitation(ctx, invitation_id: int) -> None:
+    async for db in get_session():
+        invitation = await db.get(TeamInvitation, invitation_id)
+
+        # revoked or accepted before the job ran
+        if invitation is None:
+            return
+
+        team = await db.get(Team, invitation.team_id)
+        inviter = await db.get(User, invitation.invited_by)
+
+        if team is None or team.deleted_at is not None or inviter is None:
+            return
+
+        try:
+            await deliver_invitation(
+                invitation.email, team.name, inviter.name, invitation.role
+            )
+        except (
+            smtplib.SMTPException,
+            OSError,
+            httpx.HTTPError,
+            KeycloakAdminError,
+        ) as exc:
+            logger.exception("Invitation %s failed", invitation_id)
+            raise Retry(defer=ctx["job_try"] * 60) from exc

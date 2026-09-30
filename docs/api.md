@@ -74,33 +74,43 @@ Gezählt werden abgeschlossene, nicht gelöschte Analysen des aktiven Teams mit 
 
 | Methode | Pfad | Zweck |
 |---|---|---|
-| GET | `/team` | Mitglieder und offene Einladungen des aktiven Teams |
-| POST | `/teams` | Team anlegen, Body `name`, der Nutzer wird Admin. Antwortet mit dem Team wie in `GET /me` |
-| PATCH | `/team` | Umbenennen, Body `name`, nur Admin |
-| DELETE | `/team` | Weich löschen, nur Admin |
-| POST | `/team/invitations` | Einladen, Body `email` und `role`, antwortet mit der Einladung wie in `GET /team`. 409, wenn die Adresse schon Mitglied oder eingeladen ist |
-| PATCH | `/team/invitations/{id}` | Rolle einer offenen Einladung ändern, Body `role` |
-| DELETE | `/team/invitations/{id}` | Einladung zurückziehen |
-| PATCH | `/team/members/{id}` | Rolle ändern, Body `role` |
-| DELETE | `/team/members/{id}` | Entfernen, oder selbst verlassen |
-| GET | `/team/domains` | Meldeadresse und Domains für Outlook-Meldungen |
-| POST | `/team/domains` | Domain eintragen, Body `domain`, nur Admin |
-| DELETE | `/team/domains/{id}` | Domain entfernen, nur Admin |
+| GET | `/team` | Mitglieder und offene Einladungen des aktiven Teams (umgesetzt, `two_factor_enabled` noch nicht aus Keycloak) |
+| POST | `/teams` | Team anlegen, Body `name`, der Nutzer wird Admin. Antwortet mit dem Team wie in `GET /me` (umgesetzt) |
+| PATCH | `/team` | Umbenennen, Body `name`, nur Admin (umgesetzt) |
+| DELETE | `/team` | Weich löschen, nur Admin (umgesetzt) |
+| POST | `/team/invitations` | Einladen, Body `email` und `role`, antwortet mit der Einladung wie in `GET /team`. 409, wenn die Adresse schon Mitglied oder eingeladen ist (umgesetzt, nur Admin) |
+| PATCH | `/team/invitations/{id}` | Rolle einer offenen Einladung ändern, Body `role` (umgesetzt, nur Admin) |
+| DELETE | `/team/invitations/{id}` | Einladung zurückziehen (umgesetzt, nur Admin) |
+| PATCH | `/team/members/{id}` | Rolle ändern, Body `role`, nur Admin (umgesetzt) |
+| DELETE | `/team/members/{id}` | Entfernen (nur Admin), oder selbst verlassen (umgesetzt) |
+| GET | `/team/domains` | Meldeadresse und Domains für Outlook-Meldungen (umgesetzt) |
+| POST | `/team/domains` | Domain eintragen, Body `domain`, nur Admin (umgesetzt) |
+| DELETE | `/team/domains/{id}` | Domain entfernen, nur Admin (umgesetzt) |
 
-Der letzte Admin kann sich weder herabstufen noch entfernen. Das Verlassen des letzten Teams wird abgelehnt.
+Einladungen:
+
+- Jede Person bekommt zuerst unsere Einladungsmail mit dem Teamnamen.
+- Hat sie noch kein Konto oder kein Passwort, legt der Worker es in Keycloak an (Service-Account `phisheye-backend-admin`) und Keycloak schickt eine zweite Mail. Darüber setzt die Person Passwort und Profil. Der Link gilt sieben Tage. Ein Passwort kennt das Backend nie.
+- Wer schon ein Konto hat, bekommt nur unsere Mail, mit dem Link zur App.
+- Bei der nächsten Anfrage mit passender, von Keycloak bestätigter E-Mail wird die Person Mitglied, die Einladung verschwindet. Das gilt auch für bestehende Konten. Eine Adresse, die jemand selbst ändern kann, zählt erst nach der Bestätigung, sonst könnte man sich in fremde Einladungen eintragen. Legt ein Admin ein Konto von Hand an, muss er in Keycloak "Email verified" setzen.
+- Neue Konten starten ohne Team.
+- Gelöschte Teams und bestehende Mitgliedschaften werden übersprungen.
+
+Der letzte Admin kann sich weder herabstufen noch entfernen. Das Verlassen des letzten Teams wird abgelehnt. Beides antwortet mit 409. Die `id` eines Mitglieds ist die Nutzer-ID.
 
 ## Outlook-Meldungen
 
 Mitarbeiter melden eine verdächtige Mail in Outlook, die Meldung geht an ein gemeinsames phisheye-Postfach. Das Backend holt es per POP3 ab und legt für jede Meldung eine Analyse an.
 
 - Welches Team die Meldung bekommt, entscheidet die Domain der meldenden Adresse, nicht die des ursprünglichen Absenders.
-- Kennt kein Team die Domain, geht die Meldung ans Standard-Team (`PHISHEYE_DEFAULT_TEAM_ID`, im Kern der Admin). Sie wird nicht verworfen.
+- Kennt kein Team die Domain, geht die Meldung ans Standard-Team. Sie wird nicht verworfen.
 - Subdomains zählen mit: `firma.de` deckt auch `mail.firma.de` ab.
 - Eine Domain gehört höchstens einem Team. `POST /team/domains` antwortet mit 409, wenn ein anderes Team dieselbe Domain, eine übergeordnete oder eine Subdomain davon eingetragen hat. Die Antwort nennt das andere Team nicht.
 - Ein Nachweis, dass dem Team die Domain gehört, ist nicht vorgesehen. Wer zuerst einträgt, bekommt sie.
 - 422 bei ungültigen Domains, öffentlichen Mail-Anbietern wie `gmail.com` und öffentlichen Suffixen wie `co.uk` (Public Suffix List). Das Frontend zeigt die Meldung aus der Antwort an.
-- Das Frontend schickt die Domain in Kleinbuchstaben, ohne `@`, `www.` und Punkt am Ende, Umlaute als Punycode. Das Backend sollte trotzdem selbst normalisieren.
-- Ein Unique-Index reicht für die Subdomain-Regel nicht, die Prüfung muss in der Anwendung laufen, in derselben Transaktion wie das Eintragen.
+- Das Frontend schickt die Domain in Kleinbuchstaben, ohne `@`, `www.` und Punkt am Ende, Umlaute als Punycode. Das Backend normalisiert trotzdem selbst.
+- Ein Unique-Index reicht für die Subdomain-Regel nicht. Die Prüfung läuft in der Anwendung, in derselben Transaktion wie das Eintragen. Der Index fängt nur die gleiche Domain ab.
+- `report_address` ist das Postfach aus `POP3_USERNAME`. Passt die Domain eines Teams auf die meldende Adresse, geht die Meldung dorthin. Gelöschte Teams bekommen keine Meldungen mehr.
 
 ### Benachrichtigung per Mail
 

@@ -1,6 +1,7 @@
 import hashlib
 import logging
 import os
+from collections.abc import Mapping
 from email import policy
 from email.parser import BytesParser
 
@@ -15,6 +16,14 @@ from .notifications import enqueue_analysis_ready
 from .object_storage import ObjectStorageError, delete_object, store_eml
 
 logger = logging.getLogger(__name__)
+
+
+# vt returns its own dict wrapper, which the JSON column cannot store
+def _plain(value):
+    if isinstance(value, Mapping):
+        return {key: _plain(item) for key, item in value.items()}
+
+    return value
 
 
 async def analyze_and_store(
@@ -76,7 +85,7 @@ async def analyze_and_store(
                     {
                         **attachment,
                         "vt_results": (
-                            vt_result.last_analysis_results
+                            _plain(vt_result.last_analysis_results)
                             if vt_result is not None
                             else None
                         ),

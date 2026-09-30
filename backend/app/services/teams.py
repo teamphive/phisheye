@@ -3,16 +3,19 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ..database import get_db
+from ..models.team import Team
 from ..models.team_membership import TeamMembership
 from ..models.user import User
 from .auth import get_current_user
 
 
-# all team memberships of a user, ordered by creation time
+# memberships of a user in teams that still exist, ordered by creation time
 async def memberships_of(user: User, db: AsyncSession) -> list[TeamMembership]:
     result = await db.exec(
         select(TeamMembership)
+        .join(Team, Team.id == TeamMembership.team_id)
         .where(TeamMembership.user_id == user.id)
+        .where(Team.deleted_at.is_(None))
         .order_by(TeamMembership.id)
     )
     return list(result.all())
@@ -50,3 +53,8 @@ async def get_active_membership(
 def require_role(membership: TeamMembership, *roles: str) -> None:
     if membership.role not in roles:
         raise HTTPException(status_code=403, detail="Your role cannot do this")
+
+
+def initials(name: str) -> str:
+    letters = "".join(part[0] for part in name.split() if part)
+    return (letters[:2] or "?").upper()

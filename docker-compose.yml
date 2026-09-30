@@ -49,6 +49,7 @@ services:
       SMTP_PORT: "${SMTP_PORT:-465}"
       SMTP_USERNAME: "${SMTP_USERNAME:-noreply@example.com}"
       SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
+      KEYCLOAK_SERVICE_CLIENT_SECRET: "${KEYCLOAK_SERVICE_CLIENT_SECRET}"
     # the rendered realm goes here, an older volume has this folder owned by root
     tmpfs:
       - /opt/keycloak/data/import:mode=1777
@@ -111,8 +112,8 @@ services:
       POSTGRES_HOST: db
       REDIS_URL: redis://redis:6379/0
       S3_ENDPOINT_URL: http://minio:9000
-      KEYCLOAK_URL: "http://keycloak:8080/auth"
-      KEYCLOAK_PUBLIC_URL: "${KEYCLOAK_PUBLIC_URL:-http://localhost:8080}/auth"
+      KEYCLOAK_URL: "http://keycloak:8080"
+      KEYCLOAK_PUBLIC_URL: "${KEYCLOAK_PUBLIC_URL:-http://localhost:8080}"
     command: alembic upgrade head
     restart: "no"
     profiles: [app]
@@ -129,8 +130,8 @@ services:
       POSTGRES_HOST: db
       REDIS_URL: redis://redis:6379/0
       S3_ENDPOINT_URL: http://minio:9000
-      KEYCLOAK_URL: "http://keycloak:8080/auth"
-      KEYCLOAK_PUBLIC_URL: "${KEYCLOAK_PUBLIC_URL:-http://localhost:8080}/auth"
+      KEYCLOAK_URL: "http://keycloak:8080"
+      KEYCLOAK_PUBLIC_URL: "${KEYCLOAK_PUBLIC_URL:-http://localhost:8080}"
     restart: unless-stopped
     profiles: [app]
     depends_on:
@@ -150,8 +151,8 @@ services:
       POSTGRES_HOST: db
       REDIS_URL: redis://redis:6379/0
       S3_ENDPOINT_URL: http://minio:9000
-      KEYCLOAK_URL: "http://keycloak:8080/auth"
-      KEYCLOAK_PUBLIC_URL: "${KEYCLOAK_PUBLIC_URL:-http://localhost:8080}/auth"
+      KEYCLOAK_URL: "http://keycloak:8080"
+      KEYCLOAK_PUBLIC_URL: "${KEYCLOAK_PUBLIC_URL:-http://localhost:8080}"
     command: arq app.worker.settings.WorkerSettings
     restart: unless-stopped
     profiles: [app]

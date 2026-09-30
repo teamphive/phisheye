@@ -8,7 +8,7 @@ from ..models.team import Team
 from ..models.team_membership import TeamMembership
 from ..models.user import User
 from ..services.auth import get_current_user
-from ..services.teams import memberships_of, pick_active
+from ..services.teams import initials, memberships_of, pick_active
 
 router = APIRouter(tags=["me"])
 
@@ -21,14 +21,11 @@ class SelectTeamRequest(BaseModel):
     team_id: int
 
 
-def _initials(name: str) -> str:
-    letters = "".join(part[0] for part in name.split() if part)
-    return (letters[:2] or "?").upper()
-
-
 async def _teams_for(user: User, db: AsyncSession) -> list[dict]:
     memberships_result = await db.exec(
-        select(TeamMembership, Team).join(Team, Team.id == TeamMembership.team_id)
+        select(TeamMembership, Team)
+        .join(Team, Team.id == TeamMembership.team_id)
+        .where(Team.deleted_at.is_(None))
     )
     all_memberships = memberships_result.all()
 
@@ -58,7 +55,7 @@ async def get_me(
     return {
         "name": user.name,
         "email": user.email,
-        "initials": _initials(user.name),
+        "initials": initials(user.name),
         "is_operator": user.is_operator,
         "teams": await _teams_for(user, db),
         "active_team_id": active.team_id if active else None,

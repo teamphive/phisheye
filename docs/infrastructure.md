@@ -50,9 +50,20 @@ Der Nginx Proxy Manager gibt nur das Frontend frei, eine Domain reicht. Keycloak
 
 Keycloak startet im Produktionsmodus (`start --optimized`). Pfad `/auth` und Datenbank (H2-Datei im Volume `keycloak-data`) sind Build-Optionen und stecken im Image (Stage `keycloak` in `frontend/Dockerfile`). Eine Änderung daran wirkt erst nach einem neuen Build des Images, ein anderer Wert in `docker-compose.yml` wird ignoriert.
 
-Folge: Backend und Frontend hängen `/auth` an `KEYCLOAK_URL` und `KEYCLOAK_PUBLIC_URL` an, dort wo sie Keycloak tatsächlich ansprechen (`docker-compose.yml`). Die Variablen selbst bleiben pfadlos, siehe Tabelle unten.
+Folge: `KEYCLOAK_URL` und `KEYCLOAK_PUBLIC_URL` bleiben überall pfadlos (lokal, `just dev` und Compose). Das Backend hängt `/auth` selbst an (`backend/app/services/auth.py`). Compose ergänzt es nur für `KC_HOSTNAME` und den Frontend-Build.
 
 Die Admin-Console läuft unter `https://phisheye.neumann-it.org/auth/admin/`, öffentlich erreichbar, bewusst so entschieden. Absicherung über starkes Passwort und 2FA am Admin-Konto, nicht über Netzwerksperren. Port `8080` bleibt nur noch für einen SSH-Tunnel als Fallback an `127.0.0.1` gebunden, kein regulärer Zugangsweg.
+
+## Konten für Eingeladene
+
+Das Backend legt für eingeladene Personen ein Konto in Keycloak an, ohne Passwort. Keycloak mailt einen Link zum Setzen. Dafür nutzt das Backend den Client `phisheye-backend-admin` (Service-Account mit `view-users`, `query-users` und `manage-users`). ID und Secret stehen in der `.env`.
+
+- Neue Realms bekommen den Client beim ersten Import.
+- Bei einem bestehenden Realm den Client einmal von Hand anlegen: Clients, Create, Client ID `phisheye-backend-admin`, Client authentication an, Service accounts roles an. Das Secret unter Credentials in die `.env` kopieren. Unter Service accounts roles die drei Rollen aus `realm-management` zuweisen.
+- Ohne Secret geht nur die Einladungsmail raus, das Konto muss dann schon existieren.
+- Keycloak mailt über den SMTP-Server aus dem Realm (`SMTP_*`).
+
+Die Mails von Keycloak (Konto einrichten, Passwort zurücksetzen, E-Mail bestätigen) haben ein eigenes Design. Es liegt als Email-Theme in `frontend/email-theme/` und steckt im Keycloak-Image. Neue Realms nutzen es über die Vorlage. In einem bestehenden Realm einmal unter Realm settings, Themes, Email theme auf `phisheye-email` stellen. `just seed` macht das lokal.
 
 ## Eine `.env` für alles
 
