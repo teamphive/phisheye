@@ -4,21 +4,19 @@ set shell := ["bash", "-uc"]
 default:
     just --list
 
-# starts infra (compose), backend, worker and frontend in one terminal, Ctrl+C stops all but compose
+# builds and starts the whole stack in docker
 dev:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    docker compose up -d
-    uv run --directory backend uvicorn app.main:app --reload &
-    api=$!
-    uv run --directory backend arq app.worker.settings.WorkerSettings &
-    worker=$!
-    frontend/node_modules/.bin/vite frontend &
-    web=$!
-    trap 'kill $api $worker $web 2>/dev/null' SIGINT SIGTERM EXIT
-    wait
+    docker compose --profile app up -d --build
 
-# local test users (admin, analyst, audit) and the backend's keycloak client, run again any time
+# stops the stack, the data stays in the volumes
+stop:
+    docker compose --profile app down
+
+# follows the logs, of one service if given (backend, worker, frontend, keycloak)
+logs service="":
+    docker compose --profile app logs -f {{service}}
+
+# local test users and the backend's keycloak client, run again any time
 seed:
     uv run --directory backend python -m scripts.seed_dev
 

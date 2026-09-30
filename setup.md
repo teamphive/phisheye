@@ -16,28 +16,24 @@ Colima (oder Docker Desktop) muss laufen. `git-cliff` braucht nur, wer Releases 
 ```bash
 cp .env.example .env
 # Passwörter in .env anpassen
-(cd frontend && npm install)
 just dev
 ```
 
-`just dev` startet Compose (Postgres, Redis, MinIO, Keycloak, pgAdmin), Backend, Worker und Frontend. Migration einmalig: `uv run --directory backend alembic upgrade head`.
+`just dev` baut und startet alles in Docker: Postgres, Redis, MinIO, Keycloak, pgAdmin, Migration, Backend, Worker und Frontend. Der erste Build dauert ein paar Minuten. Danach helfen `just logs` (optional mit Dienst, zum Beispiel `just logs worker`) und `just stop`.
 
 - Frontend: http://localhost:5173
 - API-Docs: http://localhost:8000/docs
 - Keycloak: http://localhost:8080
 
-Alles in Docker statt lokal:
-
-```bash
-docker compose --profile app up -d --build
-```
+Einzelne Teile mit Hot Reload: nur die Infrastruktur mit `docker compose up -d` starten, Backend und Frontend wie in den READMEs von `backend/` und `frontend/` beschrieben. Laufen die Container von `just dev`, blockieren sie die Ports 8000 und 5173.
 
 ### Erster Login
 
 ```bash
-uv run --directory backend alembic upgrade head
 just seed
 ```
+
+Keycloak braucht nach dem Start einen Moment. Läuft `just seed` in einen Verbindungsfehler, kurz warten (`just logs keycloak`, bis "started in" erscheint) und wiederholen.
 
 `just seed` legt vier User an, alle mit dem Passwort `phisheye` und ohne 2FA:
 
