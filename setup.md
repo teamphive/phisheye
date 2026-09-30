@@ -39,13 +39,16 @@ uv run --directory backend alembic upgrade head
 just seed
 ```
 
-`just seed` legt drei User an, alle mit dem Passwort `phisheye` und ohne 2FA:
+`just seed` legt vier User an, alle mit dem Passwort `phisheye` und ohne 2FA:
 
-| User | Rolle im Dev-Team |
+| User | Team und Rolle |
 | --- | --- |
-| `admin@phisheye.example` | Admin (und Operator) |
-| `analyst@phisheye.example` | Analyst |
-| `audit@phisheye.example` | Audit |
+| `admin@phisheye.example` | Dev-Team, Admin (und Operator) |
+| `analyst@phisheye.example` | Dev-Team, Analyst |
+| `audit@phisheye.example` | Dev-Team, Audit |
+| `standard@phisheye.example` | Standard-Team, Admin (und Operator) |
+
+Das Standard-Team bekommt die Outlook-Meldungen von Domains, die kein Team eingetragen hat.
 
 Dazu legt es den Client `phisheye-backend-admin` in Keycloak an, falls er fehlt. Es läuft nur lokal und lässt sich beliebig oft wiederholen.
 

@@ -22,18 +22,24 @@ def test_refuses_to_run_outside_localhost(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_database_seed_creates_three_roles_once(db):
+async def test_database_seed_creates_both_teams_once(db):
     await seed_dev.seed_database(db)
     await seed_dev.seed_database(db)
 
-    teams = (await db.exec(select(Team))).all()
+    teams = {t.name: t.id for t in (await db.exec(select(Team))).all()}
     memberships = (await db.exec(select(TeamMembership))).all()
     users = (await db.exec(select(User))).all()
 
-    assert [t.name for t in teams] == ["Dev-Team"]
-    assert sorted(m.role for m in memberships) == ["admin", "analyst", "audit"]
-    assert len(users) == 3
-    assert {u.active_team_id for u in users} == {teams[0].id}
+    assert sorted(teams) == ["Dev-Team", "Standard-Team"]
+    assert len(users) == 4
+    assert sorted((m.team_id, m.role) for m in memberships) == sorted(
+        [
+            (teams["Dev-Team"], "admin"),
+            (teams["Dev-Team"], "analyst"),
+            (teams["Dev-Team"], "audit"),
+            (teams["Standard-Team"], "admin"),
+        ]
+    )
 
 
 def keycloak(users, clients):

@@ -10,6 +10,7 @@ import load_dotenv
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.constants import DEFAULT_TEAM_NAME
 from app.models.team import Team
 from app.models.team_membership import TeamMembership
 from app.models.user import User
@@ -19,11 +20,19 @@ TEAM_NAME = "Dev-Team"
 SERVICE_CLIENT = "phisheye-backend-admin"
 SERVICE_ROLES = ["view-users", "query-users", "manage-users"]
 
-# email, first name, last name, role in the team
+# email, first name, last name, team, role in the team, operator
 USERS = [
-    ("admin@phisheye.example", "Dev", "Admin", "admin"),
-    ("analyst@phisheye.example", "Dev", "Analyst", "analyst"),
-    ("audit@phisheye.example", "Dev", "Audit", "audit"),
+    ("admin@phisheye.example", "Dev", "Admin", TEAM_NAME, "admin", True),
+    ("analyst@phisheye.example", "Dev", "Analyst", TEAM_NAME, "analyst", False),
+    ("audit@phisheye.example", "Dev", "Audit", TEAM_NAME, "audit", False),
+    (
+        "standard@phisheye.example",
+        "Standard",
+        "Admin",
+        DEFAULT_TEAM_NAME,
+        "admin",
+        True,
+    ),
 ]
 
 
@@ -44,7 +53,7 @@ def seed_keycloak(client: httpx.Client, admin_url: str, service_secret: str) -> 
 
     operator = get("/roles/operator")
 
-    for email, first, last, role in USERS:
+    for email, first, last, _team, _role, is_operator in USERS:
         found = get("/users", email=email, exact="true")
 
         if found:
@@ -72,7 +81,7 @@ def seed_keycloak(client: httpx.Client, admin_url: str, service_secret: str) -> 
         )
         response.raise_for_status()
 
-        if role == "admin":
+        if is_operator:
             post(f"/users/{user_id}/role-mappings/realm", [operator])
 
     if get("/clients", clientId=SERVICE_CLIENT):
@@ -98,15 +107,22 @@ def seed_keycloak(client: httpx.Client, admin_url: str, service_secret: str) -> 
 
 async def seed_database(db: AsyncSession) -> None:
     async with db.begin():
-        result = await db.exec(select(Team).where(Team.name == TEAM_NAME))
-        team = result.first()
+        teams: dict[str, Team] = {}
 
-        if team is None:
-            team = Team(name=TEAM_NAME)
-            db.add(team)
-            await db.flush()
+        for email, first, last, team_name, role, _operator in USERS:
+            team = teams.get(team_name)
 
-        for email, first, last, role in USERS:
+            if team is None:
+                result = await db.exec(select(Team).where(Team.name == team_name))
+                team = result.first()
+
+                if team is None:
+                    team = Team(name=team_name)
+                    db.add(team)
+                    await db.flush()
+
+                teams[team_name] = team
+
             result = await db.exec(select(User).where(User.email == email))
             user = result.first()
 
