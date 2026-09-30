@@ -1,0 +1,53 @@
+---
+
+# Exporters for the monitoring stack, see README.md. Prometheus runs on another
+# host and pulls from the ports below. They listen on METRICS_BIND only,
+# because Docker publishes ports past the firewall.
+#
+#   docker compose -f deployment/monitoring/docker-compose.yml up -d
+services:
+  cadvisor:
+    image: ghcr.io/google/cadvisor:v0.60.5
+    container_name: cadvisor
+    restart: unless-stopped
+    privileged: true
+    ports:
+      - "${METRICS_BIND:-127.0.0.1}:8081:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    devices:
+      - /dev/kmsg
+
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.67.0
+    container_name: redis-exporter
+    restart: unless-stopped
+    environment:
+      REDIS_ADDR: redis://redis:6379
+      # the arq queue is a sorted set, its length shows a jam
+      REDIS_EXPORTER_CHECK_KEYS: arq:queue
+    ports:
+      - "${METRICS_BIND:-127.0.0.1}:9121:9121"
+    networks:
+      - app
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.17.1
+    container_name: postgres-exporter
+    restart: unless-stopped
+    environment:
+      DATA_SOURCE_NAME: "postgresql://phisheye_monitor:${POSTGRES_MONITOR_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable"
+    ports:
+      - "${METRICS_BIND:-127.0.0.1}:9187:9187"
+    networks:
+      - app
+
+networks:
+  # the network of the app stack, where redis and db live
+  app:
+    name: phisheye_default
+    external: true
