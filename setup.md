@@ -34,11 +34,20 @@ docker compose --profile app up -d --build
 
 ### Erster Login
 
-Ohne User kein Login. Einmalig anlegen:
+```bash
+uv run --directory backend alembic upgrade head
+just seed
+```
 
-1. http://localhost:8080 öffnen, mit `KEYCLOAK_ADMIN_USER` und `KEYCLOAK_ADMIN_PASSWORD` aus der `.env` anmelden.
-2. Realm `phisheye` wählen, Users, Add user (E-Mail setzen, Passwort unter Credentials).
-3. Bei Bedarf unter Role mapping die Rolle `operator` zuweisen.
+`just seed` legt drei User an, alle mit dem Passwort `phisheye` und ohne 2FA:
+
+| User | Rolle im Dev-Team |
+| --- | --- |
+| `admin@phisheye.example` | Admin (und Operator) |
+| `analyst@phisheye.example` | Analyst |
+| `audit@phisheye.example` | Audit |
+
+Dazu legt es den Client `phisheye-backend-admin` in Keycloak an, falls er fehlt. Es läuft nur lokal und lässt sich beliebig oft wiederholen.
 
 Server: [docs/infrastructure.md](docs/infrastructure.md).
 
