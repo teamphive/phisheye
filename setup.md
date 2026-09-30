@@ -35,14 +35,15 @@ just seed
 
 Keycloak braucht nach dem Start einen Moment. Läuft `just seed` in einen Verbindungsfehler, kurz warten (`just logs keycloak`, bis "started in" erscheint) und wiederholen.
 
-`just seed` legt vier User an, alle mit dem Passwort `phisheye` und ohne 2FA:
+`just seed` legt fünf User an, alle mit dem Passwort `phisheye` und ohne 2FA:
 
 | User | Team und Rolle |
 | --- | --- |
 | `admin@phisheye.example` | Dev-Team, Admin (und Operator) |
 | `analyst@phisheye.example` | Dev-Team, Analyst |
 | `audit@phisheye.example` | Dev-Team, Audit |
-| `standard@phisheye.example` | Standard-Team, Admin (und Operator) |
+| `standard@phisheye.example` | Standard-Team, Admin (Instanz-Admin, sieht alle Teams) |
+| `auditor@phisheye.example` | Standard-Team, Audit (Instanz-Auditor, liest alle Teams) |
 
 Das Standard-Team bekommt die Outlook-Meldungen von Domains, die kein Team eingetragen hat.
 

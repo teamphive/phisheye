@@ -18,7 +18,7 @@ Die Anmeldung läuft über Keycloak, nicht über die API. Das Frontend holt sich
 Authorization: Bearer <access token>
 ```
 
-Das Backend prüft die Signatur gegen die öffentlichen Schlüssel des Realms unter `/realms/phisheye/protocol/openid-connect/certs`, außerdem den Aussteller (`iss`) und ob `aud` den Wert `phisheye-backend` enthält. `is_operator` ist die Realm-Rolle `operator` in Keycloak. Ein Aufruf ohne gültiges Token wird mit 401 abgelehnt, ein Token mit zu schwacher Rolle mit 403. Das Frontend zeigt 403 als fehlende Berechtigung an und meldet niemanden ab.
+Das Backend prüft die Signatur gegen die öffentlichen Schlüssel des Realms unter `/realms/phisheye/protocol/openid-connect/certs`, außerdem den Aussteller (`iss`) und ob `aud` den Wert `phisheye-backend` enthält. `is_operator` kommt aus der Realm-Rolle `operator` in Keycloak oder daraus, dass der Nutzer Instanz-Admin ist (siehe Sitzung). Ein Aufruf ohne gültiges Token wird mit 401 abgelehnt, ein Token mit zu schwacher Rolle mit 403. Das Frontend zeigt 403 als fehlende Berechtigung an und meldet niemanden ab.
 
 Das Feld `sub` im Token ist die Keycloak-ID des Nutzers, nicht seine ID in unserer Datenbank. Beim ersten Aufruf muss das Backend den Nutzer anlegen und die beiden IDs verbinden.
 
@@ -29,10 +29,19 @@ Endpunkte unter `/auth/` entfallen damit.
 | Methode | Pfad | Zweck |
 |---|---|---|
 | GET | `/me` | Angemeldeter Nutzer, seine Teams und die aktive Rolle (umgesetzt) |
-| POST | `/me/team` | Wechselt den Team-Kontext, Body `team_id` (umgesetzt) |
+| POST | `/me/team` | Wechselt den Team-Kontext, Body `team_id`. Instanz-Mitglieder dürfen jedes Team wählen, alle anderen nur eigene, sonst 404 (umgesetzt) |
 | PATCH | `/me` | Ändert den Anzeigenamen, Body `name` (umgesetzt) |
 
-`GET /me` liefert `name`, `email`, `initials`, `is_operator` sowie die Teams mit `id`, `name`, `member_count` und `role`. Dazu `active_team_id`: das Team, für das der Server gerade antwortet, `null` ohne Team. Ohne dieses Feld weiß das Frontend nach einem Reload nicht, welches Team aktiv ist, und nimmt das erste der Liste.
+`GET /me` liefert `name`, `email`, `initials`, `is_operator`, `instance_role` (`admin`, `audit` oder `null`), `can_create_teams` sowie die Teams mit `id`, `name`, `member_count`, `role` und `via_instance`. Dazu `active_team_id`: das Team, für das der Server gerade antwortet, `null` ohne Team. Ohne dieses Feld weiß das Frontend nach einem Reload nicht, welches Team aktiv ist, und nimmt das erste der Liste.
+
+Instanz-Rollen: Das **Standard-Team** ist das Instanz-Team. Dort gibt es nur die Rollen `admin` und `audit`. Wer dort Mitglied ist, darf in jedes Team wechseln:
+
+- Der **Instanz-Admin** hat in fremden Teams die Rolle `admin` und ist automatisch Operator. Nur er erstellt Teams.
+- Der **Instanz-Auditor** hat in fremden Teams die Rolle `audit` und liest nur.
+- `via_instance` ist `true` bei Teams, in denen der Nutzer nicht selbst Mitglied ist, und `role` ist dann seine Instanz-Rolle. `can_create_teams` ist nur für den Instanz-Admin wahr.
+- Das Standard-Team hat einen festen Namen. Es lässt sich nicht umbenennen oder löschen (409), und Einladungen, Rollenwechsel dort mit `analyst` werden mit 422 abgelehnt.
+- Betritt ein Instanz-Mitglied ein fremdes Team, schreibt das Backend eine Logzeile.
+- Der erste Instanz-Admin kommt über `PHISHEYE_ADMIN_EMAIL` (siehe [infrastructure.md](infrastructure.md)).
 
 ## Analysen
 
@@ -75,7 +84,7 @@ Gezählt werden abgeschlossene, nicht gelöschte Analysen des aktiven Teams mit 
 | Methode | Pfad | Zweck |
 |---|---|---|
 | GET | `/team` | Mitglieder und offene Einladungen des aktiven Teams (umgesetzt) |
-| POST | `/teams` | Team anlegen, Body `name`, der Nutzer wird Admin. Antwortet mit dem Team wie in `GET /me` (umgesetzt) |
+| POST | `/teams` | Team anlegen, Body `name`, nur Instanz-Admin, der Nutzer wird Admin. Antwortet mit dem Team wie in `GET /me` (umgesetzt) |
 | PATCH | `/team` | Umbenennen, Body `name`, nur Admin (umgesetzt) |
 | DELETE | `/team` | Weich löschen, nur Admin (umgesetzt) |
 | POST | `/team/invitations` | Einladen, Body `email` und `role`, antwortet mit der Einladung wie in `GET /team`. 409, wenn die Adresse schon Mitglied oder eingeladen ist (umgesetzt, nur Admin) |
