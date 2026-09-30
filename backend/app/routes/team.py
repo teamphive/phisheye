@@ -1,7 +1,9 @@
+import logging
 import os
 from datetime import datetime
 from typing import Annotated, Literal
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, StringConstraints
 from sqlalchemy import func
@@ -15,6 +17,7 @@ from ..models.team_domain import TeamDomain
 from ..models.team_invitation import TeamInvitation
 from ..models.team_membership import TeamMembership
 from ..models.user import User
+from ..services import keycloak_admin
 from ..services.auth import get_current_user
 from ..services.domains import DomainError, covered_by, normalize_domain
 from ..services.notifications import enqueue_team_invitation
@@ -24,6 +27,8 @@ from ..services.teams import (
     memberships_of,
     require_role,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["team"])
 
@@ -69,6 +74,19 @@ def _invitation(invitation: TeamInvitation) -> dict:
         "role": invitation.role,
         "invited_at": invitation.created_at,
     }
+
+
+# Keycloak knows who has two factor. If it does not answer, nobody gets a
+# value: unknown is better than a wrong "not set up".
+async def _two_factor(keycloak_ids: list[str]) -> dict[str, bool]:
+    if not keycloak_ids or not keycloak_admin.is_configured():
+        return {}
+
+    try:
+        return await keycloak_admin.otp_users(keycloak_ids)
+    except (keycloak_admin.KeycloakAdminError, httpx.HTTPError):
+        logger.warning("Could not read two factor from Keycloak", exc_info=True)
+        return {}
 
 
 async def _member_count(team_id: int, db: AsyncSession) -> int:
@@ -134,6 +152,10 @@ async def get_team(
     )
     analysis_counts = dict(counts_result.all())
 
+    two_factor = await _two_factor(
+        [member.keycloak_id for _, member in rows if member.keycloak_id]
+    )
+
     return {
         "members": [
             {
@@ -142,8 +164,10 @@ async def get_team(
                 "email": member.email,
                 "initials": initials(member.name),
                 "role": row.role,
-                # TODO: ask the Keycloak admin API, the column is never set
-                "two_factor_enabled": member.totp_enabled,
+                # false without an account, null if Keycloak did not answer
+                "two_factor_enabled": (
+                    two_factor.get(member.keycloak_id) if member.keycloak_id else False
+                ),
                 "analysis_count": analysis_counts.get(member.id, 0),
                 "is_self": member.id == user.id,
             }

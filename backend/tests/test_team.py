@@ -217,3 +217,51 @@ async def test_member_can_leave_with_second_team(db, api):
     response = await api.delete(f"/team/members/{analyst.id}")
 
     assert response.status_code == 204
+
+
+async def two_factor_members(db, api, monkeypatch, otp):
+    """Two members with an account, one who never signed in."""
+    monkeypatch.setenv("KEYCLOAK_SERVICE_CLIENT_SECRET", "secret")
+    monkeypatch.setattr("app.services.keycloak_admin.otp_users", otp)
+
+    _, (admin, analyst, newcomer) = await team_with(db, "admin", "analyst", "analyst")
+    admin.keycloak_id = "kc-admin"
+    analyst.keycloak_id = "kc-analyst"
+    await add(db, admin, analyst)
+    login_as(admin)
+
+    response = await api.get("/team")
+
+    return {m["email"]: m["two_factor_enabled"] for m in response.json()["members"]}
+
+
+@pytest.mark.asyncio
+async def test_team_shows_two_factor_from_keycloak(db, api, monkeypatch):
+    async def otp(ids):
+        assert sorted(ids) == ["kc-admin", "kc-analyst"]
+        return {"kc-admin": True, "kc-analyst": False}
+
+    status = await two_factor_members(db, api, monkeypatch, otp)
+
+    # the third member never signed in, so there is no account to ask about
+    assert status == {
+        "u0@example.com": True,
+        "u1@example.com": False,
+        "u2@example.com": False,
+    }
+
+
+@pytest.mark.asyncio
+async def test_team_shows_unknown_when_keycloak_does_not_answer(db, api, monkeypatch):
+    from app.services.keycloak_admin import KeycloakAdminError
+
+    async def otp(ids):
+        raise KeycloakAdminError("down")
+
+    status = await two_factor_members(db, api, monkeypatch, otp)
+
+    assert status == {
+        "u0@example.com": None,
+        "u1@example.com": None,
+        "u2@example.com": False,
+    }
