@@ -37,7 +37,7 @@ def keycloak(monkeypatch):
 def _token(**claims) -> str:
     payload = {
         "sub": "keycloak-user-1",
-        "iss": "http://localhost:8080/realms/phisheye",
+        "iss": "http://localhost:8080/auth/realms/phisheye",
         "aud": ["phisheye-backend", "account"],
         "exp": int(time.time()) + 60,
         **claims,
@@ -63,7 +63,9 @@ async def test_rejects_token_without_backend_audience():
 @pytest.mark.asyncio
 async def test_rejects_token_with_internal_issuer():
     with pytest.raises(HTTPException) as error:
-        await auth._decode_token(_token(iss="http://keycloak:8080/realms/phisheye"))
+        await auth._decode_token(
+            _token(iss="http://keycloak:8080/auth/realms/phisheye")
+        )
 
     assert error.value.status_code == 401
 

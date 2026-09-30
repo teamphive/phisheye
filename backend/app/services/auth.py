@@ -1,3 +1,4 @@
+import logging
 import os
 from typing import Any
 
@@ -14,6 +15,8 @@ from ..models.team import Team
 from ..models.team_membership import TeamMembership
 from ..models.user import User
 
+logger = logging.getLogger(__name__)
+
 _bearer = HTTPBearer(auto_error=False)
 
 # Keys rarely rotate here, fetch once per process, no TTL cache
@@ -28,7 +31,8 @@ def _realm_url(base_url: str | None) -> str:
         raise HTTPException(status_code=503, detail="Keycloak is not configured")
 
     realm = os.getenv("KEYCLOAK_REALM", "phisheye")
-    return f"{base_url.rstrip('/')}/realms/{realm}"
+    # Keycloak is built with /auth as its path, see frontend/Dockerfile
+    return f"{base_url.rstrip('/')}/auth/realms/{realm}"
 
 
 def _issuer() -> str:
@@ -63,6 +67,9 @@ async def _decode_token(token: str) -> dict[str, Any]:
     key = next((k for k in jwks["keys"] if k["kid"] == header.get("kid")), None)
 
     if key is None:
+        logger.warning(
+            "Token rejected: no key %s in the cached realm keys", header.get("kid")
+        )
         raise HTTPException(status_code=401, detail="Invalid token")
 
     try:
@@ -74,6 +81,8 @@ async def _decode_token(token: str) -> dict[str, Any]:
             audience=os.getenv("KEYCLOAK_AUDIENCE", "phisheye-backend"),
         )
     except JWTError as exc:
+        # the client only sees a plain 401, the reason belongs in the log
+        logger.warning("Token rejected: %s", exc)
         raise HTTPException(status_code=401, detail="Invalid token") from exc
 
 

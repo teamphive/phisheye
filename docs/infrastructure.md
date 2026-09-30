@@ -50,7 +50,7 @@ Der Nginx Proxy Manager gibt nur das Frontend frei, eine Domain reicht. Keycloak
 
 Keycloak startet im Produktionsmodus (`start --optimized`). Pfad `/auth` und Datenbank (H2-Datei im Volume `keycloak-data`) sind Build-Optionen und stecken im Image (Stage `keycloak` in `frontend/Dockerfile`). Eine Änderung daran wirkt erst nach einem neuen Build des Images, ein anderer Wert in `docker-compose.yml` wird ignoriert.
 
-Folge: Backend und Frontend hängen `/auth` an `KEYCLOAK_URL` und `KEYCLOAK_PUBLIC_URL` an, dort wo sie Keycloak tatsächlich ansprechen (`docker-compose.yml`). Die Variablen selbst bleiben pfadlos, siehe Tabelle unten.
+Folge: `KEYCLOAK_URL` und `KEYCLOAK_PUBLIC_URL` bleiben überall pfadlos (lokal, `just dev` und Compose). Das Backend hängt `/auth` selbst an (`backend/app/services/auth.py`). Compose ergänzt es nur für `KC_HOSTNAME` und den Frontend-Build.
 
 Die Admin-Console läuft unter `https://phisheye.neumann-it.org/auth/admin/`, öffentlich erreichbar, bewusst so entschieden. Absicherung über starkes Passwort und 2FA am Admin-Konto, nicht über Netzwerksperren. Port `8080` bleibt nur noch für einen SSH-Tunnel als Fallback an `127.0.0.1` gebunden, kein regulärer Zugangsweg.
 
