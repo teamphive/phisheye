@@ -6,6 +6,7 @@ import { SecurityCard } from "@/components/security-card"
 import { useSession } from "@/components/session-provider"
 import { useTheme } from "@/components/theme-provider"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -31,9 +32,10 @@ import {
 import { Spinner } from "@/components/ui/spinner"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { errorMessage } from "@/lib/api"
+import { teamRoleLabel } from "@/lib/instance"
 import { authEnabled, logout } from "@/lib/keycloak"
 import { updateProfile } from "@/lib/session"
-import { roleLabel } from "@/mocks/session"
+import { instanceRoleLabel } from "@/mocks/session"
 
 const schemes = [
   { value: "light", label: "Hell" },
@@ -87,9 +89,16 @@ export function SettingsPage() {
                 </AvatarFallback>
               </Avatar>
               <div>
-                <div className="text-[15px] font-semibold">{user.name}</div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[15px] font-semibold">{user.name}</span>
+                  {user.instanceRole ? (
+                    <Badge variant="secondary">
+                      {instanceRoleLabel[user.instanceRole]}
+                    </Badge>
+                  ) : null}
+                </div>
                 <div className="font-mono text-[11.5px] text-faint">
-                  {roleLabel[activeTeam.role]} · Team {activeTeam.name}
+                  {teamRoleLabel(activeTeam)} · Team {activeTeam.name}
                 </div>
               </div>
             </div>

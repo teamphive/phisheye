@@ -162,6 +162,7 @@ describe("with a backend", () => {
       name: "SOC Nord",
       memberCount: 1,
       role: "admin",
+      viaInstance: false,
     })
   })
 })

@@ -252,9 +252,67 @@ const socAnalyses: AnalysisListItem[] = [
   },
 ]
 
+/** Reports from domains no team has, they land in the default team. */
+const standardAnalyses: AnalysisListItem[] = [
+  {
+    id: "a-2026-0134",
+    subject: "Offene Rechnung Nr. 2026-4471 – letzte Mahnung",
+    sender: "buchhaltung@inkasso-zentrale24.top",
+    status: "completed",
+    verdict: "phishing",
+    score: 88,
+    handler: null,
+    source: "report",
+    reportedBy: "k.lange@bauhof-meyer.de",
+    receivedAt: "2026-09-03T08:20:00Z",
+  },
+  {
+    id: "a-2026-0133",
+    subject: "Einladung: Hafenfest 2026",
+    sender: "events@hafenverein-nord.de",
+    status: "completed",
+    verdict: "clean",
+    score: 8,
+    handler: null,
+    source: "report",
+    reportedBy: "r.weber@bauhof-meyer.de",
+    receivedAt: "2026-09-02T12:35:00Z",
+  },
+]
+
+/** A team the signed in user only sees through the instance role. */
+const reedereiAnalyses: AnalysisListItem[] = [
+  {
+    id: "a-2026-0136",
+    subject: "Frachtbrief MV Nordlicht – bitte prüfen",
+    sender: "dispo@nordsee-reederei-cargo.top",
+    status: "completed",
+    verdict: "suspicious",
+    score: 58,
+    handler: "H. Jansen",
+    source: "upload",
+    reportedBy: null,
+    receivedAt: "2026-09-03T07:05:00Z",
+  },
+  {
+    id: "a-2026-0135",
+    subject: "Liegeplatzbestätigung Container-Terminal",
+    sender: "terminal@ct-weserport.de",
+    status: "completed",
+    verdict: "clean",
+    score: 11,
+    handler: "P. Claussen",
+    source: "upload",
+    reportedBy: null,
+    receivedAt: "2026-09-02T15:50:00Z",
+  },
+]
+
 const analysesByTeam: Record<string, AnalysisListItem[]> = {
   itsec: analyses,
   soc: socAnalyses,
+  standard: standardAnalyses,
+  reederei: reedereiAnalyses,
 }
 
 export function mockAnalyses(teamId: string): AnalysisListItem[] {

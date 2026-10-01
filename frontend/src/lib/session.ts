@@ -17,9 +17,17 @@ export type Session = {
   activeTeamId: string | null
 }
 
-/** GET /me after the switch to camelCase. */
-type MeResponse = CurrentUser & {
-  teams: (Omit<Team, "id"> & { id: string | number })[]
+/**
+ * GET /me after the switch to camelCase. A backend from before the instance
+ * roles sends neither instanceRole, canCreateTeams nor viaInstance.
+ */
+type MeResponse = Omit<CurrentUser, "instanceRole" | "canCreateTeams"> & {
+  instanceRole?: CurrentUser["instanceRole"]
+  canCreateTeams?: boolean
+  teams: (Omit<Team, "id" | "viaInstance"> & {
+    id: string | number
+    viaInstance?: boolean
+  })[]
   activeTeamId?: string | number | null
 }
 
@@ -64,7 +72,11 @@ export async function fetchSession(): Promise<Session> {
 
   // Whether the backend hands out numbers or UUIDs, the interface compares
   // ids as strings.
-  const teams = me.teams.map((team) => ({ ...team, id: String(team.id) }))
+  const teams = me.teams.map((team) => ({
+    ...team,
+    id: String(team.id),
+    viaInstance: team.viaInstance ?? false,
+  }))
   const activeId = me.activeTeamId == null ? null : String(me.activeTeamId)
 
   return {
@@ -73,6 +85,8 @@ export async function fetchSession(): Promise<Session> {
       email: me.email,
       initials: me.initials,
       isOperator: me.isOperator,
+      instanceRole: me.instanceRole ?? null,
+      canCreateTeams: me.canCreateTeams ?? false,
     },
     teams,
     // Without an answer from the server the first team stands in

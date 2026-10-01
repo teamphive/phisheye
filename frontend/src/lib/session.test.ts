@@ -26,9 +26,23 @@ const me = {
   email: "adrijus@firma.de",
   initials: "AL",
   is_operator: true,
+  instance_role: null,
+  can_create_teams: false,
   teams: [
-    { id: 1, name: "IT-Security", member_count: 4, role: "admin" },
-    { id: 2, name: "SOC Bereitschaft", member_count: 3, role: "audit" },
+    {
+      id: 1,
+      name: "IT-Security",
+      member_count: 4,
+      role: "admin",
+      via_instance: false,
+    },
+    {
+      id: 2,
+      name: "SOC Bereitschaft",
+      member_count: 3,
+      role: "audit",
+      via_instance: false,
+    },
   ],
 }
 
@@ -51,12 +65,84 @@ describe("fetchSession", () => {
       email: "adrijus@firma.de",
       initials: "AL",
       isOperator: true,
+      instanceRole: null,
+      canCreateTeams: false,
     })
     expect(session.teams).toEqual([
-      { id: "1", name: "IT-Security", memberCount: 4, role: "admin" },
-      { id: "2", name: "SOC Bereitschaft", memberCount: 3, role: "audit" },
+      {
+        id: "1",
+        name: "IT-Security",
+        memberCount: 4,
+        role: "admin",
+        viaInstance: false,
+      },
+      {
+        id: "2",
+        name: "SOC Bereitschaft",
+        memberCount: 3,
+        role: "audit",
+        viaInstance: false,
+      },
     ])
     expect(session.activeTeamId).toBe("2")
+  })
+
+  it("reads the instance role and the teams it opens", async () => {
+    const { fetchSession } = await loadSession()
+    answerMe({
+      ...me,
+      instance_role: "admin",
+      can_create_teams: true,
+      teams: [
+        {
+          id: 1,
+          name: "Standard-Team",
+          member_count: 2,
+          role: "admin",
+          via_instance: false,
+        },
+        {
+          id: 5,
+          name: "Kunde A",
+          member_count: 7,
+          role: "admin",
+          via_instance: true,
+        },
+      ],
+      // the instance admin works in a team they are no member of
+      active_team_id: 5,
+    })
+
+    const session = await fetchSession()
+
+    expect(session.user).toMatchObject({
+      instanceRole: "admin",
+      canCreateTeams: true,
+    })
+    expect(session.teams.map((team) => [team.id, team.viaInstance])).toEqual([
+      ["1", false],
+      ["5", true],
+    ])
+    expect(session.activeTeamId).toBe("5")
+  })
+
+  it("treats an answer without instance roles as a plain member", async () => {
+    const { fetchSession } = await loadSession()
+    answerMe({
+      name: me.name,
+      email: me.email,
+      initials: me.initials,
+      is_operator: false,
+      teams: [{ id: 1, name: "IT-Security", member_count: 4, role: "admin" }],
+    })
+
+    const session = await fetchSession()
+
+    expect(session.user).toMatchObject({
+      instanceRole: null,
+      canCreateTeams: false,
+    })
+    expect(session.teams[0].viaInstance).toBe(false)
   })
 
   it("takes the first team when the server names no active one", async () => {

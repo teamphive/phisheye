@@ -66,15 +66,30 @@ describe("without a backend", () => {
     expect(roster.members.find((m) => m.isSelf)?.role).toBe("analyst")
   })
 
-  it("does not let anyone leave their last team", async () => {
+  it("does not let anyone leave their last own team", async () => {
     const { team, mocks } = await load()
 
     await team.deleteTeam("soc")
+    await team.deleteTeam("itsec")
 
-    expect(mocks.teams.map((entry) => entry.id)).toEqual(["itsec"])
-    await expect(team.leaveTeam("itsec", "m-sandmann")).rejects.toMatchObject({
+    // The team seen through the instance role does not count
+    expect(
+      mocks.teams.filter((entry) => !entry.viaInstance).map((entry) => entry.id)
+    ).toEqual(["standard"])
+    await expect(
+      team.leaveTeam("standard", "m-sandmann")
+    ).rejects.toMatchObject({
       status: 409,
+      message: expect.stringContaining("letztes Team"),
     })
+  })
+
+  it("has no membership to end in a team seen through the instance role", async () => {
+    const { team } = await load()
+
+    await expect(
+      team.leaveTeam("reederei", "m-sandmann")
+    ).rejects.toMatchObject({ status: 404 })
   })
 
   it("makes the creator admin of a new team", async () => {
@@ -84,9 +99,47 @@ describe("without a backend", () => {
     const roster = await team.fetchTeam(created.id)
 
     expect(mocks.teams).toContainEqual(created)
-    expect(created.role).toBe("admin")
+    expect(created).toMatchObject({ role: "admin", viaInstance: false })
     expect(roster.members).toHaveLength(1)
     expect(roster.members[0]).toMatchObject({ isSelf: true, role: "admin" })
+  })
+
+  it("lets nobody but the instance admin create teams", async () => {
+    const { team, mocks, api } = await load()
+    mocks.currentUser.canCreateTeams = false
+
+    await expect(team.createTeam("SOC Nord")).rejects.toBeInstanceOf(
+      api.ForbiddenError
+    )
+  })
+
+  it("keeps the default team's name and the team itself", async () => {
+    const { team } = await load()
+
+    await expect(
+      team.renameTeam("standard", "Anderes Team")
+    ).rejects.toMatchObject({ status: 409 })
+    await expect(team.deleteTeam("standard")).rejects.toMatchObject({
+      status: 409,
+    })
+  })
+
+  it("has no analysts in the default team", async () => {
+    const { team } = await load()
+
+    await expect(
+      team.inviteMember("standard", "neu@firma.de", "analyst")
+    ).rejects.toMatchObject({ status: 422 })
+    await expect(
+      team.changeMemberRole("standard", "k-wiese", "analyst")
+    ).rejects.toMatchObject({ status: 422 })
+
+    const invitation = await team.inviteMember(
+      "standard",
+      "neu@firma.de",
+      "audit"
+    )
+    expect(invitation.role).toBe("audit")
   })
 
   it("renames a team in the session data", async () => {

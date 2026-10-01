@@ -1,6 +1,12 @@
 import { useEffect, useState, type FormEvent } from "react"
 import { useNavigate } from "react-router"
-import { CheckIcon, TriangleAlertIcon } from "lucide-react"
+import {
+  CheckIcon,
+  CircleHelpIcon,
+  EyeIcon,
+  ShieldIcon,
+  TriangleAlertIcon,
+} from "lucide-react"
 import { toast } from "sonner"
 
 import { CreateTeamDialog } from "@/components/create-team-dialog"
@@ -10,7 +16,7 @@ import { RemoveMemberDialog } from "@/components/remove-member-dialog"
 import { ReportDomainsCard } from "@/components/report-domains-card"
 import { useSession } from "@/components/session-provider"
 import { TeamDangerDialog } from "@/components/team-danger-dialog"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -51,6 +57,7 @@ import {
 } from "@/components/ui/table"
 import { errorMessage } from "@/lib/api"
 import { formatDate } from "@/lib/format"
+import { isDefaultTeam, rolesFor } from "@/lib/instance"
 import {
   changeInvitationRole,
   changeMemberRole,
@@ -65,15 +72,16 @@ import {
 import { roleLabel, type Team, type TeamRole } from "@/mocks/session"
 import type { Invitation, Member } from "@/mocks/team"
 
-const roles: TeamRole[] = ["analyst", "admin", "audit"]
-
 function RolePicker({
   value,
+  roles,
   onChange,
   disabled,
   readOnly,
 }: {
   value: TeamRole
+  /** What the team allows, the default team has no analysts. */
+  roles: TeamRole[]
   onChange: (role: TeamRole) => void
   disabled?: boolean
   /** Only admins change roles, everyone else just sees them. */
@@ -101,7 +109,17 @@ function RolePicker({
   )
 }
 
-function TwoFactorState({ enabled }: { enabled: boolean }) {
+/** Null when Keycloak did not answer, which says nothing about the member. */
+function TwoFactorState({ enabled }: { enabled: boolean | null }) {
+  if (enabled === null) {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-[12.5px] text-faint">
+        <CircleHelpIcon className="size-3.5" />
+        Unbekannt
+      </span>
+    )
+  }
+
   if (enabled) {
     return (
       <span className="inline-flex items-center gap-1.5 text-[12.5px] text-clean">
@@ -131,6 +149,12 @@ function TeamView({ team }: { team: Team }) {
   const navigate = useNavigate()
   const { permissions, refresh } = useSession()
   const canManage = permissions.manageTeam
+  // The instance team keeps its name and cannot be deleted
+  const isDefault = isDefaultTeam(team)
+  const roles = rolesFor(team)
+  // A team seen through the instance role has no membership to end
+  const canLeave = !team.viaInstance
+  const canDelete = canManage && !isDefault
   const [members, setMembers] = useState<Member[] | null>(null)
   const [invitations, setInvitations] = useState<Invitation[]>([])
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -320,10 +344,12 @@ function TeamView({ team }: { team: Team }) {
         description={`Team · ${members?.length ?? team.memberCount} Mitglieder · geteilte Analyse-Historie`}
         actions={
           <>
-            <CreateTeamDialog onCreated={refresh} />
+            {permissions.createTeams ? (
+              <CreateTeamDialog onCreated={refresh} />
+            ) : null}
             {canManage ? (
               <InviteDialog
-                teamId={team.id}
+                team={team}
                 onInvited={(invitation) =>
                   setInvitations((current) => [...current, invitation])
                 }
@@ -332,6 +358,31 @@ function TeamView({ team }: { team: Team }) {
           </>
         }
       />
+
+      {team.viaInstance ? (
+        <Alert>
+          <EyeIcon />
+          <AlertTitle>Du bist kein Mitglied dieses Teams</AlertTitle>
+          <AlertDescription>
+            {team.role === "admin"
+              ? "Als Instanz-Admin siehst du alle Mails hier und darfst alles ändern, was ein Team-Admin darf."
+              : "Als Instanz-Auditor siehst du alle Mails hier, ändern kannst du nichts."}{" "}
+            phisheye protokolliert, dass du das Team betreten hast.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
+      {isDefault ? (
+        <Alert>
+          <ShieldIcon />
+          <AlertTitle>Das Instanz-Team</AlertTitle>
+          <AlertDescription>
+            Wer hier Admin oder Audit ist, sieht alle Teams mit ihren Mails:
+            Admins dürfen dort alles ändern, Teams erstellen und das Monitoring
+            sehen, Auditoren nur lesen. Lade deshalb nur wenige Personen ein.
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       <Card>
         <CardContent className="px-0">
@@ -396,6 +447,7 @@ function TeamView({ team }: { team: Team }) {
                     <TableCell>
                       <RolePicker
                         value={member.role}
+                        roles={roles}
                         onChange={(role) => changeRole(member, role)}
                         disabled={
                           busyId === member.id ||
@@ -453,6 +505,7 @@ function TeamView({ team }: { team: Team }) {
                     <TableCell>
                       <RolePicker
                         value={invitation.role}
+                        roles={roles}
                         onChange={(role) => changeInvitation(invitation, role)}
                         disabled={busyId === invitation.id}
                         readOnly={!canManage}
@@ -499,9 +552,10 @@ function TeamView({ team }: { team: Team }) {
         teamId={team.id}
         teamName={team.name}
         isAdmin={canManage}
+        isDefaultTeam={isDefault}
       />
 
-      {canManage ? (
+      {canManage && !isDefault ? (
         <Card>
           <form onSubmit={rename} className="contents">
             <CardHeader className="border-b">
@@ -537,29 +591,35 @@ function TeamView({ team }: { team: Team }) {
         </Card>
       ) : null}
 
-      <Card>
-        <CardContent>
-          <ItemGroup className="gap-0">
-            <Item className="px-0 py-3.5">
-              <ItemContent>
-                <ItemTitle>Team verlassen</ItemTitle>
-                <ItemDescription>
-                  Du verlierst den Zugriff auf die Analysen dieses Teams.
-                </ItemDescription>
-              </ItemContent>
-              <ItemActions>
-                <TeamDangerDialog
-                  mode="leave"
-                  teamName={team.name}
-                  onConfirm={leave}
-                />
-              </ItemActions>
-            </Item>
+      {canLeave || canDelete ? (
+        <Card>
+          <CardContent>
+            <ItemGroup className="gap-0">
+              {canLeave ? (
+                <Item className="px-0 py-3.5">
+                  <ItemContent>
+                    <ItemTitle>Team verlassen</ItemTitle>
+                    <ItemDescription>
+                      {isDefault
+                        ? "Du verlierst deine Instanz-Rolle und siehst nur noch deine eigenen Teams."
+                        : "Du verlierst den Zugriff auf die Analysen dieses Teams."}
+                    </ItemDescription>
+                  </ItemContent>
+                  <ItemActions>
+                    <TeamDangerDialog
+                      mode="leave"
+                      teamName={team.name}
+                      onConfirm={leave}
+                    />
+                  </ItemActions>
+                </Item>
+              ) : null}
 
-            {canManage ? (
-              <>
+              {canLeave && canDelete ? (
                 <ItemSeparator className="my-0" />
+              ) : null}
 
+              {canDelete ? (
                 <Item className="px-0 py-3.5">
                   <ItemContent>
                     <ItemTitle>Team löschen</ItemTitle>
@@ -576,11 +636,11 @@ function TeamView({ team }: { team: Team }) {
                     />
                   </ItemActions>
                 </Item>
-              </>
-            ) : null}
-          </ItemGroup>
-        </CardContent>
-      </Card>
+              ) : null}
+            </ItemGroup>
+          </CardContent>
+        </Card>
+      ) : null}
     </div>
   )
 }

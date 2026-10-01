@@ -28,26 +28,38 @@ import {
 } from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
 import { errorMessage } from "@/lib/api"
+import { isDefaultTeam, rolesFor } from "@/lib/instance"
 import { inviteMember } from "@/lib/team"
-import { roleLabel, type TeamRole } from "@/mocks/session"
-import { roleDescription, type Invitation } from "@/mocks/team"
-
-const roles: TeamRole[] = ["analyst", "admin", "audit"]
+import { roleLabel, type Team, type TeamRole } from "@/mocks/session"
+import {
+  instanceRoleDescription,
+  roleDescription,
+  type Invitation,
+} from "@/mocks/team"
 
 // Only catches typos, the backend decides which addresses are allowed
 const plausibleAddress = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 type InviteDialogProps = {
-  teamId: string
+  team: Pick<Team, "id" | "name">
   onInvited: (invitation: Invitation) => void
 }
 
-export function InviteDialog({ teamId, onInvited }: InviteDialogProps) {
+export function InviteDialog({ team, onInvited }: InviteDialogProps) {
+  const roles = rolesFor(team)
+  // A role in the default team opens every team
+  const instanceTeam = isDefaultTeam(team)
   const [open, setOpen] = useState(false)
   const [email, setEmail] = useState("")
-  const [role, setRole] = useState<TeamRole>("analyst")
+  const [role, setRole] = useState<TeamRole>(roles[0])
   const [error, setError] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
+
+  function describe(entry: TeamRole) {
+    return instanceTeam && entry !== "analyst"
+      ? instanceRoleDescription[entry]
+      : roleDescription[entry]
+  }
 
   function change(next: boolean) {
     if (sending) return
@@ -55,7 +67,7 @@ export function InviteDialog({ teamId, onInvited }: InviteDialogProps) {
     setOpen(next)
     if (!next) {
       setEmail("")
-      setRole("analyst")
+      setRole(roles[0])
       setError(null)
     }
   }
@@ -71,12 +83,12 @@ export function InviteDialog({ teamId, onInvited }: InviteDialogProps) {
 
     setSending(true)
     try {
-      const invitation = await inviteMember(teamId, address, role)
+      const invitation = await inviteMember(team.id, address, role)
       onInvited(invitation)
       toast.success(`Einladung an ${invitation.email} verschickt`)
       setOpen(false)
       setEmail("")
-      setRole("analyst")
+      setRole(roles[0])
     } catch (inviteError) {
       setError(errorMessage(inviteError))
     } finally {
@@ -134,11 +146,18 @@ export function InviteDialog({ teamId, onInvited }: InviteDialogProps) {
                 <SelectContent>
                   {roles.map((entry) => (
                     <SelectItem key={entry} value={entry}>
-                      {roleLabel[entry]} — {roleDescription[entry]}
+                      {roleLabel[entry]} — {describe(entry)}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {instanceTeam ? (
+                <FieldDescription>
+                  Im Standard-Team gibt es keine Analysten. Beide Rollen sehen
+                  die Mails aller Teams, lade nur Personen ein, die das
+                  brauchen.
+                </FieldDescription>
+              ) : null}
             </Field>
           </FieldGroup>
 
