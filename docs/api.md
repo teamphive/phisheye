@@ -48,7 +48,7 @@ Instanz-Rollen: Das **Standard-Team** ist das Instanz-Team. Dort gibt es nur die
 | Methode | Pfad | Zweck |
 |---|---|---|
 | GET | `/analyses` | Liste für das aktive Team (umgesetzt) |
-| POST | `/analyses` | Upload einer `.eml` als Feld `file` (multipart), max. 25 MB (413 bei mehr), antwortet mit dem Listeneintrag (umgesetzt, läuft synchron im Request) |
+| POST | `/analyses` | Upload einer `.eml` als Feld `file` (multipart), antwortet mit dem Listeneintrag (umgesetzt, läuft synchron im Request). Limit: 25 MB im Frontend, 30 MB im nginx, das Backend prüft noch nicht und müsste mit 413 antworten |
 | GET | `/analyses/{id}` | Detail (umgesetzt, `criteria` und `links` noch leer, `ai_assessment` fehlt noch) |
 | DELETE | `/analyses/{id}` | Weich löschen, nur Admin (umgesetzt) |
 | POST | `/analyses/{id}/decision` | Verdikt bestätigen oder als falsch-positiv melden, Body `verdict`, antwortet mit `{ verdict, by, at }` (umgesetzt) |

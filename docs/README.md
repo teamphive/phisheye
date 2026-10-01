@@ -21,3 +21,4 @@
 - [Infrastruktur-Entscheidungen](infrastructure.md)
 - [Release und Changelog](release.md)
 - [VM-Zugriff](vm-access.md)
+- [Monitoring-Exporter](../deployment/monitoring/README.md)
