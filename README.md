@@ -1,19 +1,10 @@
 # phisheye 🎣👁️
 
+[![Release](https://img.shields.io/github/v/release/teamphive/phisheye?label=release)](https://github.com/teamphive/phisheye/releases/latest)
+[![Backend CI](https://github.com/teamphive/phisheye/actions/workflows/backend-ci.yml/badge.svg?branch=main)](https://github.com/teamphive/phisheye/actions/workflows/backend-ci.yml)
+[![Frontend CI](https://github.com/teamphive/phisheye/actions/workflows/frontend-ci.yml/badge.svg?branch=main)](https://github.com/teamphive/phisheye/actions/workflows/frontend-ci.yml)
+
 Web-App zur Phishing-Analyse von E-Mails: `.eml` hochladen, Header und Metadaten werden gegen deterministische Regeln geprüft, Attachment-Hashes gegen die VirusTotal-API. Den Text der Mail bewertet zusätzlich das KI-Modell JEV. Ergebnis ist ein Verdikt (sauber / verdächtig / Phishing) mit Confidence-Score. Läuft im Unternehmenskontext mit Teamverwaltung.
-
-## Repo-Struktur
-
-```dir
-├── assets
-├── backend
-├── docker      (Keycloak-Realm, pgAdmin)
-├── docs
-├── frontend
-├── infra       (OpenTofu, AWS)
-├── docker-compose.yml
-└── justfile
-```
 
 ## Techstack
 
