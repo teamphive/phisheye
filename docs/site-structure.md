@@ -14,7 +14,7 @@ flowchart LR
   login["Login"] -->|Passwort korrekt| twofa["2FA-Abfrage<br>beim ersten Mal einrichten"]
   twofa -->|Code korrekt| app[["Angemeldeter Bereich"]]
   twofa -.->|Konto ohne Einladung| noteam["Kein Team<br>Navigation gesperrt"]
-  noteam -->|Team erstellen| app
+  noteam -->|Einladung angenommen, erneut prüfen| app
   login -->|Passwort vergessen| forgot["Link anfordern"]
   forgot -->|Mail| reset["Neues Passwort setzen"]
   reset --> login
@@ -22,7 +22,7 @@ flowchart LR
   app -->|Abmelden| login
 ```
 
-Es gibt keine Selbstregistrierung. Konten entstehen über die Einladung eines Admins: Keycloak schickt einen Link, darüber setzt die Person Passwort und Profil, beim ersten Login richtet sie 2FA ein. Danach ist sie Mitglied des einladenden Teams. Ein Konto ohne Einladung landet im Zustand ohne Team und kommt nur über das Anlegen eines Teams weiter.
+Es gibt keine Selbstregistrierung. Konten entstehen über die Einladung eines Admins: Keycloak schickt einen Link, darüber setzt die Person Passwort und Profil, beim ersten Login richtet sie 2FA ein. Danach ist sie Mitglied des einladenden Teams. Ein Konto ohne Einladung landet im Zustand ohne Team. Teams legt nur der Instanz-Admin an, alle anderen warten dort auf eine Einladung: „Erneut prüfen“ fragt den Server neu, die Einladung wird mit der nächsten Anfrage angenommen. Daneben gibt es nur Abmelden.
 
 ## Wege im angemeldeten Bereich
 
@@ -136,6 +136,8 @@ In fremden Teams hat der Instanz-Admin die Rolle Admin und der Auditor die Rolle
 
 Das Monitoring steuert das Merkmal `is_operator`. Es gilt für Instanz-Admins automatisch und lässt sich zusätzlich über die Keycloak-Rolle `operator` vergeben.
 
+In der Oberfläche zeigt der Team-Umschalter oben die eigenen Teams und darunter unter „Weitere Teams“ alle, in denen das Instanz-Mitglied selbst nicht Mitglied ist (`via_instance`), mit gestricheltem Kürzel. In einem solchen Team nennt die Kopfleiste die Instanz-Rolle, die Team-Seite weist darauf hin, dass das Betreten protokolliert wird, und „Team verlassen“ fehlt. Im Standard-Team fehlen Umbenennen und Löschen. Einladen und Rollenwahl bieten dort nur Audit (vorausgewählt) und Admin, mit dem Hinweis, dass beide die Mails aller Teams sehen. „Team erstellen“ erscheint nur bei `can_create_teams`.
+
 Durchgesetzt wird all das im Backend. Die Oberfläche blendet nur aus.
 
 ## Overlays
@@ -146,7 +148,8 @@ Keine eigene Adresse, kein Router-Eintrag: Suchfenster (`Cmd/Strg + K`), Glocken
 
 | Zustand | Wo |
 |---------|-----|
-| Kein Team | Team, bei einem Konto ohne Einladung, Navigation gesperrt |
+| Kein Team | eigener Bildschirm statt der App, bei einem Konto ohne Einladung. „Erneut prüfen“ und Abmelden, „Team erstellen“ nur für den Instanz-Admin |
+| Fremdes Team | Team, Hinweis für Instanz-Mitglieder, die dort nicht selbst Mitglied sind |
 | Analyse läuft | Analyse-Detail, mit Warteschlange darunter |
 | Analyse fehlgeschlagen | Analyse-Detail, Ursache. Operatoren reihen den Job im Monitoring neu ein |
 | Verdikt entschieden | Analyse-Detail, zurücknehmbar |

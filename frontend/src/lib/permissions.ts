@@ -1,4 +1,4 @@
-import type { TeamRole } from "@/mocks/session"
+import type { CurrentUser, TeamRole } from "@/mocks/session"
 
 /**
  * What the interface offers in the active team. It only hides controls, the
@@ -13,16 +13,19 @@ export type Permissions = {
   manageTeam: boolean
   /** The system-wide monitoring, independent of any team role. */
   monitor: boolean
+  /** New teams, only for the instance admin, independent of the active team. */
+  createTeams: boolean
 }
 
 export function permissionsOf(
   role: TeamRole,
-  isOperator: boolean
+  user: Pick<CurrentUser, "isOperator" | "canCreateTeams">
 ): Permissions {
   return {
     analyze: role !== "audit",
     deleteAnalyses: role === "admin",
     manageTeam: role === "admin",
-    monitor: isOperator,
+    monitor: user.isOperator,
+    createTeams: user.canCreateTeams,
   }
 }

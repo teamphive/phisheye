@@ -2,12 +2,14 @@
 import * as React from "react"
 import { Navigate } from "react-router"
 import { TriangleAlertIcon, UserPlusIcon } from "lucide-react"
+import { toast } from "sonner"
 
 import { AuthBrand, AuthCard } from "@/components/auth-shell"
 import { CreateTeamDialog } from "@/components/create-team-dialog"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { errorMessage, SessionExpiredError } from "@/lib/api"
+import { authEnabled, logout } from "@/lib/keycloak"
 import { permissionsOf, type Permissions } from "@/lib/permissions"
 import { fetchSession, selectTeam, type Session } from "@/lib/session"
 import type { CurrentUser, Team } from "@/mocks/session"
@@ -22,9 +24,10 @@ type SessionState = {
   switchTeam: (teamId: string) => Promise<void>
   /**
    * Asks the server again, after anything that changes teams, names or the
-   * own role. Throws instead of replacing the app with an error screen.
+   * own role, and resolves with its answer. Throws instead of replacing the
+   * app with an error screen.
    */
-  refresh: () => Promise<void>
+  refresh: () => Promise<Session>
 }
 
 const SessionContext = React.createContext<SessionState | undefined>(undefined)
@@ -78,7 +81,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   )
 
   const refresh = React.useCallback(async () => {
-    setSession(await fetchSession())
+    const loaded = await fetchSession()
+    setSession(loaded)
+    return loaded
   }, [])
 
   const value = React.useMemo(() => {
@@ -89,7 +94,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       user: session.user,
       teams: session.teams,
       activeTeam,
-      permissions: permissionsOf(activeTeam.role, session.user.isOperator),
+      permissions: permissionsOf(activeTeam.role, session.user),
       pendingTeamId,
       switchTeam,
       refresh,
@@ -114,7 +119,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   if (!session) return <SessionLoading />
 
-  if (!value) return <NoTeam user={session.user} onCreated={refresh} />
+  if (!value) return <NoTeam user={session.user} onRefresh={refresh} />
 
   return (
     <SessionContext.Provider value={value}>{children}</SessionContext.Provider>
@@ -175,17 +180,39 @@ function SessionFailed({
 }
 
 /**
- * Right after the first sign-in nobody belongs to a team yet, and the only
- * way on is to create one.
+ * Right after the first sign-in nobody belongs to a team yet. Teams are made
+ * by the instance admin only, so everyone else waits for an invitation. It is
+ * accepted with the next request, asking the server again is enough.
  */
 function NoTeam({
   user,
-  onCreated,
+  onRefresh,
 }: {
   user: CurrentUser
-  onCreated: () => Promise<void>
+  onRefresh: () => Promise<Session>
 }) {
   const [createOpen, setCreateOpen] = React.useState(false)
+  const [checking, setChecking] = React.useState(false)
+
+  async function checkAgain() {
+    setChecking(true)
+    try {
+      // With a team the app replaces this screen, without one it says so
+      const { teams } = await onRefresh()
+      if (teams.length === 0) {
+        toast("Noch in keinem Team", {
+          description:
+            "Die Einladung ist noch nicht da oder deine E-Mail-Adresse noch nicht bestätigt.",
+        })
+      }
+    } catch (error) {
+      toast.error("Teams konnten nicht geladen werden", {
+        description: errorMessage(error),
+      })
+    } finally {
+      setChecking(false)
+    }
+  }
 
   return (
     <AuthCard>
@@ -199,25 +226,55 @@ function NoTeam({
           Du bist noch in keinem Team
         </h1>
         <p className="max-w-[46ch] text-sm text-muted-foreground">
-          Analysen werden immer innerhalb eines Teams geteilt. Lege ein Team an,
-          um Mails zu analysieren und Kollegen einzuladen — du wirst automatisch
-          dessen Admin.
+          {user.canCreateTeams
+            ? "Analysen werden immer innerhalb eines Teams geteilt. Lege ein Team an, um Mails zu analysieren und Kollegen einzuladen — du wirst automatisch dessen Admin."
+            : "Analysen werden immer innerhalb eines Teams geteilt. Bitte einen Team-Admin um eine Einladung und prüf danach hier erneut."}
         </p>
       </div>
 
-      <Button size="lg" className="w-full" onClick={() => setCreateOpen(true)}>
-        Team erstellen
-      </Button>
+      {user.canCreateTeams ? (
+        <Button
+          size="lg"
+          className="w-full"
+          onClick={() => setCreateOpen(true)}
+        >
+          Team erstellen
+        </Button>
+      ) : (
+        <Button
+          size="lg"
+          className="w-full"
+          disabled={checking}
+          onClick={checkAgain}
+        >
+          {checking ? <Spinner /> : null}
+          Erneut prüfen
+        </Button>
+      )}
 
       <p className="text-center font-mono text-[11px] text-faint">
         Angemeldet als {user.email}
+        {authEnabled ? (
+          <>
+            {" · "}
+            <button
+              type="button"
+              className="underline underline-offset-2 hover:text-foreground"
+              onClick={() => logout()}
+            >
+              Abmelden
+            </button>
+          </>
+        ) : null}
       </p>
 
-      <CreateTeamDialog
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        onCreated={onCreated}
-      />
+      {user.canCreateTeams ? (
+        <CreateTeamDialog
+          open={createOpen}
+          onOpenChange={setCreateOpen}
+          onCreated={onRefresh}
+        />
+      ) : null}
     </AuthCard>
   )
 }

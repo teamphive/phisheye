@@ -174,18 +174,20 @@ export async function leaveTeam(teamId: string, selfId: string) {
   })
 }
 
-/** The creator becomes the new team's admin. */
-export async function createTeam(name: string) {
+/**
+ * Only the instance admin may, everyone else gets a 403. The creator becomes
+ * the new team's admin, a member like in any other own team.
+ */
+export async function createTeam(name: string): Promise<Team> {
   if (!apiEnabled) {
     await mockLatency()
     return mockCreateTeam(name, sessionUser())
   }
 
-  const team = await apiFetch<Omit<Team, "id"> & { id: string | number }>(
-    "/teams",
-    json("POST", { name })
-  )
-  return { ...team, id: String(team.id) }
+  const team = await apiFetch<
+    Omit<Team, "id" | "viaInstance"> & { id: string | number }
+  >("/teams", json("POST", { name }))
+  return { ...team, id: String(team.id), viaInstance: false }
 }
 
 export async function renameTeam(teamId: string, name: string) {

@@ -1,11 +1,13 @@
 // Placeholder data until the team endpoints exist. Everything here is invented.
 // Times are ISO 8601 in UTC, exactly as the API will deliver them.
 
-import { ApiError } from "@/lib/api"
+import { ApiError, ForbiddenError } from "@/lib/api"
 import { coveredBy } from "@/lib/domains"
+import { isDefaultTeam } from "@/lib/instance"
 import {
   teams,
   type CurrentUser,
+  type InstanceRole,
   type Team,
   type TeamRole,
 } from "@/mocks/session"
@@ -16,7 +18,8 @@ export type Member = {
   email: string
   initials: string
   role: TeamRole
-  twoFactorEnabled: boolean
+  /** From Keycloak, null when it did not answer. */
+  twoFactorEnabled: boolean | null
   analysisCount: number
   isSelf: boolean
 }
@@ -122,6 +125,58 @@ const rosterByTeam: Record<string, TeamRoster> = {
     ],
     invitations: [],
   },
+  // The instance team: admins and auditors only, both see every team
+  standard: {
+    members: [
+      {
+        id: "m-sandmann",
+        name: "M. Sandmann",
+        email: "m.sandmann@hansa-logistik.de",
+        initials: "MS",
+        role: "admin",
+        twoFactorEnabled: true,
+        analysisCount: 0,
+        isSelf: true,
+      },
+      {
+        id: "k-wiese",
+        name: "K. Wiese",
+        email: "k.wiese@hansa-logistik.de",
+        initials: "KW",
+        role: "audit",
+        twoFactorEnabled: true,
+        analysisCount: 0,
+        isSelf: false,
+      },
+    ],
+    invitations: [],
+  },
+  // Seen through the instance role, the signed in user is no member
+  reederei: {
+    members: [
+      {
+        id: "h-jansen",
+        name: "H. Jansen",
+        email: "h.jansen@nordsee-reederei.de",
+        initials: "HJ",
+        role: "admin",
+        twoFactorEnabled: true,
+        analysisCount: 1,
+        isSelf: false,
+      },
+      {
+        id: "p-claussen",
+        name: "P. Claussen",
+        email: "p.claussen@nordsee-reederei.de",
+        initials: "PC",
+        role: "analyst",
+        twoFactorEnabled: false,
+        analysisCount: 1,
+        isSelf: false,
+      },
+    ],
+    invitations: [],
+  },
 }
 
 export function mockTeam(teamId: string): TeamRoster {
@@ -143,11 +198,28 @@ function syncMemberCount(teamId: string) {
   if (team) team.memberCount = rosterOf(teamId).members.length
 }
 
+function isDefault(teamId: string) {
+  const team = teams.find((entry) => entry.id === teamId)
+  return team !== undefined && isDefaultTeam(team)
+}
+
+/** The default team only knows admins and auditors. */
+function checkRoleForTeam(teamId: string, role: TeamRole) {
+  if (isDefault(teamId) && role === "analyst") {
+    throw new ApiError(
+      422,
+      "Im Standard-Team gibt es nur Admins und Auditoren."
+    )
+  }
+}
+
 export function mockInvite(
   teamId: string,
   email: string,
   role: TeamRole
 ): Invitation {
+  checkRoleForTeam(teamId, role)
+
   const roster = rosterOf(teamId)
   const address = email.toLowerCase()
 
@@ -174,6 +246,8 @@ export function mockChangeInvitationRole(
   id: string,
   role: TeamRole
 ) {
+  checkRoleForTeam(teamId, role)
+
   const roster = rosterOf(teamId)
   roster.invitations = roster.invitations.map((entry) =>
     entry.id === id ? { ...entry, role } : entry
@@ -190,6 +264,8 @@ export function mockChangeMemberRole(
   id: string,
   role: TeamRole
 ) {
+  checkRoleForTeam(teamId, role)
+
   const roster = rosterOf(teamId)
   const member = roster.members.find((entry) => entry.id === id)
 
@@ -224,15 +300,19 @@ export function mockRemoveMember(teamId: string, id: string) {
 
 /** Leaving is removing oneself, with the rule about the last team on top. */
 export function mockLeaveTeam(teamId: string, id: string) {
-  if (teams.length === 1) {
+  const self = rosterOf(teamId).members.find((entry) => entry.id === id)
+  // A team entered through the instance role has no membership to end
+  if (!self) throw new ApiError(404, "Member not found")
+
+  // Teams seen through the instance role do not count, they are not one's own
+  if (teams.filter((entry) => !entry.viaInstance).length === 1) {
     throw new ApiError(
       409,
       "Das ist dein letztes Team. Lege erst ein anderes an oder lass dich einladen."
     )
   }
 
-  const self = rosterOf(teamId).members.find((entry) => entry.id === id)
-  if (self?.role === "admin" && adminCount(rosterOf(teamId)) === 1) {
+  if (self.role === "admin" && adminCount(rosterOf(teamId)) === 1) {
     throw new ApiError(
       409,
       "Du bist der letzte Admin. Gib die Rolle erst an jemand anderen ab."
@@ -244,11 +324,16 @@ export function mockLeaveTeam(teamId: string, id: string) {
 }
 
 export function mockCreateTeam(name: string, self: CurrentUser): Team {
+  if (!self.canCreateTeams) {
+    throw new ForbiddenError("Für diese Aktion fehlt dir die Berechtigung.")
+  }
+
   const team: Team = {
     id: `t-${Date.now()}`,
     name,
     memberCount: 1,
     role: "admin",
+    viaInstance: false,
   }
 
   teams.push(team)
@@ -272,11 +357,19 @@ export function mockCreateTeam(name: string, self: CurrentUser): Team {
 }
 
 export function mockRenameTeam(teamId: string, name: string) {
+  if (isDefault(teamId)) {
+    throw new ApiError(409, "Das Standard-Team lässt sich nicht umbenennen.")
+  }
+
   const team = teams.find((entry) => entry.id === teamId)
   if (team) team.name = name
 }
 
 export function mockDeleteTeam(teamId: string) {
+  if (isDefault(teamId)) {
+    throw new ApiError(409, "Das Standard-Team lässt sich nicht löschen.")
+  }
+
   delete rosterByTeam[teamId]
   delete domainsByTeam[teamId]
   dropTeam(teamId)
@@ -292,6 +385,12 @@ export const roleDescription: Record<TeamRole, string> = {
   analyst: "analysiert und sieht alle Analysen des Teams",
   admin: "verwaltet zusätzlich Mitglieder und Einstellungen",
   audit: "darf ausschließlich lesen",
+}
+
+/** The same for the default team, where a role counts for every team. */
+export const instanceRoleDescription: Record<InstanceRole, string> = {
+  admin: "ändert alle Teams, erstellt Teams, sieht das Monitoring",
+  audit: "liest alle Teams, ändert nichts",
 }
 
 /** Reported mails from this domain and its subdomains go to the team. */
@@ -325,10 +424,19 @@ const domainsByTeam: Record<string, ReportDomain[]> = {
     },
   ],
   soc: [],
+  standard: [],
+  reederei: [
+    {
+      id: "d-reederei",
+      domain: "nordsee-reederei.de",
+      addedBy: "H. Jansen",
+      addedAt: "2026-08-24T10:40:00Z",
+    },
+  ],
 }
 
-/** Taken by teams the signed in user is not part of. */
-const foreignDomains = ["nordsee-reederei.de", "werft.kuestenbau.de"]
+/** Taken by a team the placeholder session does not list at all. */
+const foreignDomains = ["werft.kuestenbau.de"]
 
 /** Public mail providers belong to no company, the API turns them down. */
 const freemailDomains = [

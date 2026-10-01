@@ -2,11 +2,17 @@
 
 export type TeamRole = "admin" | "analyst" | "audit"
 
+/** The role in the default team, it counts for every team. */
+export type InstanceRole = "admin" | "audit"
+
 export type Team = {
   id: string
   name: string
   memberCount: number
+  /** In a team entered through the instance role, that role. */
   role: TeamRole
+  /** Not a member: the instance role opens the team. */
+  viaInstance: boolean
 }
 
 export type CurrentUser = {
@@ -14,6 +20,10 @@ export type CurrentUser = {
   email: string
   initials: string
   isOperator: boolean
+  /** Admin or auditor of the default team, null for everyone else. */
+  instanceRole: InstanceRole | null
+  /** Only the instance admin creates teams. */
+  canCreateTeams: boolean
 }
 
 export const roleLabel: Record<TeamRole, string> = {
@@ -22,16 +32,49 @@ export const roleLabel: Record<TeamRole, string> = {
   audit: "Audit",
 }
 
+export const instanceRoleLabel: Record<InstanceRole, string> = {
+  admin: "Instanz-Admin",
+  audit: "Instanz-Auditor",
+}
+
 export const currentUser: CurrentUser = {
   name: "M. Sandmann",
   email: "m.sandmann@hansa-logistik.de",
   initials: "MS",
   isOperator: true,
+  instanceRole: "admin",
+  canCreateTeams: true,
 }
 
 export const teams: Team[] = [
-  { id: "itsec", name: "IT-Security", memberCount: 4, role: "admin" },
-  { id: "soc", name: "SOC Bereitschaft", memberCount: 3, role: "admin" },
+  {
+    id: "itsec",
+    name: "IT-Security",
+    memberCount: 4,
+    role: "admin",
+    viaInstance: false,
+  },
+  {
+    id: "soc",
+    name: "SOC Bereitschaft",
+    memberCount: 3,
+    role: "admin",
+    viaInstance: false,
+  },
+  {
+    id: "standard",
+    name: "Standard-Team",
+    memberCount: 2,
+    role: "admin",
+    viaInstance: false,
+  },
+  {
+    id: "reederei",
+    name: "Nordsee-Reederei",
+    memberCount: 2,
+    role: "admin",
+    viaInstance: true,
+  },
 ]
 
 // The placeholder server remembers the active team while the page is open.

@@ -30,7 +30,7 @@ type CreateTeamDialogProps = {
   open?: boolean
   onOpenChange?: (open: boolean) => void
   /** Reloads the session, the new team is already the active one by then. */
-  onCreated: () => Promise<void>
+  onCreated: () => Promise<unknown>
 }
 
 export function CreateTeamDialog({

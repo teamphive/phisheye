@@ -5,7 +5,7 @@ import { SearchCommand } from "@/components/search-command"
 import { useSession } from "@/components/session-provider"
 import { TeamSwitcher } from "@/components/team-switcher"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { roleLabel } from "@/mocks/session"
+import { teamRoleLabel } from "@/lib/instance"
 
 export function AppTopbar() {
   const { user, activeTeam } = useSession()
@@ -29,7 +29,7 @@ export function AppTopbar() {
         <span className="leading-tight">
           <span className="block text-[13px] font-semibold">{user.name}</span>
           <span className="block font-mono text-[10px] text-faint">
-            {roleLabel[activeTeam.role]}
+            {teamRoleLabel(activeTeam)}
           </span>
         </span>
       </Link>

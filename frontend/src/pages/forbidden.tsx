@@ -2,15 +2,17 @@ import { Link } from "react-router"
 
 import { useSession } from "@/components/session-provider"
 import { buttonVariants } from "@/components/ui/button"
+import { teamRoleLabel } from "@/lib/instance"
 import type { Permissions } from "@/lib/permissions"
 import { cn } from "@/lib/utils"
-import { roleLabel } from "@/mocks/session"
 
 const reasons: Record<keyof Permissions, string> = {
   analyze: "Mails hochladen und Verdikte vergeben dürfen Analysten und Admins.",
   deleteAnalyses: "Analysen löschen dürfen nur Admins.",
   manageTeam: "Die Team-Verwaltung ist Admins vorbehalten.",
-  monitor: "Das Monitoring ist Operatoren vorbehalten, unabhängig vom Team.",
+  monitor:
+    "Das Monitoring ist dem Instanz-Admin vorbehalten, unabhängig vom Team.",
+  createTeams: "Teams erstellen darf nur der Instanz-Admin.",
 }
 
 /** Without a permission it stands for a 403 the API answered with. */
@@ -20,7 +22,9 @@ export function ForbiddenPage({
   permission?: keyof Permissions
 }) {
   const { activeTeam } = useSession()
-  const isMonitor = permission === "monitor"
+  // Both depend on the role in the default team, not on the active team
+  const isInstanceMatter =
+    permission === "monitor" || permission === "createTeams"
 
   return (
     <div className="mx-auto mt-[8vh] flex max-w-[46ch] flex-col items-center gap-2 text-center">
@@ -30,20 +34,22 @@ export function ForbiddenPage({
       <h1 className="text-[22px] font-semibold tracking-tight">Kein Zugriff</h1>
       <p className="text-muted-foreground text-sm">
         {permission ? reasons[permission] : "Dafür fehlt dir die Berechtigung."}{" "}
-        {isMonitor ? null : (
+        {isInstanceMatter ? null : (
           <>
             Deine Rolle im Team {activeTeam.name} ist{" "}
             <b className="text-foreground font-semibold">
-              {roleLabel[activeTeam.role]}
+              {teamRoleLabel(activeTeam)}
             </b>
             .
           </>
         )}
       </p>
       <p className="text-faint text-xs">
-        {isMonitor
-          ? "Den Operator-Zugang vergibt, wer phisheye betreibt."
-          : "Wenn du die Berechtigung brauchst, kann ein Admin deines Teams deine Rolle ändern."}
+        {isInstanceMatter
+          ? "Instanz-Admin ist, wer im Standard-Team Admin ist."
+          : activeTeam.viaInstance
+            ? "Deine Instanz-Rolle ändert ein Admin des Standard-Teams."
+            : "Wenn du die Berechtigung brauchst, kann ein Admin deines Teams deine Rolle ändern."}
       </p>
       <div className="mt-1.5 flex gap-2">
         <Link to="/" className={buttonVariants()}>

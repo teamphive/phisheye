@@ -45,6 +45,8 @@ type ReportDomainsCardProps = {
   teamName: string
   /** Only admins add and remove domains, everyone else only reads. */
   isAdmin: boolean
+  /** The default team also gets every report whose domain no team has. */
+  isDefaultTeam?: boolean
 }
 
 /** Which domains' Outlook reports end up in this team. */
@@ -52,6 +54,7 @@ export function ReportDomainsCard({
   teamId,
   teamName,
   isAdmin,
+  isDefaultTeam = false,
 }: ReportDomainsCardProps) {
   const [settings, setSettings] = useState<ReportSettings | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -158,6 +161,9 @@ export function ReportDomainsCard({
           Melden Mitarbeiter eine Mail in Outlook, landet sie in diesem Team,
           wenn ihre Adresse zu einer dieser Domains gehört. Subdomains zählen
           mit.
+          {isDefaultTeam
+            ? " Dazu bekommt das Standard-Team alle Meldungen von Domains, die kein Team eingetragen hat."
+            : null}
         </CardDescription>
       </CardHeader>
 
@@ -214,8 +220,9 @@ export function ReportDomainsCard({
                       colSpan={isAdmin ? 3 : 2}
                       className="px-(--card-spacing) whitespace-normal text-muted-foreground"
                     >
-                      Noch keine Domain eingetragen. Bis dahin kommen keine
-                      Outlook-Meldungen in diesem Team an.
+                      {isDefaultTeam
+                        ? "Keine eigene Domain eingetragen. Meldungen von Domains ohne Team kommen trotzdem hier an."
+                        : "Noch keine Domain eingetragen. Bis dahin kommen keine Outlook-Meldungen in diesem Team an."}
                     </TableCell>
                   </TableRow>
                 ) : null}
