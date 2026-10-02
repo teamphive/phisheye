@@ -68,6 +68,16 @@ async def store_eml(content: bytes) -> str:
     return key
 
 
+def _get_eml(*, bucket: str, key: str) -> bytes:
+    return _client().get_object(Bucket=bucket, Key=key)["Body"].read()
+
+
+async def load_eml(key: str) -> bytes:
+    bucket = _setting("S3_BUCKET")
+    operation = partial(_run, _get_eml, bucket=bucket, key=key)
+    return await asyncio.to_thread(operation)
+
+
 async def delete_object(key: str) -> None:
     bucket = _setting("S3_BUCKET")
     operation = partial(_run, _client().delete_object, Bucket=bucket, Key=key)

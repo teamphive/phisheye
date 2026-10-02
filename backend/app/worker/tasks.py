@@ -8,6 +8,7 @@ from arq import Retry
 from sqlalchemy import func
 from sqlmodel import select
 
+from ..constants import MAX_ANALYSIS_TRIES
 from ..database import get_session
 from ..models.mail_analysis import MailAnalysis
 from ..models.team import Team
@@ -16,7 +17,7 @@ from ..models.user import User
 from ..services.domains import team_for_address
 from ..services.invitations import deliver_invitation
 from ..services.keycloak_admin import KeycloakAdminError
-from ..services.mail_analysis import analyze_and_store
+from ..services.mail_analysis import record_failure, run_analysis, submit_analysis
 from ..services.notifications import is_notifiable, send_analysis_mail
 from ..services.pop3_poller import (
     delete_mails,
@@ -71,7 +72,7 @@ async def _poll_report_mailbox() -> None:
                 # the team that owns the reporter's domain, otherwise the default
                 team_id = await team_for_address(reporter, db) or default_team_id
 
-                await analyze_and_store(
+                await submit_analysis(
                     content=content,
                     team_id=team_id,
                     submitted_by=system_user_id,
@@ -88,6 +89,21 @@ async def _poll_report_mailbox() -> None:
         delete_mails(processed_uids)
     except Exception:
         logger.exception("Deleting analyzed POP3 mails failed")
+
+
+async def analyze_mail(ctx, analysis_id: int) -> None:
+    attempt = ctx["job_try"]
+
+    async for db in get_session():
+        try:
+            await run_analysis(analysis_id, db)
+        except Exception as exc:
+            logger.exception("Analysis %s failed in try %s", analysis_id, attempt)
+            await record_failure(analysis_id, exc, attempt, MAX_ANALYSIS_TRIES, db)
+
+            # arq only tries again on Retry, any other exception ends the job
+            if attempt < MAX_ANALYSIS_TRIES:
+                raise Retry(defer=attempt * 30) from exc
 
 
 async def send_analysis_ready(ctx, analysis_id: int) -> None:

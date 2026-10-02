@@ -48,14 +48,14 @@ Instanz-Rollen: Das **Standard-Team** ist das Instanz-Team. Dort gibt es nur die
 | Methode | Pfad | Zweck |
 |---|---|---|
 | GET | `/analyses` | Liste für das aktive Team (umgesetzt) |
-| POST | `/analyses` | Upload einer `.eml` als Feld `file` (multipart), max. 25 MB (413 bei mehr), antwortet mit dem Listeneintrag (umgesetzt, läuft synchron im Request) |
+| POST | `/analyses` | Upload einer `.eml` als Feld `file` (multipart), max. 25 MB (413 bei mehr), antwortet mit dem Listeneintrag (umgesetzt, die Analyse läuft danach als arq-Job) |
 | GET | `/analyses/{id}` | Detail (umgesetzt, `criteria` und `links` noch leer, `ai_assessment` fehlt noch) |
 | DELETE | `/analyses/{id}` | Weich löschen, nur Admin (umgesetzt) |
 | POST | `/analyses/{id}/decision` | Verdikt bestätigen oder als falsch-positiv melden, Body `verdict`, antwortet mit `{ verdict, by, at }` (umgesetzt) |
 | DELETE | `/analyses/{id}/decision` | Entscheidung zurücknehmen (umgesetzt) |
 | GET | `/analyses/{id}/eml` | Original-`.eml` aus MinIO herunterladen, geht über das Backend (MinIO ist von außen nicht erreichbar). Antwort mit `Content-Disposition: attachment` und `application/octet-stream`, die Datei kann Schadcode enthalten |
 | GET | `/analyses/search?q=` | Suche über Betreff, Absender, Link-Domain und Anhang-Hash, siehe unten |
-| GET | `/queue` | Wartende Jobs und Worker-Auslastung, für die Fortschrittsanzeige. Sinnvoll erst, wenn die Analyse als arq-Job läuft |
+| GET | `/queue` | Wartende Jobs und Worker-Auslastung, für die Fortschrittsanzeige (umgesetzt) |
 
 ## Übersicht
 
@@ -254,7 +254,7 @@ Je Treffer:
 - KI-Einschätzung mit JEV, Anleitung mit Beispiel-Anfrage und Python-Code in [ai-assessment.md](ai-assessment.md). Zu tun: `typesafe-sdk` als Abhängigkeit, `TYPESAFE_API_KEY` in `.env` und `.env.example` (Key nur auf dem Server), in `mail_analysis` die Spalten `ai_verdict`, `ai_confidence` und `ai_model` (nullable, mit Alembic-Migration), JEV als eigener Schritt der Analyse und `ai_assessment` in `GET /analyses/{id}`. Antwortet JEV nicht, bleibt `ai_assessment` null und die Analyse läuft trotzdem durch. Bis dahin zeigt die Detailseite „Keine KI-Einschätzung“.
 - Backend-Prüfung auf 25 MB mit 413. Bisher begrenzen nur das Frontend und der nginx (30 MB).
 - Cron-Job für die harte Löschung: täglich alles mit `deleted_at` älter als 10 Tage endgültig entfernen (Datenbank, Anhänge, `.eml` in MinIO).
-- Analyse als arq-Job statt im Request. Erst damit sind `running`, `step` und `GET /queue` echt. Wird mit einem Spam-Testskript geprüft.
+- Spam-Testskript, das viele Mails auf einmal hochlädt und prüft, ob Warteschlange und Worker mithalten.
 - Abbrechen einer laufenden Analyse. Ein Endpunkt fehlt, bis dahin zeigt die Detailseite keinen Knopf dafür.
 - Erneut starten einer fehlgeschlagenen Analyse durch Analysten. `POST /monitoring/jobs/{id}/retry` ist nur für Operatoren. Bis es einen Endpunkt für Analysten gibt, zeigt die Detailseite keinen Knopf und schickt Operatoren ins Monitoring.
 - Übernehmen einer gemeldeten Mail. Die Oberfläche zeigt `handler` null als „Niemand", ein Endpunkt zum Zuweisen fehlt.

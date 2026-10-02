@@ -2,18 +2,21 @@ import hashlib
 import logging
 import os
 from collections.abc import Mapping
+from datetime import datetime
 from email import policy
+from email.message import EmailMessage
 from email.parser import BytesParser
 
 import vt
+from arq import create_pool
 from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ..models.mail_analysis import MailAnalysis
 from ..models.mail_attachment import MailAttachment
-from .notifications import enqueue_analysis_ready
-from .object_storage import ObjectStorageError, delete_object, store_eml
+from .notifications import enqueue_analysis_ready, redis_settings
+from .object_storage import ObjectStorageError, delete_object, load_eml, store_eml
 
 logger = logging.getLogger(__name__)
 
@@ -26,18 +29,83 @@ def _plain(value):
     return value
 
 
-async def analyze_and_store(
+def _parse(content: bytes) -> EmailMessage:
+    return BytesParser(policy=policy.default).parsebytes(content)
+
+
+async def submit_analysis(
     *,
     content: bytes,
     team_id: int,
     submitted_by: int,
     db: AsyncSession,
     reported_by: str | None = None,
-) -> tuple[MailAnalysis, list[dict]]:
+) -> MailAnalysis:
+    """Stores the mail and queues the analysis, the worker does the rest.
+
+    Only what the list needs is read here, so the caller gets an answer at once.
+    """
     if not content:
         raise HTTPException(status_code=400, detail="Uploaded file is empty")
 
-    msg = BytesParser(policy=policy.default).parsebytes(content)
+    msg = _parse(content)
+    storage_key = await store_eml(content)
+
+    try:
+        async with db.begin():
+            analysis = MailAnalysis(
+                team_id=team_id,
+                submitted_by=submitted_by,
+                subject=str(msg.get("Subject", "")),
+                sender=str(msg.get("From", "")),
+                status="pending",
+                storage_key=storage_key,
+                reported_by=reported_by,
+                raw_headers="\n".join(f"{key}: {value}" for key, value in msg.items()),
+            )
+            db.add(analysis)
+    except SQLAlchemyError:
+        try:
+            await delete_object(storage_key)
+        except ObjectStorageError:
+            logger.exception("Failed to remove orphaned EML object %s", storage_key)
+        raise
+
+    await enqueue_analysis(analysis.id)
+
+    if reported_by:
+        await enqueue_analysis_ready(analysis.id)
+
+    return analysis
+
+
+async def enqueue_analysis(analysis_id: int) -> None:
+    """Hands the analysis to the worker.
+
+    If Redis is down the analysis stays pending, the mail itself is safe in
+    MinIO and the database.
+    """
+    try:
+        pool = await create_pool(redis_settings())
+        try:
+            # fixed job id: arq ignores a second enqueue for the same analysis
+            await pool.enqueue_job(
+                "analyze_mail", analysis_id, _job_id=f"analysis-{analysis_id}"
+            )
+        finally:
+            await pool.aclose()
+    except Exception:
+        logger.exception("Could not queue analysis %s", analysis_id)
+
+
+async def _set_step(analysis: MailAnalysis, step: str, db: AsyncSession) -> None:
+    # Own commit per step, the detail page polls and shows it
+    async with db.begin():
+        analysis.step = step
+        db.add(analysis)
+
+
+def _attachments_of(msg: EmailMessage) -> list[dict]:
     attachments = []
 
     for part in msg.iter_attachments():
@@ -55,83 +123,104 @@ async def analyze_and_store(
             }
         )
 
-    results = []
+    return attachments
 
-    if attachments:
-        api_key = os.getenv("VT_API_KEY")
 
-        if not api_key:
-            raise HTTPException(
-                status_code=503,
-                detail="VirusTotal API key is not configured",
-            )
+async def _virus_total(client: vt.Client, sha256: str) -> dict | None:
+    """The scanner results for a file, None if VirusTotal does not know it.
 
-        async with vt.Client(api_key) as client:
-            for attachment in attachments:
-                try:
-                    vt_result = await client.get_object_async(
-                        f"/files/{attachment['sha256']}"
-                    )
-                except vt.APIError as exc:
-                    if exc.code == "NotFoundError":
-                        vt_result = None
-                    else:
-                        raise HTTPException(
-                            status_code=502,
-                            detail="VirusTotal lookup failed",
-                        ) from exc
-
-                results.append(
-                    {
-                        **attachment,
-                        "vt_results": (
-                            _plain(vt_result.last_analysis_results)
-                            if vt_result is not None
-                            else None
-                        ),
-                    }
-                )
-
-    storage_key = await store_eml(content)
-
+    A failed lookup also gives None. The attachment then shows as unknown
+    instead of failing the whole analysis.
+    """
     try:
-        # Store the analysis and attachments together
-        async with db.begin():
-            analysis = MailAnalysis(
-                team_id=team_id,
-                submitted_by=submitted_by,
-                subject=str(msg.get("Subject", "")),
-                sender=str(msg.get("From", "")),
-                status="completed",
-                storage_key=storage_key,
-                reported_by=reported_by,
-                raw_headers="\n".join(f"{key}: {value}" for key, value in msg.items()),
-            )
+        result = await client.get_object_async(f"/files/{sha256}")
+    except vt.APIError as exc:
+        if exc.code != "NotFoundError":
+            logger.warning("VirusTotal lookup of %s failed: %s", sha256, exc.code)
+        return None
 
-            db.add(analysis)
+    return _plain(result.last_analysis_results)
 
-            # Load the generated analysis ID
-            await db.flush()
 
-            for result in results:
-                db.add(
-                    MailAttachment(
-                        mail_analysis_id=analysis.id,
-                        filename=result["filename"],
-                        sha256=result["sha256"],
-                        mime_type=result["mime_type"],
-                        size=result["size"],
-                        vt_results=result["vt_results"],
-                    )
-                )
-    except SQLAlchemyError:
-        try:
-            await delete_object(storage_key)
-        except ObjectStorageError:
-            logger.exception("Failed to remove orphaned EML object %s", storage_key)
-        raise
+async def _check_attachments(attachments: list[dict]) -> None:
+    """Adds `vt_results` to every attachment."""
+    for attachment in attachments:
+        attachment["vt_results"] = None
 
-    if reported_by:
-        await enqueue_analysis_ready(analysis.id)
+    if not attachments:
+        return
 
-    return analysis, results
+    api_key = os.getenv("VT_API_KEY")
+
+    if not api_key:
+        logger.warning("VT_API_KEY is not set, attachments stay unchecked")
+        return
+
+    async with vt.Client(api_key) as client:
+        for attachment in attachments:
+            attachment["vt_results"] = await _virus_total(client, attachment["sha256"])
+
+
+async def run_analysis(analysis_id: int, db: AsyncSession) -> None:
+    """The slow part of an analysis. Runs in the worker, never in a request."""
+    async with db.begin():
+        analysis = await db.get(MailAnalysis, analysis_id)
+
+        # deleted in the meantime, or done by an earlier try
+        if (
+            analysis is None
+            or analysis.deleted_at is not None
+            or analysis.status == "completed"
+        ):
+            return
+
+        analysis.status = "processing"
+        # a retry keeps the first start, the duration covers all tries
+        analysis.started_at = analysis.started_at or datetime.utcnow()
+        analysis.step = "Mail wird geladen"
+        db.add(analysis)
+
+    msg = _parse(await load_eml(analysis.storage_key))
+
+    await _set_step(analysis, "Anhänge werden geprüft", db)
+    attachments = _attachments_of(msg)
+    await _check_attachments(attachments)
+
+    # Results and the final status together, a failed try leaves nothing behind
+    async with db.begin():
+        for attachment in attachments:
+            db.add(MailAttachment(mail_analysis_id=analysis.id, **attachment))
+
+        analysis.status = "completed"
+        analysis.step = None
+        analysis.error = None
+        analysis.completed_at = datetime.utcnow()
+        db.add(analysis)
+
+
+async def record_failure(
+    analysis_id: int,
+    exc: Exception,
+    attempt: int,
+    max_attempts: int,
+    db: AsyncSession,
+) -> None:
+    """Keeps the error for the detail page. Failed only after the last try."""
+    # whatever the failed try left open is thrown away
+    await db.rollback()
+
+    async with db.begin():
+        analysis = await db.get(MailAnalysis, analysis_id)
+
+        if analysis is None:
+            return
+
+        analysis.error = {
+            "detail": str(exc) or type(exc).__name__,
+            "step": analysis.step,
+            "attempt": attempt,
+            "max_attempts": max_attempts,
+            "at": datetime.utcnow().isoformat(),
+        }
+        analysis.status = "failed" if attempt >= max_attempts else "pending"
+        db.add(analysis)

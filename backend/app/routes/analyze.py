@@ -3,17 +3,18 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from ..constants import VERDICT_THRESHOLDS
+from ..constants import VERDICT_THRESHOLDS, WORKER_MAX_JOBS
 from ..database import get_db
 from ..models.mail_analysis import MailAnalysis
 from ..models.mail_attachment import MailAttachment
 from ..models.team_membership import TeamMembership
 from ..models.user import User
 from ..services.auth import get_current_user
-from ..services.mail_analysis import analyze_and_store
+from ..services.mail_analysis import submit_analysis
 from ..services.teams import get_active_membership, require_role
 
 router = APIRouter(tags=["analyses"])
@@ -58,6 +59,13 @@ def _attachment(attachment: MailAttachment) -> dict:
         "virus_total": f"{flagged} / {len(scanners)}" if scanners else "unbekannt",
         "malicious": flagged > 0,
     }
+
+
+def _duration(analysis: MailAnalysis) -> int | None:
+    if analysis.started_at is None or analysis.completed_at is None:
+        return None
+
+    return round((analysis.completed_at - analysis.started_at).total_seconds())
 
 
 async def _decision(analysis: MailAnalysis, db: AsyncSession) -> dict | None:
@@ -119,7 +127,8 @@ async def create_analysis(
 
     content = await file.read()
 
-    analysis, _ = await analyze_and_store(
+    # Answers at once with status running, the worker analyzes in the background
+    analysis = await submit_analysis(
         content=content,
         team_id=membership.team_id,
         submitted_by=user.id,
@@ -143,6 +152,7 @@ async def get_analysis(
         .order_by(MailAttachment.id)
     )
     attachments = result.all()
+    running = analysis.status in ("pending", "processing")
 
     return {
         **_list_item(analysis),
@@ -154,11 +164,11 @@ async def get_analysis(
         "attachments": [_attachment(attachment) for attachment in attachments],
         "raw_headers": analysis.raw_headers or "",
         "decision": await _decision(analysis, db),
-        # The analysis runs during the upload, so there is no progress to show
-        "duration_seconds": None,
-        "step": None,
-        "started_at": None,
-        "error": None,
+        "duration_seconds": _duration(analysis),
+        # step and started_at only while it runs, error only once it failed
+        "step": analysis.step if running else None,
+        "started_at": analysis.started_at if running else None,
+        "error": analysis.error if analysis.status == "failed" else None,
         "storage_key": analysis.storage_key,
     }
 
@@ -215,3 +225,57 @@ async def delete_analysis(
         analysis = await _team_analysis(analysis_id, membership, db)
         analysis.deleted_at = datetime.utcnow()
         db.add(analysis)
+
+
+@router.get("/queue")
+async def get_queue(
+    membership: TeamMembership = Depends(get_active_membership),
+    db: AsyncSession = Depends(get_db),
+):
+    """Waiting analyses for the progress view.
+
+    All teams share one queue. Other teams only show up in the count, their
+    subjects and senders stay hidden.
+    """
+    result = await db.exec(
+        select(MailAnalysis)
+        .where(MailAnalysis.status == "pending")
+        .where(MailAnalysis.deleted_at.is_(None))
+        .order_by(MailAnalysis.created_at)
+    )
+    waiting = result.all()
+
+    busy = await db.exec(
+        select(func.count())
+        .select_from(MailAnalysis)
+        .where(MailAnalysis.status == "processing")
+    )
+
+    items = []
+    for position, analysis in enumerate(waiting, start=1):
+        if analysis.team_id != membership.team_id:
+            continue
+
+        if analysis.reported_by:
+            submitted_by = analysis.reported_by
+        else:
+            submitter = await db.get(User, analysis.submitted_by)
+            submitted_by = submitter.name
+
+        items.append(
+            {
+                "position": position,
+                "subject": analysis.subject,
+                "sender": analysis.sender,
+                "source": "report" if analysis.reported_by else "upload",
+                "submitted_by": submitted_by,
+                "queued_at": analysis.created_at,
+            }
+        )
+
+    return {
+        "waiting": len(waiting),
+        "workers_busy": busy.one(),
+        "workers_total": WORKER_MAX_JOBS,
+        "items": items,
+    }

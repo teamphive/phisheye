@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Column, Text
+from sqlalchemy import JSON, Column, Text
 from sqlmodel import Field, SQLModel
 
 
@@ -20,6 +20,13 @@ class MailAnalysis(SQLModel, table=True):
     notified_at: datetime | None = None
 
     raw_headers: str | None = Field(default=None, sa_column=Column(Text))
+
+    # Progress of the analysis job. pending -> processing -> completed or failed
+    step: str | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    # detail, step, attempt, max_attempts and at of the last failed try
+    error: dict | None = Field(default=None, sa_column=Column(JSON))
 
     verdict: str | None = None
     confidence_score: float | None = None
