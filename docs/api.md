@@ -54,7 +54,7 @@ Instanz-Rollen: Das **Standard-Team** ist das Instanz-Team. Dort gibt es nur die
 | POST | `/analyses/{id}/decision` | Verdikt bestätigen oder als falsch-positiv melden, Body `verdict`, antwortet mit `{ verdict, by, at }` (umgesetzt) |
 | DELETE | `/analyses/{id}/decision` | Entscheidung zurücknehmen (umgesetzt) |
 | GET | `/analyses/{id}/eml` | Original-`.eml` aus MinIO herunterladen, geht über das Backend (MinIO ist von außen nicht erreichbar). Antwort mit `Content-Disposition: attachment` und `application/octet-stream`, die Datei kann Schadcode enthalten |
-| GET | `/analyses/search?q=` | Suche über Betreff, Absender, Link-Domain und Anhang-Hash, siehe unten |
+| GET | `/analyses/search?q=` | Suche über Betreff, Absender, Link-Domain und Anhang-Hash, siehe unten (umgesetzt, ohne Link-Hosts) |
 | GET | `/queue` | Wartende Jobs und Worker-Auslastung, für die Fortschrittsanzeige. Sinnvoll erst, wenn die Analyse als arq-Job läuft |
 
 ## Übersicht
