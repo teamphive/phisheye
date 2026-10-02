@@ -38,7 +38,7 @@ Wenn etwas schiefgeht:
 
 ## Versionen
 
-Semantic Versioning ohne `v`: `0.1.0`, `0.1.1`, `0.2.0`. `just bump-version` rechnet so:
+Semantic Versioning ohne `v`: `0.1.0`, `0.1.1`, `0.2.0`. Maßgeblich ist der Git-Tag. `version` in `backend/pyproject.toml` und `frontend/package.json` bleibt unverändert. `just bump-version` rechnet so:
 
 | Commits seit dem letzten Release | Nächste Version |
 | --- | --- |
