@@ -135,7 +135,7 @@ export function HourlyChart({ data }: { data: HourlyCount[] }) {
                 y={y(tick)}
                 textAnchor="end"
                 dominantBaseline="middle"
-                className="fill-faint font-mono text-[10.5px]"
+                className="fill-muted-foreground text-xs"
               >
                 {tick}
               </text>
@@ -167,7 +167,7 @@ export function HourlyChart({ data }: { data: HourlyCount[] }) {
               x={x(label.index)}
               y={height - 6}
               textAnchor={label.anchor}
-              className="fill-faint font-mono text-[10.5px]"
+              className="fill-muted-foreground text-xs"
             >
               {label.text}
             </text>
@@ -206,10 +206,10 @@ export function HourlyChart({ data }: { data: HourlyCount[] }) {
             transform: "translate(-50%, -100%)",
           }}
         >
-          <div className="text-[13px] font-semibold">
+          <div className="text-sm font-semibold">
             {hovered.count} {hovered.count === 1 ? "Analyse" : "Analysen"}
           </div>
-          <div className="font-mono text-[10.5px] text-muted-foreground">
+          <div className="text-xs text-muted-foreground">
             {formatTime(hovered.hour)}–
             {formatTime(
               new Date(new Date(hovered.hour).getTime() + hour).toISOString()

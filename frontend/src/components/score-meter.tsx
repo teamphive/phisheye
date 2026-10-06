@@ -12,7 +12,11 @@ export function ScoreMeter({ score, thresholds }: ScoreMeterProps) {
       width: thresholds.phishing - thresholds.suspicious,
       className: "bg-suspicious",
     },
-    { key: "phishing", width: 100 - thresholds.phishing, className: "bg-phishing" },
+    {
+      key: "phishing",
+      width: 100 - thresholds.phishing,
+      className: "bg-phishing",
+    },
   ]
 
   const activeZone =
@@ -36,14 +40,18 @@ export function ScoreMeter({ score, thresholds }: ScoreMeterProps) {
         </div>
 
         <div
-          className="bg-foreground ring-card absolute -top-[5px] w-[3px] rounded-sm ring-[3px]"
-          style={{ left: `${score}%`, height: 19, transform: "translateX(-50%)" }}
+          className="absolute -top-[5px] w-[3px] rounded-sm bg-foreground ring-[3px] ring-card"
+          style={{
+            left: `${score}%`,
+            height: 19,
+            transform: "translateX(-50%)",
+          }}
         />
 
         {[0, thresholds.suspicious, thresholds.phishing, 100].map((tick) => (
           <span
             key={tick}
-            className="text-faint absolute top-3.5 font-mono text-[10px]"
+            className="absolute top-3.5 text-[10px] text-faint"
             style={{ left: `${tick}%`, transform: "translateX(-50%)" }}
           >
             {tick}
@@ -51,16 +59,17 @@ export function ScoreMeter({ score, thresholds }: ScoreMeterProps) {
         ))}
       </div>
 
-      <div className="text-muted-foreground flex gap-4 text-[11.5px]">
+      <div className="flex gap-4 text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">
-          <i className="bg-clean block size-2 rounded-sm" />0–{thresholds.suspicious - 1} Sauber
+          <i className="block size-2 rounded-sm bg-clean" />
+          0–{thresholds.suspicious - 1} Sauber
         </span>
         <span className="flex items-center gap-1.5">
-          <i className="bg-suspicious block size-2 rounded-sm" />
+          <i className="block size-2 rounded-sm bg-suspicious" />
           {thresholds.suspicious}–{thresholds.phishing - 1} Verdächtig
         </span>
         <span className="flex items-center gap-1.5">
-          <i className="bg-phishing block size-2 rounded-sm" />
+          <i className="block size-2 rounded-sm bg-phishing" />
           {thresholds.phishing}–100 Phishing
         </span>
       </div>

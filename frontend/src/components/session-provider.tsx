@@ -227,7 +227,7 @@ function NoTeam({
         </h1>
         <p className="max-w-[46ch] text-sm text-muted-foreground">
           {user.canCreateTeams
-            ? "Analysen werden immer innerhalb eines Teams geteilt. Lege ein Team an, um Mails zu analysieren und Kollegen einzuladen — du wirst automatisch dessen Admin."
+            ? "Analysen werden immer innerhalb eines Teams geteilt. Lege ein Team an, um Mails zu analysieren und Kollegen einzuladen. Du wirst automatisch dessen Admin."
             : "Analysen werden immer innerhalb eines Teams geteilt. Bitte einen Team-Admin um eine Einladung und prüf danach hier erneut."}
         </p>
       </div>
@@ -252,7 +252,7 @@ function NoTeam({
         </Button>
       )}
 
-      <p className="text-center font-mono text-[11px] text-faint">
+      <p className="text-center text-xs text-muted-foreground">
         Angemeldet als {user.email}
         {authEnabled ? (
           <>

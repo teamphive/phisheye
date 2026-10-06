@@ -110,7 +110,7 @@ export function MonitoringPage() {
         <Card className="mx-auto mt-[4vh] max-w-[52ch]">
           <CardContent className="flex flex-col items-center gap-3 text-center">
             <TriangleAlertIcon className="size-6 text-phishing" />
-            <div className="text-[15px] font-semibold">
+            <div className="text-base font-semibold">
               Monitoring konnte nicht geladen werden
             </div>
             <p className="text-sm text-muted-foreground">
@@ -258,9 +258,7 @@ function StatTile({
   return (
     <Card>
       <CardContent className="flex flex-col gap-1.5">
-        <span className="font-mono text-[10.5px] tracking-[0.12em] text-faint uppercase">
-          {label}
-        </span>
+        <span className="text-sm text-muted-foreground">{label}</span>
         <div className="text-[28px] leading-tight font-semibold tracking-tight">
           {value}
           {unit ? (
@@ -332,13 +330,13 @@ function FailuresCard({ failures }: { failures: FailedJob[] }) {
             ) : null}
             {failures.map((job) => (
               <TableRow key={job.id}>
-                <TableCell className="pl-(--card-spacing) font-mono">
+                <TableCell className="pl-(--card-spacing)">
                   {formatShortDateTime(job.at)}
                 </TableCell>
                 <TableCell className="whitespace-normal text-muted-foreground">
                   {job.error}
                 </TableCell>
-                <TableCell className="font-mono tabular-nums">
+                <TableCell className="tabular-nums">
                   {job.attempt} / {job.maxAttempts}
                 </TableCell>
                 <TableCell className="pr-(--card-spacing) text-right">

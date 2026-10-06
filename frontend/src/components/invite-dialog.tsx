@@ -146,7 +146,7 @@ export function InviteDialog({ team, onInvited }: InviteDialogProps) {
                 <SelectContent>
                   {roles.map((entry) => (
                     <SelectItem key={entry} value={entry}>
-                      {roleLabel[entry]} — {describe(entry)}
+                      {roleLabel[entry]}: {describe(entry)}
                     </SelectItem>
                   ))}
                 </SelectContent>

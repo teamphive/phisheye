@@ -311,7 +311,7 @@ function AnalysesList({
                       <span className="block max-w-[380px] truncate font-semibold">
                         {item.subject}
                       </span>
-                      <span className="block max-w-[380px] truncate font-mono text-xs text-faint">
+                      <span className="block max-w-[380px] truncate text-xs text-muted-foreground">
                         {item.sender}
                       </span>
                     </TableCell>
@@ -321,7 +321,7 @@ function AnalysesList({
                         verdict={item.verdict}
                       />
                     </TableCell>
-                    <TableCell className="text-right font-mono font-semibold tabular-nums">
+                    <TableCell className="text-right font-medium tabular-nums">
                       {item.score === null ? (
                         <span className="text-faint">—</span>
                       ) : (
@@ -336,7 +336,7 @@ function AnalysesList({
                             Outlook
                           </Badge>
                           <span
-                            className="mt-0.5 block max-w-[200px] truncate font-mono text-[11px] text-faint"
+                            className="mt-0.5 block max-w-[200px] truncate text-xs text-muted-foreground"
                             title={item.reportedBy ?? undefined}
                           >
                             {item.reportedBy}
@@ -349,7 +349,7 @@ function AnalysesList({
                     <TableCell className="whitespace-nowrap text-muted-foreground">
                       {item.handler ?? <span className="text-faint">—</span>}
                     </TableCell>
-                    <TableCell className="font-mono whitespace-nowrap text-faint">
+                    <TableCell className="whitespace-nowrap text-muted-foreground tabular-nums">
                       {formatShortDateTime(item.receivedAt)}
                     </TableCell>
                   </TableRow>
@@ -360,7 +360,7 @@ function AnalysesList({
         </CardContent>
 
         <CardFooter className="justify-between">
-          <span className="font-mono text-[11.5px] text-faint">
+          <span className="text-xs text-muted-foreground">
             {loadError
               ? "Nicht geladen"
               : items === null
@@ -373,7 +373,7 @@ function AnalysesList({
           </span>
           <div className="flex items-center gap-1.5">
             {pageCount > 1 ? (
-              <span className="mr-1.5 font-mono text-[11.5px] text-faint">
+              <span className="mr-1.5 text-xs text-muted-foreground">
                 Seite {currentPage} von {pageCount}
               </span>
             ) : null}
