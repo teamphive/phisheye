@@ -56,7 +56,7 @@ export const analyses: AnalysisListItem[] = [
   },
   {
     id: "a-2026-0127",
-    subject: "Zahlungsaufforderung – dringend, vertraulich",
+    subject: "Zahlungsaufforderung - dringend, vertraulich",
     sender: "geschaeftsfuehrung@hansa-Iogistik.de",
     status: "completed",
     verdict: "phishing",
@@ -104,7 +104,7 @@ export const analyses: AnalysisListItem[] = [
   },
   {
     id: "a-2026-0125",
-    subject: "AW: Angebot Q3 – bitte kurzfristig freigeben",
+    subject: "AW: Angebot Q3 - bitte kurzfristig freigeben",
     sender: "k.wagner@hansa-logistik.de.co",
     status: "completed",
     verdict: "suspicious",
@@ -116,7 +116,7 @@ export const analyses: AnalysisListItem[] = [
   },
   {
     id: "a-2026-0124",
-    subject: "Bewerbung als Fachinformatiker – Unterlagen",
+    subject: "Bewerbung als Fachinformatiker - Unterlagen",
     sender: "j.brandt@gmx.de",
     status: "completed",
     verdict: "suspicious",

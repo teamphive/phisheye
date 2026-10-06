@@ -49,7 +49,7 @@ function HitLabel({ hit }: { hit: SearchHit }) {
     return (
       <>
         <span className="block truncate">{hit.subject}</span>
-        <span className="block truncate font-mono text-[11px] text-faint">
+        <span className="block truncate text-xs text-muted-foreground">
           {hit.sender}
         </span>
       </>
@@ -58,7 +58,7 @@ function HitLabel({ hit }: { hit: SearchHit }) {
 
   return (
     <>
-      <span className="block truncate font-mono text-[13px]" title={hit.match}>
+      <span className="block truncate text-sm" title={hit.match}>
         {hit.field === "hash" ? shortenHash(hit.match) : hit.match}
       </span>
       <span className="block truncate text-xs text-muted-foreground">

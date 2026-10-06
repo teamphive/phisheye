@@ -198,7 +198,7 @@ const failed: AnalysisDetail = {
   startedAt: null,
   error: {
     detail:
-      "Die Anfrage an VirusTotal wurde abgelehnt, weil das Tageskontingent aufgebraucht ist. Es liegt kein Verdikt vor — die Mail wurde nicht bewertet.",
+      "Die Anfrage an VirusTotal wurde abgelehnt, weil das Tageskontingent aufgebraucht ist. Es liegt kein Verdikt vor, die Mail wurde nicht bewertet.",
     step: "Anhänge prüfen",
     attempt: 3,
     maxAttempts: 3,

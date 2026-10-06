@@ -33,7 +33,7 @@ export function NotificationsMenu() {
       <DropdownMenuTrigger className="relative grid size-[34px] place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground">
         <BellIcon className="size-[18px]" />
         {unreadCount > 0 ? (
-          <span className="absolute top-0.5 right-0 grid h-4 min-w-4 place-items-center rounded-full border-2 border-background bg-phishing px-1 font-mono text-[9px] font-semibold text-background">
+          <span className="absolute top-0.5 right-0 grid h-4 min-w-4 place-items-center rounded-full border-2 border-background bg-phishing px-1 text-[9px] font-semibold text-background">
             {unreadCount}
           </span>
         ) : null}
@@ -73,7 +73,7 @@ export function NotificationsMenu() {
               />
               <span className="min-w-0 flex-1">
                 <span
-                  className={`block text-[13px] ${
+                  className={`block text-sm ${
                     entry.read
                       ? "font-medium text-muted-foreground"
                       : "font-semibold"
@@ -87,7 +87,7 @@ export function NotificationsMenu() {
                 <span className="block truncate text-xs text-muted-foreground">
                   {entry.detail}
                 </span>
-                <span className="mt-0.5 block font-mono text-[10.5px] text-faint">
+                <span className="mt-0.5 block text-xs text-muted-foreground">
                   {formatRelativeTime(entry.createdAt)}
                 </span>
               </span>

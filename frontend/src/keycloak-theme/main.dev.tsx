@@ -236,7 +236,10 @@ const mocks: Record<string, { label: string; kcContext: () => KcContext }> = {
       getKcContextMock({
         pageId: "info.ftl",
         overrides: {
-          message: { type: "success", summary: "Ihr Konto wurde aktualisiert." },
+          message: {
+            type: "success",
+            summary: "Ihr Konto wurde aktualisiert.",
+          },
           messageHeader: undefined,
           pageRedirectUri: "#",
         },

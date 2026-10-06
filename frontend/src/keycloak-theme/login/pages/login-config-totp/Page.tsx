@@ -49,7 +49,7 @@ export function Page() {
     <PageShell title="2FA einrichten">
       <AuthCard width={560}>
         <div>
-          <h1 className="text-[22px] font-semibold tracking-tight">
+          <h1 className="text-2xl font-semibold tracking-tight">
             Zwei-Faktor-Authentifizierung einrichten
           </h1>
           <p className="mt-1.5 text-sm text-muted-foreground">
@@ -70,9 +70,7 @@ export function Page() {
             />
             <div className="flex min-w-0 flex-col gap-3">
               <div>
-                <div className="text-[13.5px] font-semibold">
-                  1. QR-Code scannen
-                </div>
+                <div className="text-sm font-semibold">1. QR-Code scannen</div>
                 <p className="mt-1 text-xs text-muted-foreground">
                   Mit einer Authenticator-App deiner Wahl, zum Beispiel {apps}.
                 </p>
@@ -81,7 +79,7 @@ export function Page() {
                 <div className="mb-1 text-xs text-muted-foreground">
                   Falls das Scannen nicht klappt:
                 </div>
-                <code className="block rounded-md border border-border bg-muted px-3 py-2 font-mono text-[11.5px] break-all text-muted-foreground">
+                <code className="block rounded-md border border-border bg-muted px-3 py-2 font-mono text-xs break-all text-muted-foreground">
                   {totp.totpSecretEncoded}
                 </code>
               </div>

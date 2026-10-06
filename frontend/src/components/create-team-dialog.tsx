@@ -127,7 +127,7 @@ export function CreateTeamDialog({
             </Field>
           </FieldGroup>
 
-          <p className="text-[12.5px] text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             Du wirst automatisch Admin des neuen Teams und kannst anschließend
             Mitglieder einladen. Analysen bleiben pro Team getrennt.
           </p>
