@@ -8,6 +8,7 @@ from .tasks import (
     poll_report_mailbox,
     send_decision_mail,
     send_failure_mail,
+    send_receipt_mail,
     send_team_invitation,
 )
 
@@ -17,6 +18,7 @@ class WorkerSettings:
         analyze_mail,
         send_decision_mail,
         send_failure_mail,
+        send_receipt_mail,
         send_team_invitation,
     ]
     cron_jobs = [

@@ -21,6 +21,8 @@
       .text-muted, p { color: #a1a1aa !important; }
       .brand { color: #7da3f5 !important; }
       a { background-color: #7da3f5 !important; color: #0b0b0e !important; }
+      .logo-light { display: none !important; }
+      .logo-dark { display: inline-block !important; }
     }
   </style>
 </head>
@@ -30,7 +32,13 @@
       <td align="center" style="padding:32px 12px;">
         <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" class="container" style="width:560px;max-width:100%;">
           <tr>
-            <td class="brand" style="padding:0 4px 16px 4px;font-family:Inter,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;font-size:20px;font-weight:600;letter-spacing:-0.3px;color:#2b5ce6;">
+            <td class="brand" style="padding:0 4px 16px 4px;font-family:Inter,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;font-size:20px;line-height:24px;font-weight:600;letter-spacing:-0.3px;color:#2b5ce6;">
+              <#-- Keycloak runs under /auth of the app's domain, the logo lies next to the frontend -->
+              <#if link?? && link?contains("/auth/")>
+              <#assign appUrl = link?keep_before("/auth/")>
+              <img src="${appUrl}/mail-logo.png" width="24" height="24" alt="" class="logo-light" style="display:inline-block;vertical-align:-5px;border:0;margin-right:6px;">
+              <img src="${appUrl}/mail-logo-dark.png" width="24" height="24" alt="" class="logo-dark" style="display:none;vertical-align:-5px;border:0;margin-right:6px;">
+              </#if>
               phisheye
             </td>
           </tr>

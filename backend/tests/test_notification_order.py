@@ -57,7 +57,7 @@ async def failing_run(analysis_id, session):
 
 
 @pytest.mark.asyncio
-async def test_submit_queues_the_analysis_but_no_mail(db, monkeypatch):
+async def test_submit_queues_a_receipt_for_a_report_but_no_verdict(db, monkeypatch):
     queued = []
 
     class Pool:
@@ -79,16 +79,22 @@ async def test_submit_queues_the_analysis_but_no_mail(db, monkeypatch):
     team, (admin,) = await team_with(db, "admin")
     eml = b"From: a@example.com\r\nDate: Mon, 1 Oct 2026 10:00:00 +0000\r\n\r\nHi"
 
-    await mail_analysis.submit_analysis(
-        content=eml,
-        team_id=team.id,
-        submitted_by=admin.id,
-        db=db,
-        reported_by="max@firma.de",
-    )
+    for reported_by in ("max@firma.de", None):
+        queued.clear()
+        await mail_analysis.submit_analysis(
+            content=eml,
+            team_id=team.id,
+            submitted_by=admin.id,
+            db=db,
+            reported_by=reported_by,
+        )
 
-    # the reporter hears nothing until an analyst has decided
-    assert queued == ["analyze_mail"]
+        # a report gets the receipt, an upload nothing. The verdict mail waits
+        # for an analyst in both cases
+        expected = (
+            ["analyze_mail", "send_receipt_mail"] if reported_by else ["analyze_mail"]
+        )
+        assert queued == expected
 
 
 @pytest.mark.asyncio

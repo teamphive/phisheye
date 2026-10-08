@@ -2,9 +2,9 @@
   <tr>
     <td style="padding:14px 16px;font-family:Inter,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;">
       <div class="text-muted" style="color:#71717a;font-size:12px;">Betreff</div>
-      <div class="text-main" style="color:#151830;font-weight:600;margin-bottom:10px;">{{ analysis.subject or "(ohne Betreff)" }}</div>
+      <div class="text-main" style="color:#151830;font-weight:600;margin-bottom:10px;">{{ mail.subject }}</div>
       <div class="text-muted" style="color:#71717a;font-size:12px;">Absender</div>
-      <div class="text-main" style="color:#151830;font-family:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;word-break:break-all;">{{ analysis.sender }}</div>
+      <div class="text-main" style="color:#151830;font-family:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;word-break:break-all;">{{ mail.sender }}</div>
     </td>
   </tr>
 </table>

@@ -92,6 +92,17 @@ Das Backend legt für Eingeladene ein Konto ohne Passwort an. Keycloak mailt den
 - Mails laufen über den SMTP-Server aus dem Realm (`SMTP_*`).
 - Mail-Design: Email-Theme `phisheye-email` in `frontend/email-theme/`, steckt im Image. Neue Realms nutzen es über die Vorlage. Bestehender Realm: Realm settings, Themes, Email theme. `just seed` setzt es lokal.
 
+### Gültigkeit der Links in Mails
+
+| Mail | Gültig | Woher |
+| --- | --- | --- |
+| Konto einrichten | 7 Tage | Backend, `SETUP_LINK_LIFESPAN` in `keycloak_admin.py` |
+| Passwort zurücksetzen | 30 Minuten | Realm, `actionTokenGeneratedByUserLifespan` = 1800 |
+| E-Mail bestätigen | 30 Minuten | dieselbe Einstellung, wird praktisch nie verschickt |
+| Team-Einladung | läuft nicht ab | nur ein Link auf phisheye |
+
+Die Vorlage `docker/keycloak/realm-export.json` gilt nur für einen neuen Realm. Auf einem bestehenden Server (Prod) stellst du die Dauer einmal in der Admin-Console um: Realm settings, Tokens, "User-Initiated Action Lifespan" auf 30 Minuten. Der Standard von Keycloak sind 5 Minuten, das ist knapp, wenn die Mail bei Exchange ein paar Minuten hängt.
+
 ## Standard-Team und Instanz-Admin
 
 - Das Standard-Team gibt es immer. Name fest (`Standard-Team`), nicht umbenennbar, nicht löschbar.

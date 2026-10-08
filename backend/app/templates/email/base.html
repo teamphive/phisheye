@@ -20,8 +20,10 @@
       .rule { border-color: #26262b !important; }
       .brand, .link { color: #7da3f5 !important; }
       .tone-clean { background-color: #12231a !important; color: #4fc58d !important; }
-      .tone-suspicious { background-color: #262012 !important; color: #e2ab4b !important; }
       .tone-phishing { background-color: #2a1718 !important; color: #f27573 !important; }
+      .button { background-color: #7da3f5 !important; color: #0b0b0e !important; }
+      .logo-light { display: none !important; }
+      .logo-dark { display: inline-block !important; }
     }
   </style>
 </head>
@@ -32,7 +34,10 @@
       <td align="center" style="padding:32px 12px;">
         <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" class="container" style="width:560px;max-width:100%;">
           <tr>
-            <td style="padding:0 4px 16px 4px;font-family:Inter,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;font-size:20px;font-weight:600;letter-spacing:-0.3px;color:#2b5ce6;" class="brand">
+            <td style="padding:0 4px 16px 4px;font-family:Inter,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;font-size:20px;line-height:24px;font-weight:600;letter-spacing:-0.3px;color:#2b5ce6;" class="brand">
+              {# blocked images leave the name, so no alt text twice #}
+              <img src="{{ app_url }}/mail-logo.png" width="24" height="24" alt="" class="logo-light" style="display:inline-block;vertical-align:-5px;border:0;margin-right:6px;">
+              <img src="{{ app_url }}/mail-logo-dark.png" width="24" height="24" alt="" class="logo-dark" style="display:none;vertical-align:-5px;border:0;margin-right:6px;">
               phisheye
             </td>
           </tr>
@@ -49,7 +54,7 @@
           </tr>
           <tr>
             <td class="text-muted" style="padding:16px 4px 0 4px;font-family:Inter,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#71717a;">
-              {% block footer %}Diese Nachricht kommt automatisch von phisheye, weil du eine Mail zur Prüfung eingereicht hast. Bitte antworte nicht darauf.{% endblock %}
+              {% block footer %}Diese Nachricht kommt von phisheye, weil du eine Mail zur Prüfung gemeldet hast. Bitte antworte nicht darauf.{% endblock %}
             </td>
           </tr>
         </table>

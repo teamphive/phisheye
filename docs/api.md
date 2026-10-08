@@ -165,13 +165,14 @@ Mitarbeiter melden eine verdächtige Mail in Outlook, die Meldung geht an ein ge
 
 ### Benachrichtigung per Mail
 
-Die meldende Person erfährt das Ergebnis erst, wenn ein Analyst entschieden hat. Es geht nie eine automatische Bewertung raus, auch nicht bei Phishing. Die Mail nennt die Entscheidung (Phishing oder unbedenklich), bei Phishing dazu die Gründe der Regeln, ohne Score. Meldende haben keinen Zugang zum Portal, die Mail enthält deshalb keinen Link.
+Die meldende Person bekommt bei jeder Meldung per Mail sofort eine Eingangsbestätigung, ohne Bewertung. Das Ergebnis erfährt sie erst, wenn ein Analyst entschieden hat. Es geht nie eine automatische Bewertung raus, auch nicht bei Phishing. Die Mail nennt die Entscheidung (Phishing oder unbedenklich), bei Phishing dazu die Gründe der Regeln, ohne Score. Meldende haben keinen Zugang zum Portal, die Mail enthält deshalb keinen Link.
 
+- Die Eingangsbestätigung ist der Job `send_receipt_mail`. `submit_analysis` reiht ihn bei jeder Meldung ein (`reported_by` gesetzt), höchstens einmal pro Analyse (`received_at`). Sie geht nicht mehr raus, wenn die Person schon ein Ergebnis kennt oder die Analyse gelöscht ist.
 - `POST /analyses/{id}/decision` reiht den Job `send_decision_mail` mit zwei Minuten Verzögerung ein (`DECISION_MAIL_DELAY_SECONDS`, 120). In der Zeit lässt sich die Entscheidung zurücknehmen oder ändern.
 - Der Job liest den Zustand beim Ausführen. Zurückgenommen oder schon gemeldet: nichts. Geändert nach dem Versand: Korrektur-Mail ("Neubewertung"). Hat der Analyst in der Pause erneut geklickt, wartet der Job auf den neuen.
 - `notified_verdict` merkt, was die Person zuletzt gehört hat. `notified_at` zählt für die Stundenbegrenzung.
-- Scheitert die Analyse nach allen Versuchen, bekommt die Person direkt eine kurze Mail, dass sie die Mail später noch einmal melden soll (`send_failure_mail`). Eine Eingangsbestätigung gibt es nicht.
-- Empfänger ist die Adresse aus `reported_by`, sie stammt aus dem `From` der weitergeleiteten Mail. Pro Adresse gehen höchstens 10 Mails pro Stunde raus.
+- Scheitert die Analyse nach allen Versuchen, bekommt die Person direkt eine kurze Mail, dass sie die Mail später noch einmal melden soll (`send_failure_mail`). Das ist keine Bewertung und braucht keinen Analysten.
+- Empfänger ist die Adresse aus `reported_by`, sie stammt aus dem `From` der weitergeleiteten Mail. Pro Adresse gehen höchstens 10 Mails pro Stunde raus, Eingangsbestätigung und Entscheidung zählen beide.
 - Auto-Antworten (`Auto-Submitted`), die eigene Absenderadresse und Systemadressen wie `mailer-daemon` bekommen nichts.
 - Manuelle Uploads lösen keine Mail aus.
 
