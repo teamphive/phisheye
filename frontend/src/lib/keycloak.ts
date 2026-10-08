@@ -109,11 +109,6 @@ export function logout() {
   return keycloak.logout({ redirectUri: window.location.origin })
 }
 
-/** Opens the Keycloak account console for everything the app does not show. */
-export function openAccount() {
-  return keycloak.accountManagement()
-}
-
 /** Back to the login page after the session is gone. */
 export function login() {
   return keycloak.login()
