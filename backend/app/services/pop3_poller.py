@@ -1,9 +1,14 @@
 import base64
+import logging
 import os
 import poplib
 from email import policy
 from email.parser import BytesParser
 from email.utils import parseaddr
+
+from .msg_convert import msg_to_eml
+
+logger = logging.getLogger(__name__)
 
 
 def _connect() -> poplib.POP3_SSL:
@@ -83,13 +88,26 @@ def extract_eml(raw_mail: bytes) -> bytes:
 
                 return payload[0].as_bytes()
 
-        # some clients attach the forwarded mail as a plain file, Outlook
-        # as .msg
-        elif (part.get_filename() or "").lower().endswith((".eml", ".msg")):
+        # some clients attach the forwarded mail as a plain file
+        elif (part.get_filename() or "").lower().endswith(".eml"):
             content = part.get_payload(decode=True)
 
             if content:
                 return content
+
+        # Outlook attaches it as .msg. Converted here, so the caller gets an
+        # .eml and an unreadable .msg does not cost the whole report
+        elif (part.get_filename() or "").lower().endswith(".msg"):
+            content = part.get_payload(decode=True)
+
+            if content:
+                try:
+                    return msg_to_eml(content)
+                # the file comes from outside, whatever breaks means unreadable
+                except Exception:
+                    logger.warning(
+                        "Attached .msg could not be read, keeping the report"
+                    )
 
     return raw_mail
 
