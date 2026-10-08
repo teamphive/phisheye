@@ -66,7 +66,7 @@ Eine Analyse ist höchstens einer Person zugewiesen. Die Detailseite zeigt sie i
 Datenmodell:
 
 - Neue Spalte `handled_by` in `mail_analyses`, nullable, Fremdschlüssel auf `users.id`, mit Alembic-Migration.
-- In Liste und Detail wird daraus `handler`: der `name` dieser Person, genau wie in `GET /me`, sonst null. Das Frontend vergleicht `handler` mit dem eigenen `name`, um „Abgeben“ statt „Übernehmen“ zu zeigen. Den festen Wert `"handler": None` in `_list_item` ersetzen. `_list_item` bekommt bisher nur die Analyse, für den Namen braucht die Liste einen Join auf `users` (nicht pro Zeile nachschlagen), das Detail kann ihn wie `_decision` per `db.get` holen.
+- In Liste und Detail wird daraus `handler`: der `name` dieser Person, genau wie in `GET /me`, sonst null. Dazu kommt `mine`: `true`, wenn `handled_by` die anfragende Person ist. Das Frontend zeigt damit „Abgeben“ statt „Übernehmen“ und schaltet die Entscheidungs-Knöpfe frei. Die Namen kommen in der Liste über Joins auf `users` (Zuweisung und Entscheidung), nicht pro Zeile.
 - Beim Upload (`POST /analyses`) ist `handled_by` die hochladende Person. Nur die Upload-Route gibt `handled_by` an `submit_analysis`, alle anderen Wege starten ohne Zuweisung.
 - Bei Outlook-Meldungen bleibt `handled_by` null. Dort ist `submitted_by` der System-Nutzer, der darf nie zugewiesen sein.
 - Die Migration füllt bestehende Analysen: Uploads (`reported_by` null) bekommen `submitted_by`, danach bekommen entschiedene Analysen ohne Zuweisung `decided_by`. Alle anderen bleiben null. Meldungen über den Mailgun-Webhook haben ebenfalls kein `reported_by`, deshalb schließt die Migration den System-Nutzer über seine Adresse aus.
@@ -239,8 +239,9 @@ Passwort, zweiter Faktor, Backup-Codes und angemeldete Geräte verwaltet Keycloa
 | status | `running`, `completed`, `failed` |
 | verdict | `clean`, `suspicious`, `phishing` oder null |
 | score | 0 bis 100 oder null |
-| handler | string oder null. Name der zugewiesenen Person, genau wie `name` in `GET /me`, daran erkennt das Frontend die eigenen. Beim Upload die hochladende Person, bei Meldungen null, bis jemand übernimmt |
-| decision | `{ verdict, by, at }` oder null, wie im Detail (offen, das Backend liefert das Feld in der Liste noch nicht). Die Liste zeigt damit das Verdikt des Analysten statt der Erkennung, die Spalte „Status“ (bestätigt oder nicht) und den Filter „Nicht bestätigt“. Ohne das Feld steht überall „Nicht bestätigt“ |
+| handler | string oder null. Name der zugewiesenen Person, genau wie `name` in `GET /me`. Beim Upload die hochladende Person, bei Meldungen null, bis jemand übernimmt |
+| mine | bool. `true`, wenn die Analyse der anfragenden Person zugewiesen ist. Daran hängen „Abgeben“ und die Entscheidungs-Knöpfe, ein Namensvergleich mit `handler` ist nicht nötig (zwei Personen können gleich heißen) |
+| decision | `{ verdict, by, at }` oder null, genau wie im Detail. `by` ist der Name der entscheidenden Person. Die Liste zeigt damit das Verdikt des Analysten statt der Erkennung, die Spalte „Status“ (bestätigt oder nicht) und den Filter „Nicht bestätigt“. Gilt auch für die Treffer von `GET /analyses/search` und für die Antwort auf `POST /analyses` |
 | source | `upload` oder `report` (Outlook-Meldung) |
 | reported_by | Adresse der meldenden Person, null bei `upload` |
 | received_at | timestamp |

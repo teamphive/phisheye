@@ -4,6 +4,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import func, or_
+from sqlalchemy.orm import aliased
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -36,9 +37,27 @@ class DecisionRequest(BaseModel):
     verdict: Literal["phishing", "clean"]
 
 
-# helper to turn analysis into a list item. handler is the name of the
-# assigned person, the frontend compares it with the name from GET /me
-def _list_item(analysis: MailAnalysis, handler: str | None) -> dict:
+def _decision_item(analysis: MailAnalysis, decider: str | None) -> dict | None:
+    """What an analyst decided, null while nobody has. `by` is the name."""
+    if analysis.decided_verdict is None:
+        return None
+
+    return {
+        "verdict": analysis.decided_verdict,
+        "by": decider,
+        "at": analysis.decided_at,
+    }
+
+
+# helper to turn analysis into a list item. handler and decider are names,
+# `mine` says whether the analysis is assigned to the caller, so the frontend
+# does not have to compare names (two people can be called the same)
+def _list_item(
+    analysis: MailAnalysis,
+    handler: str | None,
+    decider: str | None,
+    user_id: int,
+) -> dict:
     return {
         "id": analysis.id,
         "subject": analysis.subject,
@@ -47,6 +66,8 @@ def _list_item(analysis: MailAnalysis, handler: str | None) -> dict:
         "verdict": analysis.verdict,
         "score": analysis.confidence_score,
         "handler": handler,
+        "mine": analysis.handled_by is not None and analysis.handled_by == user_id,
+        "decision": _decision_item(analysis, decider),
         "source": "report" if analysis.reported_by else "upload",
         "reported_by": analysis.reported_by,
         "received_at": analysis.created_at,
@@ -54,7 +75,12 @@ def _list_item(analysis: MailAnalysis, handler: str | None) -> dict:
 
 
 def _search_hit(
-    analysis: MailAnalysis, handler: str | None, needle: str, matching_hash: str | None
+    analysis: MailAnalysis,
+    handler: str | None,
+    decider: str | None,
+    user_id: int,
+    needle: str,
+    matching_hash: str | None,
 ) -> dict:
     """One hit per analysis, the most specific field wins: hash, sender, subject.
 
@@ -67,7 +93,11 @@ def _search_hit(
     else:
         field, match = "subject", analysis.subject
 
-    return {**_list_item(analysis, handler), "field": field, "match": match}
+    return {
+        **_list_item(analysis, handler, decider, user_id),
+        "field": field,
+        "match": match,
+    }
 
 
 def _attachment(attachment: MailAttachment) -> dict:
@@ -104,36 +134,27 @@ def _duration(analysis: MailAnalysis) -> int | None:
     return round((analysis.completed_at - analysis.started_at).total_seconds())
 
 
-async def _decision(analysis: MailAnalysis, db: AsyncSession) -> dict | None:
-    if analysis.decided_verdict is None:
-        return None
+def _with_names():
+    """Analyses with the names of the assigned and the deciding person.
 
-    decider = await db.get(User, analysis.decided_by)
-
-    return {
-        "verdict": analysis.decided_verdict,
-        "by": decider.name,
-        "at": analysis.decided_at,
-    }
-
-
-def _with_handler():
-    """Analyses with the name of the assigned person, in one query.
-
-    Looking it up per row would cost one query per analysis. Outer join, so
-    analyses without anyone assigned stay in with null.
+    Looking them up per row would cost two queries per analysis. Outer joins,
+    so analyses without anyone assigned or decided stay in with null.
     """
-    return select(MailAnalysis, User.name).outerjoin(
-        User, User.id == MailAnalysis.handled_by
+    handler, decider = aliased(User), aliased(User)
+
+    return (
+        select(MailAnalysis, handler.name, decider.name)
+        .outerjoin(handler, handler.id == MailAnalysis.handled_by)
+        .outerjoin(decider, decider.id == MailAnalysis.decided_by)
     )
 
 
-async def _handler_name(analysis: MailAnalysis, db: AsyncSession) -> str | None:
-    if analysis.handled_by is None:
+async def _user_name(user_id: int | None, db: AsyncSession) -> str | None:
+    if user_id is None:
         return None
 
-    handler = await db.get(User, analysis.handled_by)
-    return handler.name
+    person = await db.get(User, user_id)
+    return person.name if person else None
 
 
 async def _team_analysis(
@@ -157,23 +178,28 @@ async def _team_analysis(
 
 @router.get("/analyses")
 async def list_analyses(
+    user: User = Depends(get_current_user),
     membership: TeamMembership = Depends(get_active_membership),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.exec(
-        _with_handler()
+        _with_names()
         .where(MailAnalysis.team_id == membership.team_id)
         .where(MailAnalysis.deleted_at.is_(None))
         .order_by(MailAnalysis.created_at.desc())
     )
 
-    return [_list_item(analysis, handler) for analysis, handler in result.all()]
+    return [
+        _list_item(analysis, handler, decider, user.id)
+        for analysis, handler, decider in result.all()
+    ]
 
 
 # Must stay above /analyses/{analysis_id}, otherwise "search" is read as an id
 @router.get("/analyses/search")
 async def search_analyses(
     q: str,
+    user: User = Depends(get_current_user),
     membership: TeamMembership = Depends(get_active_membership),
     db: AsyncSession = Depends(get_db),
 ):
@@ -196,7 +222,7 @@ async def search_analyses(
         conditions.append(MailAnalysis.id.in_(analyses_with_hash))
 
     result = await db.exec(
-        _with_handler()
+        _with_names()
         .where(MailAnalysis.team_id == membership.team_id)
         .where(MailAnalysis.deleted_at.is_(None))
         .where(or_(*conditions))
@@ -204,7 +230,7 @@ async def search_analyses(
         .limit(_SEARCH_LIMIT)
     )
     rows = result.all()
-    analyses = [analysis for analysis, _ in rows]
+    analyses = [analysis for analysis, *_ in rows]
 
     # The full hash for every hit found by its hash, the frontend shows it
     hashes: dict[int, str] = {}
@@ -217,8 +243,10 @@ async def search_analyses(
         hashes = {a.mail_analysis_id: a.sha256 for a in result.all()}
 
     return [
-        _search_hit(analysis, handler, needle, hashes.get(analysis.id))
-        for analysis, handler in rows
+        _search_hit(
+            analysis, handler, decider, user.id, needle, hashes.get(analysis.id)
+        )
+        for analysis, handler, decider in rows
     ]
 
 
@@ -246,12 +274,13 @@ async def create_analysis(
         handled_by=user.id,
     )
 
-    return _list_item(analysis, user.name)
+    return _list_item(analysis, user.name, None, user.id)
 
 
 @router.get("/analyses/{analysis_id}")
 async def get_analysis(
     analysis_id: int,
+    user: User = Depends(get_current_user),
     membership: TeamMembership = Depends(get_active_membership),
     db: AsyncSession = Depends(get_db),
 ):
@@ -275,7 +304,12 @@ async def get_analysis(
     running = analysis.status in ("pending", "processing")
 
     return {
-        **_list_item(analysis, await _handler_name(analysis, db)),
+        **_list_item(
+            analysis,
+            await _user_name(analysis.handled_by, db),
+            await _user_name(analysis.decided_by, db),
+            user.id,
+        ),
         "thresholds": VERDICT_THRESHOLDS,
         "ai_assessment": _ai_assessment(analysis),
         "criteria": criteria,
@@ -292,7 +326,6 @@ async def get_analysis(
         ],
         "attachments": [_attachment(attachment) for attachment in attachments],
         "raw_headers": analysis.raw_headers or "",
-        "decision": await _decision(analysis, db),
         "duration_seconds": _duration(analysis),
         # step and started_at only while it runs, error only once it failed
         "step": analysis.step if running else None,

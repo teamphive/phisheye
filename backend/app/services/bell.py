@@ -23,7 +23,7 @@ KEEP_DAYS = 14
 _VERDICT_LABELS = {
     "phishing": "Phishing",
     "suspicious": "Verdächtig",
-    "clean": "Sauber",
+    "clean": "Legitim",
 }
 
 
