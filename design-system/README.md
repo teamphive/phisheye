@@ -9,7 +9,7 @@ Design-System für die phisheye-Oberfläche. Ruhige, fast neutrale Flächen, das
 - **Urteile:** `clean`, `suspicious`, `phishing` sind eigene Farben, getrennt vom Markenblau. Jede hat eine `-soft` Variante als Grund.
 - **Karten:** 1 px Rahmen `border`, Radius `radius-lg`, im hellen Theme ein Hauch Schatten, im dunklen keiner.
 - **Schrift:** Inter für alles, JetBrains Mono für Domains, Hashes und Adressen. Überschriften 600, Fließtext 400.
-- **Sprache:** Deutsch, kurz, Verben auf Buttons (Neue Analyse, Speichern). Urteile heißen Phishing, Verdächtig, Sauber, Nicht bewertet.
+- **Sprache:** Deutsch, kurz, Verben auf Buttons (Neue Analyse, Speichern). Urteile heißen Phishing, Verdächtig, Legitim, Nicht bewertet.
 
 ## Logo
 

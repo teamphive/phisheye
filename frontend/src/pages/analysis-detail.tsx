@@ -5,6 +5,7 @@ import {
   CircleHelpIcon,
   DownloadIcon,
   FlagIcon,
+  InfoIcon,
   Loader2Icon,
   ShieldAlertIcon,
   ShieldCheckIcon,
@@ -58,12 +59,14 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import {
+  caseErrorMessage,
   claimAnalysis,
   decideAnalysis,
   deleteAnalysis,
   fetchAnalysis,
   fetchEml,
   fetchQueue,
+  isStaleCase,
   releaseAnalysis,
   revokeDecision,
 } from "@/lib/analyses"
@@ -113,13 +116,13 @@ const decisionText = {
   unrated: {
     action: {
       phishing: "Als Phishing einstufen",
-      clean: "Als sauber einstufen",
+      clean: "Als legitim einstufen",
     },
     done: {
       phishing: "Als Phishing eingestuft",
-      clean: "Als sauber eingestuft",
+      clean: "Als legitim eingestuft",
     },
-    status: { phishing: "Phishing", clean: "Sauber" },
+    status: { phishing: "Phishing", clean: "Legitim" },
   },
 }
 
@@ -181,6 +184,9 @@ export function AnalysisDetailPage() {
 
         received = true
         setLoaded({ id, data })
+        // fresh from the server, what this page changed is in there
+        setOverride(null)
+        setHandlerOverride(null)
         if (data.status === "running") timer = setTimeout(load, pollInterval)
       } catch (error) {
         if (!active) return
@@ -216,6 +222,11 @@ export function AnalysisDetailPage() {
 
   function setHandler(value: string | null) {
     setHandlerOverride({ id, value })
+  }
+
+  // Someone else was faster, the page shows who has the analysis now
+  function refreshAfter(error: unknown) {
+    if (isStaleCase(error)) setAttempt((current) => current + 1)
   }
 
   if (!analysis && error) {
@@ -257,19 +268,20 @@ export function AnalysisDetailPage() {
   const text = decisionText[analysis.score === null ? "unrated" : "rated"]
   // handler is the same name GET /me hands out
   const ownCase = handler !== null && handler === user.name
+  // Only the person the analysis is assigned to decides or takes it back
+  const mayDecide = permissions.analyze && ownCase
+  const mustClaim = permissions.analyze && !ownCase
 
   async function decide(verdict: Decision["verdict"]) {
     setPending("decide")
     try {
-      const stored = await decideAnalysis(id, verdict)
-      setDecision(stored)
-      // The backend assigns whoever decides, if nobody had taken it on
-      if (!handler) setHandler(stored.by)
+      setDecision(await decideAnalysis(id, verdict))
       toast.success(text.done[verdict])
     } catch (error) {
       toast.error("Entscheidung konnte nicht gespeichert werden", {
-        description: errorMessage(error),
+        description: caseErrorMessage("decide", error),
       })
+      refreshAfter(error)
     } finally {
       setPending(null)
     }
@@ -282,8 +294,9 @@ export function AnalysisDetailPage() {
       setDecision(null)
     } catch (error) {
       toast.error("Entscheidung konnte nicht zurückgenommen werden", {
-        description: errorMessage(error),
+        description: caseErrorMessage("revoke", error),
       })
+      refreshAfter(error)
     } finally {
       setPending(null)
     }
@@ -295,7 +308,7 @@ export function AnalysisDetailPage() {
       setHandler((await claimAnalysis(id)).handler)
     } catch (error) {
       toast.error("Analyse konnte nicht übernommen werden", {
-        description: errorMessage(error),
+        description: caseErrorMessage("claim", error),
       })
     } finally {
       setPending(null)
@@ -315,8 +328,9 @@ export function AnalysisDetailPage() {
       setHandler(null)
     } catch (error) {
       toast.error("Analyse konnte nicht abgegeben werden", {
-        description: errorMessage(error),
+        description: caseErrorMessage("release", error),
       })
+      refreshAfter(error)
     } finally {
       setPending(null)
     }
@@ -373,60 +387,73 @@ export function AnalysisDetailPage() {
         </div>
 
         {analysis.status === "completed" ? (
-          decision ? (
-            <div className="flex items-center gap-2 rounded-md border border-clean/25 bg-clean-soft px-3 py-1.5 text-sm font-semibold text-clean">
-              <CheckIcon className="size-4" />
-              {text.done[decision.verdict]} von {decision.by} ·{" "}
-              {formatRelativeTime(decision.at)}
-              {permissions.analyze ? (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="ml-1 h-auto px-2 py-0.5 text-xs"
-                  disabled={pending !== null}
-                  onClick={undo}
-                >
-                  {pending === "revoke" ? <Spinner /> : null}
-                  Rückgängig
+          <div className="flex flex-col items-start gap-2 sm:items-end">
+            {mustClaim ? (
+              <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                <InfoIcon className="size-4 shrink-0" />
+                Übernimm die Analyse zuerst
+                <Button size="sm" disabled={pending !== null} onClick={takeOn}>
+                  {pending === "claim" ? <Spinner /> : null}
+                  Übernehmen
                 </Button>
-              ) : null}
-            </div>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {permissions.analyze ? (
-                <>
+              </div>
+            ) : null}
+
+            {decision ? (
+              <div className="flex items-center gap-2 rounded-md border border-clean/25 bg-clean-soft px-3 py-1.5 text-sm font-semibold text-clean">
+                <CheckIcon className="size-4" />
+                {text.done[decision.verdict]} von {decision.by} ·{" "}
+                {formatRelativeTime(decision.at)}
+                {permissions.analyze ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="ml-1 h-auto px-2 py-0.5 text-xs"
+                    disabled={!mayDecide || pending !== null}
+                    onClick={undo}
+                  >
+                    {pending === "revoke" ? <Spinner /> : null}
+                    Rückgängig
+                  </Button>
+                ) : null}
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {permissions.analyze ? (
+                  <>
+                    <Button
+                      variant="outline"
+                      disabled={!mayDecide || pending !== null}
+                      onClick={() => decide("clean")}
+                    >
+                      {text.action.clean}
+                    </Button>
+                    <Button
+                      disabled={!mayDecide || pending !== null}
+                      onClick={() => decide("phishing")}
+                    >
+                      {pending === "decide" ? <Spinner /> : null}
+                      {text.action.phishing}
+                    </Button>
+                  </>
+                ) : null}
+                {permissions.deleteAnalyses ? (
                   <Button
                     variant="outline"
                     disabled={pending !== null}
-                    onClick={() => decide("clean")}
+                    onClick={() => setDeleteOpen(true)}
                   >
-                    {text.action.clean}
+                    {pending === "delete" ? (
+                      <Spinner />
+                    ) : (
+                      <TrashIcon className="size-4" />
+                    )}
+                    Löschen
                   </Button>
-                  <Button
-                    disabled={pending !== null}
-                    onClick={() => decide("phishing")}
-                  >
-                    {pending === "decide" ? <Spinner /> : null}
-                    {text.action.phishing}
-                  </Button>
-                </>
-              ) : null}
-              {permissions.deleteAnalyses ? (
-                <Button
-                  variant="outline"
-                  disabled={pending !== null}
-                  onClick={() => setDeleteOpen(true)}
-                >
-                  {pending === "delete" ? (
-                    <Spinner />
-                  ) : (
-                    <TrashIcon className="size-4" />
-                  )}
-                  Löschen
-                </Button>
-              ) : null}
-            </div>
-          )
+                ) : null}
+              </div>
+            )}
+          </div>
         ) : null}
       </div>
 
@@ -492,8 +519,8 @@ export function AnalysisDetailPage() {
                   ) : (
                     <span className="text-faint">Niemand</span>
                   )}
-                  {/* A decided case is closed, it keeps whoever had it */}
-                  {permissions.analyze && !decision ? (
+                  {/* Taking on works always, handing back only before a decision */}
+                  {permissions.analyze && !(ownCase && decision) ? (
                     <Button
                       variant="outline"
                       size="xs"
@@ -524,11 +551,6 @@ export function AnalysisDetailPage() {
                   #{analysis.id}
                 </span>
               </Row>
-              {analysis.durationSeconds !== null ? (
-                <Row label="Dauer">
-                  <span className="">{analysis.durationSeconds} Sek</span>
-                </Row>
-              ) : null}
             </CardContent>
           </Card>
 
@@ -563,8 +585,9 @@ export function AnalysisDetailPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Analyse übernehmen</AlertDialogTitle>
             <AlertDialogDescription>
-              {handler} bearbeitet diese Mail gerade. Wenn du sie übernimmst,
-              ist sie nur noch dir zugewiesen.
+              {decision
+                ? `${handler} hat diese Mail entschieden. Wenn du sie übernimmst, ist sie dir zugewiesen und du kannst die Entscheidung zurücknehmen.`
+                : `${handler} bearbeitet diese Mail gerade. Wenn du sie übernimmst, ist sie nur noch dir zugewiesen.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

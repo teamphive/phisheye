@@ -62,6 +62,32 @@ describe("with a backend", () => {
     expect(assignment).toEqual({ handler: "Adrijus Lazdauskas" })
   })
 
+  it("words the assignment rules the backend answers with", async () => {
+    const { caseErrorMessage, decideAnalysis } = await loadAnalyses()
+    const answer = (status: number, detail: string) =>
+      new Response(JSON.stringify({ detail }), { status })
+
+    fetchMock.mockResolvedValueOnce(answer(409, "Take the analysis on first"))
+    const nobody = await decideAnalysis("a-1", "phishing").catch(
+      (error: unknown) => error
+    )
+    fetchMock.mockResolvedValueOnce(
+      answer(403, "Only the assigned person can decide")
+    )
+    const someoneElse = await decideAnalysis("a-1", "phishing").catch(
+      (error: unknown) => error
+    )
+
+    expect(caseErrorMessage("decide", nobody)).toBe(
+      "Niemand hat die Analyse übernommen. Übernimm sie zuerst."
+    )
+    expect(caseErrorMessage("revoke", someoneElse)).toMatch(
+      /Jemand anderes hat die Analyse inzwischen übernommen/
+    )
+    // on handing back, a conflict means it is decided already
+    expect(caseErrorMessage("release", nobody)).toMatch(/schon entschieden/)
+  })
+
   it("fetches the original mail through the backend", async () => {
     const { fetchEml } = await loadAnalyses()
     fetchMock.mockResolvedValue(new Response("Subject: Rechnung\r\n"))

@@ -62,7 +62,7 @@ export function ScoreMeter({ score, thresholds }: ScoreMeterProps) {
       <div className="flex gap-4 text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">
           <i className="block size-2 rounded-sm bg-clean" />
-          0–{thresholds.suspicious - 1} Sauber
+          0–{thresholds.suspicious - 1} Legitim
         </span>
         <span className="flex items-center gap-1.5">
           <i className="block size-2 rounded-sm bg-suspicious" />

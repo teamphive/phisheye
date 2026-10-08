@@ -9,7 +9,7 @@ Vier deterministische Prüfungen. Jede liefert Name, Auslösung, Gewicht und Beg
 | 3 | Anhang-Typ passt nicht zur Endung | Magic Bytes, doppelte Endung | 30 |
 | 4 | From weicht von Reply-To oder Return-Path ab | Vergleich auf Domain-Ebene | 20 |
 
-Die Summe wird bei 100 gekappt. Schwellen: 0 bis 39 sauber, 40 bis 74 verdächtig, 75 bis 100 Phishing. Die Schwellen liefert die API, das Frontend rechnet nichts nach.
+Die Summe wird bei 100 gekappt. Schwellen: 0 bis 39 legitim, 40 bis 74 verdächtig, 75 bis 100 Phishing. Die Schwellen liefert die API, das Frontend rechnet nichts nach.
 
 Zusätzlich läuft ein VirusTotal-Abgleich der Anhang-Hashes. Er zählt als externe Abfrage, nicht als deterministisches Kriterium.
 

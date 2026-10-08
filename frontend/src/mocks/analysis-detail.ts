@@ -1,12 +1,17 @@
 // Placeholder data until the API exists. Everything here is invented.
 
+import { ApiError, ForbiddenError } from "@/lib/api"
 import {
   findMockAnalysis,
+  mockSetDecision,
   mockSetHandler,
   type AnalysisSource,
   type AnalysisStatus,
+  type Decision,
   type Verdict,
 } from "@/mocks/analyses"
+
+export type { Decision }
 
 export type Criterion = {
   name: string
@@ -28,12 +33,6 @@ export type Attachment = {
   sha256: string
   virusTotal: string
   malicious: boolean
-}
-
-export type Decision = {
-  verdict: "phishing" | "clean"
-  by: string
-  at: string
 }
 
 /** Who took the analysis on, the same name GET /me hands out. */
@@ -66,7 +65,6 @@ export type AnalysisDetail = {
   /** Address of whoever reported the mail in Outlook, null for uploads. */
   reportedBy: string | null
   receivedAt: string
-  durationSeconds: number | null
   criteria: Criterion[]
   criteriaTotal: number
   links: AnalysisLink[]
@@ -101,7 +99,6 @@ const completed: AnalysisDetail = {
   source: "upload",
   reportedBy: null,
   receivedAt: "2026-09-03T07:12:00Z",
-  durationSeconds: 41,
   criteriaTotal: 120,
   criteria: [
     {
@@ -182,7 +179,6 @@ const running: AnalysisDetail = {
   aiAssessment: null,
   handler: "T. Özdemir",
   receivedAt: "2026-09-03T07:23:00Z",
-  durationSeconds: null,
   criteria: [],
   criteriaTotal: 0,
   links: [],
@@ -223,7 +219,6 @@ const unrated: AnalysisDetail = {
   aiAssessment: null,
   handler: null,
   receivedAt: "2026-09-03T07:31:00Z",
-  durationSeconds: null,
   criteria: [],
   criteriaTotal: 0,
   links: [],
@@ -321,31 +316,53 @@ export function mockQueue(): Queue {
 const decisions: Record<string, Decision | null> = {}
 const handlers: Record<string, string | null> = {}
 
+// The backend's rule: only the person the analysis is assigned to decides
+function requireAssignedTo(id: string, user: string) {
+  const { handler } = mockAnalysis(id)
+
+  if (handler === null) throw new ApiError(409, "Take the analysis on first")
+  if (handler !== user) {
+    throw new ForbiddenError("Only the assigned person can decide")
+  }
+}
+
 export function mockDecide(
   id: string,
   verdict: Decision["verdict"],
   by: string
 ): Decision {
+  requireAssignedTo(id, by)
+
   const decision = { verdict, by, at: new Date().toISOString() }
   decisions[id] = decision
-
-  // Whoever decides without having taken it on gets it assigned
-  if (mockAnalysis(id).handler === null) mockAssign(id, by)
+  mockSetDecision(id, decision)
 
   return decision
 }
 
-export function mockRevokeDecision(id: string) {
+export function mockRevokeDecision(id: string, user: string) {
+  requireAssignedTo(id, user)
+
   decisions[id] = null
+  mockSetDecision(id, null)
 }
 
+/** Also away from someone else, also a decided one. */
 export function mockAssign(id: string, handler: string): Assignment {
   handlers[id] = handler
   mockSetHandler(id, handler)
   return { handler }
 }
 
-export function mockRelease(id: string) {
+/** Only one's own and only while it is undecided. */
+export function mockRelease(id: string, user: string) {
+  const { decision, handler } = mockAnalysis(id)
+
+  if (decision) throw new ApiError(409, "The analysis is decided already")
+  if (handler !== null && handler !== user) {
+    throw new ForbiddenError("Only the assigned person can hand it back")
+  }
+
   handlers[id] = null
   mockSetHandler(id, null)
 }
@@ -405,6 +422,7 @@ function baseAnalysis(id: string): AnalysisDetail {
     score: item.score,
     aiAssessment: mockAiAssessment(item.verdict),
     handler: item.handler,
+    decision: item.decision,
     source: item.source,
     reportedBy: item.reportedBy,
     receivedAt: item.receivedAt,

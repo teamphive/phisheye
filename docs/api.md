@@ -217,6 +217,7 @@ Passwort, zweiter Faktor, Backup-Codes und angemeldete Geräte verwaltet Keycloa
 | verdict | `clean`, `suspicious`, `phishing` oder null |
 | score | 0 bis 100 oder null |
 | handler | string oder null. Name der zugewiesenen Person, genau wie `name` in `GET /me`, daran erkennt das Frontend die eigenen. Beim Upload die hochladende Person, bei Meldungen null, bis jemand übernimmt |
+| decision | `{ verdict, by, at }` oder null, wie im Detail (offen, das Backend liefert das Feld in der Liste noch nicht). Die Liste zeigt damit das Verdikt des Analysten statt der Erkennung, die Spalte „Status“ (bestätigt oder nicht) und den Filter „Nicht bestätigt“. Ohne das Feld steht überall „Nicht bestätigt“ |
 | source | `upload` oder `report` (Outlook-Meldung) |
 | reported_by | Adresse der meldenden Person, null bei `upload` |
 | received_at | timestamp |
@@ -233,7 +234,7 @@ Passwort, zweiter Faktor, Backup-Codes und angemeldete Geräte verwaltet Keycloa
 | attachments | Liste, siehe unten | |
 | raw_headers | text | |
 | decision | `{ verdict, by, at }` oder null | |
-| duration_seconds | number oder null | |
+| duration_seconds | number oder null | zeigt das Frontend nicht mehr an, kann weg |
 | step | string oder null | nur solange `status` `running` ist |
 | started_at | timestamp oder null | dito |
 | error | `{ detail, step, attempt, max_attempts, at }` oder null | nur bei `failed` |
