@@ -73,7 +73,8 @@ Outlook-Meldungen landen im Team, das die Domain des Absenders eingetragen hat. 
 | sender | string | Absender der gemeldeten Mail, nicht der meldenden Person |
 | reported_by | string, nullable | Adresse der meldenden Person, nur bei Meldung per Mail |
 | storage_key | string, nullable | UUID der gespeicherten `.eml` in MinIO |
-| notified_at | timestamp, nullable | Zeitpunkt der Benachrichtigungsmail, verhindert doppelten Versand |
+| notified_at | timestamp, nullable | Zeitpunkt der letzten Mail an die meldende Person, zählt für die Stundenbegrenzung |
+| notified_verdict | string, nullable | Entscheidung, die die meldende Person zuletzt gehört hat. Weicht `decided_verdict` davon ab, geht eine Korrektur raus |
 | raw_headers | text, nullable | |
 | status | string (pending, processing, completed, failed) | |
 | verdict | string (phishing, clean, suspicious), nullable | bis die Analyse fertig ist |
