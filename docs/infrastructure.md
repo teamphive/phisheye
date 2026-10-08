@@ -7,15 +7,37 @@
 | IaC | OpenTofu | Community-Fork von Terraform, gleiche Syntax |
 | State | S3 + DynamoDB | GitHub hat kein State-Backend. Bootstrap einmalig mit lokalem State, die State-Datei kommt nicht ins Git |
 | Hosting | Homelab statt AWS | Proxmox-VM `neuserphis1c` mit Docker Compose. AWS nur noch fürs Budget |
-| Zugriff für Kollegen und CI | Tailscale statt offenem SSH | Kein Port am Router, GitHub Actions klinkt sich per `tailscale/github-action` ins Tailnet |
+| Zugriff für Kollegen und CI | SSH über MyFritz, Port 2222 | Nur Key-Login, CI mit eigenem Nutzer `deploy`. Siehe [VM-Zugriff](vm-access.md) |
 | Reverse Proxy | Nginx Proxy Manager im Homelab | Läuft schon, TLS über Let's Encrypt. Am Router nur 80 und 443 offen |
-| Deployment | GitHub Actions + SSH + Compose | Bei Merge in `main`: Images bauen, nach GHCR, per SSH `docker compose pull && up -d` |
+| Deployment | GitHub Actions + SSH + Compose | Bei Merge in `main` baut die VM per SSH neu, siehe [Deployment](#deployment). Später zieht sie die Images aus GHCR |
 | Registry | GHCR statt ECR | Team nutzt GitHub, kostenlos |
 | DNS | Manuell beim bestehenden Provider | Domain gab es schon, Eintrag zeigt auf die Homelab-IP |
 | KI | JEV statt AWS Bedrock | Feste Antwort mit Konfidenz, kein Freitext. Siehe [ai-assessment.md](ai-assessment.md) |
 | Budget | $50 im Monat | Warnung bei 50, 80 und 100 % per Mail |
 
 JEV: Der Key liegt als `TYPESAFE_API_KEY` in der `.env` auf dem Server. Der IAM-User für Bedrock ist aus `infra/main` entfernt und verschwindet beim nächsten `tofu apply`. Über AWS laufen nur noch State-Bucket, Lock-Tabelle und Budget.
+
+## Deployment
+
+`.github/workflows/deploy.yml` läuft bei jedem Push auf `main`, außer nur Doku hat sich geändert, und lässt sich unter Actions von Hand starten. Es meldet sich per SSH als `deploy` auf der VM an und führt dort aus:
+
+1. `git fetch` und `git merge --ff-only` auf genau den Commit des Laufs. Liegen auf der VM eigene Änderungen, bricht der Deploy ab.
+2. `docker compose --profile app up -d --build --force-recreate`
+3. Bis zu 30-mal im Abstand von 5 Sekunden `GET /api/health` über den Frontend-Container. Bleibt die Antwort aus, schlägt der Lauf fehl und zeigt die letzten Backend-Logs.
+
+Es läuft immer nur ein Deploy gleichzeitig, ein neuer Push wartet.
+
+Einrichtung im Repo unter Settings, Environments, `production` (Deployment branches: nur `main`):
+
+| Art | Name | Inhalt |
+| --- | --- | --- |
+| Secret | `DEPLOY_SSH_KEY` | privater Schlüssel des Nutzers `deploy`, ohne Passphrase |
+| Secret | `DEPLOY_KNOWN_HOSTS` | Host-Key der VM, Zeile aus `ssh-keyscan -p 2222 -t ed25519 <host>` |
+| Variable | `DEPLOY_HOST` | MyFritz-Adresse der VM |
+| Variable | `DEPLOY_PORT` | `2222` |
+| Variable | `DEPLOY_USER` | `deploy` |
+
+Auf der VM braucht `deploy` Schreibrechte auf `/opt/phisheye`, die Gruppe `docker` und Lesezugriff auf das Repo bei GitHub, für `git fetch` (Deploy-Key, nur lesen).
 
 ## Monitoring
 
