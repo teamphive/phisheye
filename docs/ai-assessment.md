@@ -72,7 +72,17 @@ Daraus wird `ai_assessment` in `GET /analyses/{id}`: `choice` `phishing` wird `v
 - Kosten: 0,042 US-Dollar pro Million Eingabe-Tokens, Ausgabe kostenlos. Eine Mail hat grob einige hundert bis wenige tausend Tokens. Limit 40 Anfragen pro Sekunde.
 - Datenschutz: Der Inhalt jeder Mail geht an TypeSafe. Laut TypeSafe wird damit nicht trainiert, Zero Data Retention gibt es nur für Enterprise-Kunden, siehe [Legal](https://docs.typesafe.ai/legal).
 
-## Umsetzung im Backend (Vorschlag)
+## Umsetzung im Backend
+
+Umgesetzt in `backend/app/services/ai_assessment.py`, im arq-Job als Schritt „KI-Einschätzung wird eingeholt“ nach Regeln und VirusTotal. Abweichend vom Vorschlag unten:
+
+- Ohne `TYPESAFE_API_KEY` geht keine Anfrage raus, `ai_assessment` bleibt null.
+- Als `body` geht der Klartext-Teil der Mail, nur ohne ihn der HTML-Teil ohne Tags, Skripte und Styles. Leerräume werden zusammengefasst, danach wird auf 20.000 Zeichen gekürzt.
+- Eine Anfrage hat 20 Sekunden. Jeder Fehler des SDK (falscher Key, Rate-Limit, Überlastung, keine Verbindung) gibt null, die Analyse läuft weiter. Geloggt wird nur der Fehlertyp, kein Mailinhalt.
+- Die Tests schicken nie echte Anfragen: `tests/conftest.py` entfernt den Key für jeden Test, die SDK-Tests laufen gegen einen nachgebauten Server.
+
+Der ursprüngliche Vorschlag:
+
 
 - SDK: `uv add typesafe-sdk` (Python ab 3.10). Im arq-Worker `AsyncTypeSafeClient` als eigener Schritt neben Regeln und VirusTotal.
 - Key: `TYPESAFE_API_KEY` in der `.env` auf dem Server, das SDK liest die Variable selbst. Nie ins Frontend, `VITE_`-Variablen landen im ausgelieferten JavaScript.

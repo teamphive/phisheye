@@ -27,6 +27,7 @@ phisheye nimmt verdächtige Mails aus Outlook-Meldungen und Uploads an, bewertet
 - **Outlook-Meldungen und Upload** von `.eml` und `.msg`, automatisch dem richtigen Team zugeordnet
 - **Risiko-Score** aus vier Regelprüfungen, mit Verdikt sauber, verdächtig oder Phishing
 - **Header, Anhänge und VirusTotal-Abgleich** der Anhang-Hashes
+- **KI-Einschätzung** des Mailtexts mit JEV als zweite Meinung, ändert das Verdikt nicht
 - **Entscheiden im Team**, mit Name und Zeitpunkt, zurücknehmbar
 - **Suche** nach Betreff, Absender und Anhang-Hash
 - **Teams mit Rollen** und Login mit 2FA über Keycloak

@@ -49,7 +49,7 @@ Instanz-Rollen: Das **Standard-Team** ist das Instanz-Team. Dort gibt es nur die
 |---|---|---|
 | GET | `/analyses` | Liste für das aktive Team (umgesetzt) |
 | POST | `/analyses` | Upload einer `.eml` oder `.msg` als Feld `file` (multipart), antwortet mit dem Listeneintrag (umgesetzt, die Analyse läuft danach als arq-Job). Eine `.msg` wandelt das Backend vor dem Speichern in eine `.eml` um, gespeichert wird die umgewandelte Mail. Das Backend lehnt ab: andere Endungen (422), Dateien ohne Mail-Header oder mit Binär-Signatur (422), eine kaputte `.msg` (422), mehr als 25 MB (413) |
-| GET | `/analyses/{id}` | Detail (umgesetzt, `ai_assessment` fehlt noch) |
+| GET | `/analyses/{id}` | Detail (umgesetzt) |
 | DELETE | `/analyses/{id}` | Weich löschen, nur Admin (umgesetzt) |
 | POST | `/analyses/{id}/decision` | Verdikt bestätigen oder als falsch-positiv melden, Body `verdict`, antwortet mit `{ verdict, by, at }` (umgesetzt). Ist niemand zugewiesen, wird die entscheidende Person zugewiesen (offen, siehe Zuweisung) |
 | DELETE | `/analyses/{id}/decision` | Entscheidung zurücknehmen (umgesetzt), die Zuweisung bleibt |
@@ -291,7 +291,6 @@ Je Treffer:
 ## Offen
 
 - `GET /stats` für die Übersicht, siehe oben. Bis dahin zeigt das Frontend ohne Backend Platzhalterzahlen, mit Backend die Fehlermeldung.
-- KI-Einschätzung mit JEV, Anleitung mit Beispiel-Anfrage und Python-Code in [ai-assessment.md](ai-assessment.md). Zu tun: `typesafe-sdk` als Abhängigkeit, `TYPESAFE_API_KEY` in `.env` und `.env.example` (Key nur auf dem Server), in `mail_analysis` die Spalten `ai_verdict`, `ai_confidence` und `ai_model` (nullable, mit Alembic-Migration), JEV als eigener Schritt der Analyse und `ai_assessment` in `GET /analyses/{id}`. Antwortet JEV nicht, bleibt `ai_assessment` null und die Analyse läuft trotzdem durch. Bis dahin zeigt die Detailseite „Keine KI-Einschätzung“.
 - Cron-Job für die harte Löschung: täglich alles mit `deleted_at` älter als 10 Tage endgültig entfernen (Datenbank, Anhänge, `.eml` in MinIO).
 - Spam-Testskript, das viele Mails auf einmal hochlädt und prüft, ob Warteschlange und Worker mithalten.
 - Abbrechen einer laufenden Analyse. Ein Endpunkt fehlt, bis dahin zeigt die Detailseite keinen Knopf dafür.

@@ -83,6 +83,17 @@ def _attachment(attachment: MailAttachment) -> dict:
     }
 
 
+def _ai_assessment(analysis: MailAnalysis) -> dict | None:
+    if analysis.ai_verdict is None:
+        return None
+
+    return {
+        "verdict": analysis.ai_verdict,
+        "confidence": analysis.ai_confidence,
+        "model": analysis.ai_model,
+    }
+
+
 def _duration(analysis: MailAnalysis) -> int | None:
     if analysis.started_at is None or analysis.completed_at is None:
         return None
@@ -238,6 +249,7 @@ async def get_analysis(
     return {
         **_list_item(analysis),
         "thresholds": VERDICT_THRESHOLDS,
+        "ai_assessment": _ai_assessment(analysis),
         "criteria": criteria,
         # the sum before the cap, the page shows "Summe 120, gekappt auf 100"
         "criteria_total": sum(criterion["weight"] for criterion in criteria),
