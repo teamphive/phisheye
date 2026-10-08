@@ -50,10 +50,12 @@ async def submit_analysis(
     submitted_by: int,
     db: AsyncSession,
     reported_by: str | None = None,
+    handled_by: int | None = None,
 ) -> MailAnalysis:
     """Stores the mail and queues the analysis, the worker does the rest.
 
     Only what the list needs is read here, so the caller gets an answer at once.
+    `handled_by` is only given by the upload, reports start without anyone.
     """
     if not content:
         raise HTTPException(status_code=400, detail="Uploaded file is empty")
@@ -77,6 +79,7 @@ async def submit_analysis(
                 status="pending",
                 storage_key=storage_key,
                 reported_by=reported_by,
+                handled_by=handled_by,
                 raw_headers=_db_text(
                     "\n".join(f"{key}: {value}" for key, value in msg.items())
                 ),

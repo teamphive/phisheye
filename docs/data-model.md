@@ -78,6 +78,7 @@ Outlook-Meldungen landen im Team, das die Domain des Absenders eingetragen hat. 
 | status | string (pending, processing, completed, failed) | |
 | verdict | string (phishing, clean, suspicious), nullable | bis die Analyse fertig ist |
 | confidence_score | float, nullable | |
+| handled_by | FK -> users, nullable | zugewiesene Person: beim Upload die hochladende, bei Meldungen null bis zur Übernahme. Nie der Systemnutzer |
 | decided_verdict | string (phishing, clean), nullable | vom Analysten bestätigt oder als falsch-positiv gemeldet |
 | decided_by | FK -> users, nullable | |
 | decided_at | timestamp, nullable | zurücknehmbar, dann wieder null |
@@ -139,6 +140,7 @@ erDiagram
   USERS ||--o{ TEAM_DOMAINS : adds
   TEAMS ||--o{ MAIL_ANALYSES : owns
   USERS ||--o{ MAIL_ANALYSES : submits
+  USERS |o--o{ MAIL_ANALYSES : handles
   MAIL_ANALYSES ||--o{ MAIL_ATTACHMENTS : has
 
   USERS {
@@ -191,6 +193,7 @@ erDiagram
     string status
     string verdict
     float confidence_score
+    int handled_by FK
     string decided_verdict
     int decided_by FK
     timestamp decided_at
