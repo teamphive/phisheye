@@ -48,6 +48,20 @@ describe("with a backend", () => {
     })
   })
 
+  it("takes the analysis on and returns who has it now", async () => {
+    const { claimAnalysis } = await loadAnalyses()
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ handler: "Adrijus Lazdauskas" }))
+    )
+
+    const assignment = await claimAnalysis("a-1")
+
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(url).toBe("https://phisheye.test/api/analyses/a-1/assignment")
+    expect(init?.method).toBe("POST")
+    expect(assignment).toEqual({ handler: "Adrijus Lazdauskas" })
+  })
+
   it("fetches the original mail through the backend", async () => {
     const { fetchEml } = await loadAnalyses()
     fetchMock.mockResolvedValue(new Response("Subject: Rechnung\r\n"))
@@ -65,6 +79,11 @@ describe("with a backend", () => {
       "takes the decision back",
       "revokeDecision",
       "https://phisheye.test/api/analyses/a-1/decision",
+    ],
+    [
+      "hands the analysis back",
+      "releaseAnalysis",
+      "https://phisheye.test/api/analyses/a-1/assignment",
     ],
     [
       "deletes the analysis",

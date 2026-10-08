@@ -95,7 +95,7 @@ export function TeamSwitcher() {
       <DropdownMenu>
         <DropdownMenuTrigger
           disabled={pendingTeamId !== null}
-          className="flex max-w-[220px] items-center gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 text-sm font-medium shadow-xs hover:bg-muted disabled:opacity-70 dark:shadow-none"
+          className="flex max-w-[220px] min-w-0 items-center gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 text-sm font-medium shadow-xs hover:bg-muted disabled:opacity-70 dark:shadow-none"
         >
           <span className="truncate">{active.name}</span>
           {pendingTeamId !== null ? (
