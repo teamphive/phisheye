@@ -24,30 +24,41 @@ jobs:
     name: Deploy
     runs-on: ubuntu-latest
     # secrets live in the environment, only main may use it
-    environment: production
+    environment:
+      name: production
+      url: https://phisheye.neumann-it.org
     timeout-minutes: 30
     steps:
       - name: Set up SSH
         env:
           SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          HOST: ${{ vars.DEPLOY_HOST }}
+          PORT: ${{ vars.DEPLOY_PORT }}
+          USER: ${{ vars.DEPLOY_USER }}
         run: |
           install -m 700 -d ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           # pinned host key, a changed key fails the deploy
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          # the later steps only say "ssh vm"
+          cat > ~/.ssh/config <<EOF
+          Host vm
+            HostName $HOST
+            Port $PORT
+            User $USER
+            IdentityFile ~/.ssh/deploy_key
+            IdentitiesOnly yes
+            BatchMode yes
+            StrictHostKeyChecking yes
+          EOF
 
       - name: Deploy on the VM
         env:
-          HOST: ${{ vars.DEPLOY_HOST }}
-          PORT: ${{ vars.DEPLOY_PORT }}
-          USER: ${{ vars.DEPLOY_USER }}
           SHA: ${{ github.sha }}
         run: |
-          ssh -i ~/.ssh/deploy_key -p "$PORT" \
-            -o BatchMode=yes -o StrictHostKeyChecking=yes \
-            "$USER@$HOST" "bash -s -- $SHA" <<'EOF'
+          ssh vm "bash -s -- $SHA" <<'EOF'
           set -euo pipefail
           cd /opt/phisheye
 
@@ -57,21 +68,25 @@ jobs:
           echo "Deploying $(git log -1 --format='%h %s')"
 
           docker compose --profile app up -d --build --force-recreate
+          EOF
 
-          # migrations and startup take a moment
+      # through the public domain, so DNS, proxy and TLS are checked as well
+      - name: Wait until the app answers
+        run: |
           for attempt in $(seq 1 30); do
-            if docker compose --profile app exec -T frontend wget -qO- http://localhost/api/health; then
+            if curl -fsS --max-time 10 https://phisheye.neumann-it.org/api/health; then
               echo
               echo "Healthy after $attempt attempts"
               exit 0
             fi
             sleep 5
           done
-
-          docker compose --profile app ps
-          docker compose --profile app logs --tail 50 backend
           exit 1
-          EOF
+
+      - name: Show the state on the VM
+        if: failure()
+        run: |
+          ssh vm "cd /opt/phisheye && docker compose --profile app ps && docker compose --profile app logs --tail 50 backend"
 
       - name: Remove the key
         if: always()
