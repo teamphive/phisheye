@@ -6,13 +6,19 @@ from .tasks import (
     analyze_mail,
     delete_old_notifications,
     poll_report_mailbox,
-    send_analysis_ready,
+    send_decision_mail,
+    send_failure_mail,
     send_team_invitation,
 )
 
 
 class WorkerSettings:
-    functions = [analyze_mail, send_analysis_ready, send_team_invitation]
+    functions = [
+        analyze_mail,
+        send_decision_mail,
+        send_failure_mail,
+        send_team_invitation,
+    ]
     cron_jobs = [
         cron(poll_report_mailbox, second={0, 30}),
         # at night, once a day is enough for a 14 day limit

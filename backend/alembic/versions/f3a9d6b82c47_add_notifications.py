@@ -1,7 +1,7 @@
 """add the notifications of the bell
 
 Revision ID: f3a9d6b82c47
-Revises: e8c3a5f71b26
+Revises: a1d4e6b82c57
 Create Date: 2026-10-08 16:00:00
 """
 
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "f3a9d6b82c47"
-down_revision: Union[str, Sequence[str], None] = "e8c3a5f71b26"
+down_revision: Union[str, Sequence[str], None] = "a1d4e6b82c57"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

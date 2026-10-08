@@ -8,7 +8,7 @@ from arq import Retry
 from sqlalchemy import func
 from sqlmodel import select
 
-from ..constants import MAX_ANALYSIS_TRIES
+from ..constants import DECISION_MAIL_DELAY_SECONDS, MAX_ANALYSIS_TRIES
 from ..database import get_session
 from ..models.mail_analysis import MailAnalysis
 from ..models.team import Team
@@ -20,7 +20,13 @@ from ..services.eml_validation import InvalidEmlError
 from ..services.invitations import deliver_invitation
 from ..services.keycloak_admin import KeycloakAdminError
 from ..services.mail_analysis import record_failure, run_analysis, submit_analysis
-from ..services.notifications import is_notifiable, send_analysis_mail
+from ..services.notifications import (
+    is_notifiable,
+    send_verdict_mail,
+)
+from ..services.notifications import (
+    send_failure_mail as send_failure_mail_to,
+)
 from ..services.pop3_poller import (
     delete_mails,
     extract_eml,
@@ -110,67 +116,70 @@ async def analyze_mail(ctx, analysis_id: int) -> None:
             if attempt < MAX_ANALYSIS_TRIES:
                 raise Retry(defer=attempt * 30) from exc
 
-            # the last try failed: the reporter hears that as well
-            await _queue_result_mail(ctx, analysis_id, db)
-            return
-
-        await _queue_result_mail(ctx, analysis_id, db)
+            # the last try failed: the reporter hears that, nobody can decide
+            await _queue_failure_mail(ctx, analysis_id, db)
 
 
-async def _queue_result_mail(ctx, analysis_id: int, db) -> None:
-    """The reporter hears back once the analysis is over, never before."""
+async def _queue_failure_mail(ctx, analysis_id: int, db) -> None:
     analysis = await db.get(MailAnalysis, analysis_id)
 
-    if (
-        analysis is None
-        or analysis.status not in ("completed", "failed")
-        or not analysis.reported_by
-    ):
+    if analysis is None or analysis.status != "failed" or not analysis.reported_by:
         return
 
     try:
         # fixed job id: arq ignores a second enqueue for the same analysis
         await ctx["redis"].enqueue_job(
-            "send_analysis_ready",
+            "send_failure_mail",
             analysis_id,
-            _job_id=f"analysis-ready-{analysis_id}",
+            _job_id=f"failure-mail-{analysis_id}",
         )
     except Exception:
-        logger.exception("Could not queue the result mail for analysis %s", analysis_id)
+        logger.exception(
+            "Could not queue the failure mail for analysis %s", analysis_id
+        )
 
 
-async def send_analysis_ready(ctx, analysis_id: int) -> None:
+async def _may_notify(db, analysis: MailAnalysis) -> str | None:
+    """The reporter's address when a mail may go to it, None otherwise."""
+    recipient = analysis.reported_by
+
+    if not recipient or not is_notifiable(recipient):
+        return None
+
+    # the reporter address comes from a foreign mail, cap what one address gets
+    recent = await db.exec(
+        select(func.count())
+        .select_from(MailAnalysis)
+        .where(MailAnalysis.reported_by == recipient)
+        .where(MailAnalysis.notified_at > datetime.utcnow() - timedelta(hours=1))
+    )
+
+    if recent.one() >= MAX_MAILS_PER_HOUR:
+        logger.warning("Notification limit reached for %s", recipient)
+        return None
+
+    return recipient
+
+
+async def send_failure_mail(ctx, analysis_id: int) -> None:
     async for db in get_session():
         analysis = await db.get(MailAnalysis, analysis_id)
 
         if analysis is None or analysis.notified_at is not None:
             return
 
-        # an unfinished analysis has nothing to report yet
-        if analysis.status not in ("completed", "failed"):
+        if analysis.status != "failed":
             return
 
-        recipient = analysis.reported_by
+        recipient = await _may_notify(db, analysis)
 
-        if not recipient or not is_notifiable(recipient):
-            return
-
-        # the reporter address comes from a foreign mail, cap what one address gets
-        recent = await db.exec(
-            select(func.count())
-            .select_from(MailAnalysis)
-            .where(MailAnalysis.reported_by == recipient)
-            .where(MailAnalysis.notified_at > datetime.utcnow() - timedelta(hours=1))
-        )
-
-        if recent.one() >= MAX_MAILS_PER_HOUR:
-            logger.warning("Notification limit reached for %s", recipient)
+        if recipient is None:
             return
 
         try:
-            await asyncio.to_thread(send_analysis_mail, recipient, analysis)
+            await asyncio.to_thread(send_failure_mail_to, recipient, analysis)
         except (smtplib.SMTPException, OSError) as exc:
-            logger.exception("Notification for analysis %s failed", analysis_id)
+            logger.exception("Failure mail for analysis %s failed", analysis_id)
             raise Retry(defer=ctx["job_try"] * 60) from exc
 
         analysis.notified_at = datetime.utcnow()
@@ -183,6 +192,50 @@ async def delete_old_notifications(ctx) -> None:
 
     if deleted:
         logger.info("Deleted %s notifications older than 14 days", deleted)
+
+
+async def send_decision_mail(ctx, analysis_id: int) -> None:
+    """Tells the reporter what the analyst decided, after a pause.
+
+    The job looks at the state when it runs, not at the click that queued it:
+    a decision taken back or changed in the pause is handled by this alone.
+    """
+    async for db in get_session():
+        analysis = await db.get(MailAnalysis, analysis_id)
+
+        if analysis is None or analysis.deleted_at is not None:
+            return
+
+        verdict = analysis.decided_verdict
+
+        # taken back, or the reporter knows it already
+        if verdict is None or verdict == analysis.notified_verdict:
+            return
+
+        # a newer click has its own job, the pause starts again with it
+        pause = timedelta(seconds=DECISION_MAIL_DELAY_SECONDS)
+
+        if analysis.decided_at > datetime.utcnow() - pause + timedelta(seconds=1):
+            return
+
+        recipient = await _may_notify(db, analysis)
+
+        if recipient is None:
+            return
+
+        correction = analysis.notified_verdict is not None
+
+        try:
+            await asyncio.to_thread(
+                send_verdict_mail, recipient, analysis, verdict, correction
+            )
+        except (smtplib.SMTPException, OSError) as exc:
+            logger.exception("Decision mail for analysis %s failed", analysis_id)
+            raise Retry(defer=ctx["job_try"] * 60) from exc
+
+        analysis.notified_verdict = verdict
+        analysis.notified_at = datetime.utcnow()
+        await db.commit()
 
 
 async def send_team_invitation(ctx, invitation_id: int) -> None:

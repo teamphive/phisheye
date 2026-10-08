@@ -51,8 +51,8 @@ Instanz-Rollen: Das **Standard-Team** ist das Instanz-Team. Dort gibt es nur die
 | POST | `/analyses` | Upload einer `.eml` oder `.msg` als Feld `file` (multipart), antwortet mit dem Listeneintrag (umgesetzt, die Analyse läuft danach als arq-Job). Eine `.msg` wandelt das Backend vor dem Speichern in eine `.eml` um, gespeichert wird die umgewandelte Mail. Das Backend lehnt ab: andere Endungen (422), Dateien ohne Mail-Header oder mit Binär-Signatur (422), eine kaputte `.msg` (422), mehr als 25 MB (413) |
 | GET | `/analyses/{id}` | Detail (umgesetzt) |
 | DELETE | `/analyses/{id}` | Weich löschen, nur Admin (umgesetzt) |
-| POST | `/analyses/{id}/decision` | Verdikt bestätigen oder als falsch-positiv melden, Body `verdict`, antwortet mit `{ verdict, by, at }` (umgesetzt). Ist niemand zugewiesen, wird die entscheidende Person zugewiesen (offen, siehe Zuweisung) |
-| DELETE | `/analyses/{id}/decision` | Entscheidung zurücknehmen (umgesetzt), die Zuweisung bleibt |
+| POST | `/analyses/{id}/decision` | Verdikt bestätigen oder als falsch-positiv melden, Body `verdict`, antwortet mit `{ verdict, by, at }` (umgesetzt). Bei einer Outlook-Meldung geht zwei Minuten später die Mail an die meldende Person, siehe unten. Ist niemand zugewiesen, wird die entscheidende Person zugewiesen (offen, siehe Zuweisung) |
+| DELETE | `/analyses/{id}/decision` | Entscheidung zurücknehmen (umgesetzt), die Zuweisung bleibt. Ein noch wartender Mail-Job tut danach nichts |
 | POST | `/analyses/{id}/assignment` | Analyse übernehmen, antwortet mit `{ handler }` (umgesetzt, siehe Zuweisung) |
 | DELETE | `/analyses/{id}/assignment` | Analyse abgeben, antwortet mit 204 (umgesetzt, siehe Zuweisung) |
 | GET | `/analyses/{id}/eml` | Original-`.eml` aus MinIO herunterladen, geht über das Backend (MinIO ist von außen nicht erreichbar). Antwort mit `Content-Disposition: attachment` und `application/octet-stream`, die Datei kann Schadcode enthalten |
@@ -165,10 +165,12 @@ Mitarbeiter melden eine verdächtige Mail in Outlook, die Meldung geht an ein ge
 
 ### Benachrichtigung per Mail
 
-Die meldende Person bekommt per Mail das Ergebnis (Verdikt und Begründung, ohne Score). Meldende haben keinen Zugang zum Portal, die Mail enthält deshalb keinen Link.
+Die meldende Person erfährt das Ergebnis erst, wenn ein Analyst entschieden hat. Es geht nie eine automatische Bewertung raus, auch nicht bei Phishing. Die Mail nennt die Entscheidung (Phishing oder unbedenklich), bei Phishing dazu die Gründe der Regeln, ohne Score. Meldende haben keinen Zugang zum Portal, die Mail enthält deshalb keinen Link.
 
-- Der Versand läuft als arq-Job und höchstens einmal pro Analyse (`notified_at`).
-- Der Job wird erst eingereiht, wenn die Analyse abgeschlossen ist. Eine Eingangsbestätigung gibt es nicht. Scheitert die Analyse nach allen Versuchen, bekommt die Person eine kurze Mail, dass sie die Mail später noch einmal melden soll.
+- `POST /analyses/{id}/decision` reiht den Job `send_decision_mail` mit zwei Minuten Verzögerung ein (`DECISION_MAIL_DELAY_SECONDS`, 120). In der Zeit lässt sich die Entscheidung zurücknehmen oder ändern.
+- Der Job liest den Zustand beim Ausführen. Zurückgenommen oder schon gemeldet: nichts. Geändert nach dem Versand: Korrektur-Mail ("Neubewertung"). Hat der Analyst in der Pause erneut geklickt, wartet der Job auf den neuen.
+- `notified_verdict` merkt, was die Person zuletzt gehört hat. `notified_at` zählt für die Stundenbegrenzung.
+- Scheitert die Analyse nach allen Versuchen, bekommt die Person direkt eine kurze Mail, dass sie die Mail später noch einmal melden soll (`send_failure_mail`). Eine Eingangsbestätigung gibt es nicht.
 - Empfänger ist die Adresse aus `reported_by`, sie stammt aus dem `From` der weitergeleiteten Mail. Pro Adresse gehen höchstens 10 Mails pro Stunde raus.
 - Auto-Antworten (`Auto-Submitted`), die eigene Absenderadresse und Systemadressen wie `mailer-daemon` bekommen nichts.
 - Manuelle Uploads lösen keine Mail aus.

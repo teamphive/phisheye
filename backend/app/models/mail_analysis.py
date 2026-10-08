@@ -18,6 +18,8 @@ class MailAnalysis(SQLModel, table=True):
     storage_key: str | None = None
     reported_by: str | None = None
     notified_at: datetime | None = None
+    # the verdict the reporter was told last, a different decision follows as a correction
+    notified_verdict: str | None = None
 
     raw_headers: str | None = Field(default=None, sa_column=Column(Text))
 

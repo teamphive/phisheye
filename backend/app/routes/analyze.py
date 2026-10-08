@@ -17,6 +17,7 @@ from ..models.user import User
 from ..services import eml_validation
 from ..services.auth import get_current_user
 from ..services.mail_analysis import submit_analysis
+from ..services.notifications import enqueue_decision_mail
 from ..services.teams import get_active_membership, require_role
 
 router = APIRouter(tags=["analyses"])
@@ -320,6 +321,10 @@ async def decide(
         # an existing assignment stays
         analysis.handled_by = analysis.handled_by or user.id
         db.add(analysis)
+
+    # the reporter hears of it after a pause, the job reads the state then
+    if analysis.reported_by:
+        await enqueue_decision_mail(analysis.id, analysis.decided_at)
 
     return {
         "verdict": analysis.decided_verdict,
