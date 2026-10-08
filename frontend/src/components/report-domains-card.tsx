@@ -189,7 +189,7 @@ export function ReportDomainsCard({
                 <div className="text-xs text-muted-foreground">
                   Outlook leitet Meldungen weiter an
                 </div>
-                <div className="truncate font-mono text-[13px] font-semibold">
+                <div className="truncate text-sm font-semibold">
                   {settings.reportAddress}
                 </div>
               </div>
@@ -228,7 +228,7 @@ export function ReportDomainsCard({
                 ) : null}
                 {settings.domains.map((entry) => (
                   <TableRow key={entry.id}>
-                    <TableCell className="pl-(--card-spacing) font-mono font-semibold">
+                    <TableCell className="pl-(--card-spacing) font-medium">
                       {entry.domain}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
@@ -270,7 +270,7 @@ export function ReportDomainsCard({
                       spellCheck={false}
                       disabled={adding}
                       aria-invalid={inputError ? true : undefined}
-                      className="max-w-[320px] font-mono"
+                      className="max-w-[320px]"
                     />
                     <Button type="submit" disabled={adding || !draft.trim()}>
                       {adding ? <Spinner /> : <PlusIcon className="size-4" />}

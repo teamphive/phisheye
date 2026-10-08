@@ -38,7 +38,7 @@ export function RemoveDomainDialog({
           <AlertDialogTitle>Domain entfernen</AlertDialogTitle>
         </AlertDialogHeader>
 
-        <div className="rounded-lg border bg-muted/50 p-3 font-mono text-[13px] font-semibold">
+        <div className="rounded-lg border bg-muted/50 p-3 text-sm font-semibold">
           {domain}
         </div>
 

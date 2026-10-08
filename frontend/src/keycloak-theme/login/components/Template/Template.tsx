@@ -57,6 +57,19 @@ export function Template(props: {
       msgStr("loginTitle", kcContext.realm.displayName || kcContext.realm.name)
   }, [])
 
+  // Replace the Keycloak default icon with the phisheye favicon.
+  useEffect(() => {
+    document
+      .querySelectorAll('link[rel~="icon"]')
+      .forEach((link) => link.remove())
+    const link = document.createElement("link")
+    link.rel = "icon"
+    link.type = "image/svg+xml"
+    link.href =
+      "data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20256%20256%22%3E%3Ctitle%3Ephisheye%3C/title%3E%3Crect%20width=%22256%22%20height=%22256%22%20rx=%2258%22%20fill=%22%2316203A%22/%3E%3Cg%20transform=%22translate(128%20128)%20scale(0.86)%20translate(-126%20-128)%22%3E%3Cpath%20fill=%22%237da3f5%22%20fill-rule=%22evenodd%22%20d=%22M158%2021A55%2055%200%201%201%20158%20131A55%2055%200%201%201%20158%2021ZM158%2048A28%2028%200%201%200%20158%20104A28%2028%200%201%200%20158%2048Z%22/%3E%3Ccircle%20cx=%22158%22%20cy=%2276%22%20r=%2213%22%20fill=%22%237da3f5%22/%3E%3Cpath%20fill=%22%237da3f5%22%20d=%22M143%20104V168A37%2037%200%200%201%2069%20168V138L46%20108L39%20168A67%2067%200%200%200%20173%20168V104Z%22/%3E%3C/g%3E%3C/svg%3E"
+    document.head.appendChild(link)
+  }, [])
+
   useSetClassName({
     qualifiedName: "html",
     className: kcClsx("kcHtmlClass"),

@@ -48,13 +48,13 @@ Instanz-Rollen: Das **Standard-Team** ist das Instanz-Team. Dort gibt es nur die
 | Methode | Pfad | Zweck |
 |---|---|---|
 | GET | `/analyses` | Liste für das aktive Team (umgesetzt) |
-| POST | `/analyses` | Upload einer `.eml` als Feld `file` (multipart), max. 25 MB (413 bei mehr), antwortet mit dem Listeneintrag (umgesetzt, die Analyse läuft danach als arq-Job) |
+| POST | `/analyses` | Upload einer `.eml` als Feld `file` (multipart), antwortet mit dem Listeneintrag (umgesetzt, die Analyse läuft danach als arq-Job). Limit: 25 MB im Frontend, 30 MB im nginx, das Backend prüft noch nicht und müsste mit 413 antworten |
 | GET | `/analyses/{id}` | Detail (umgesetzt, `criteria` und `links` noch leer, `ai_assessment` fehlt noch) |
 | DELETE | `/analyses/{id}` | Weich löschen, nur Admin (umgesetzt) |
 | POST | `/analyses/{id}/decision` | Verdikt bestätigen oder als falsch-positiv melden, Body `verdict`, antwortet mit `{ verdict, by, at }` (umgesetzt) |
 | DELETE | `/analyses/{id}/decision` | Entscheidung zurücknehmen (umgesetzt) |
 | GET | `/analyses/{id}/eml` | Original-`.eml` aus MinIO herunterladen, geht über das Backend (MinIO ist von außen nicht erreichbar). Antwort mit `Content-Disposition: attachment` und `application/octet-stream`, die Datei kann Schadcode enthalten |
-| GET | `/analyses/search?q=` | Suche über Betreff, Absender, Link-Domain und Anhang-Hash, siehe unten |
+| GET | `/analyses/search?q=` | Suche über Betreff, Absender, Link-Domain und Anhang-Hash, siehe unten (umgesetzt, ohne Link-Hosts) |
 | GET | `/queue` | Wartende Jobs und Worker-Auslastung, für die Fortschrittsanzeige (umgesetzt) |
 
 ## Übersicht

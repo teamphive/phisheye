@@ -87,7 +87,7 @@ function RolePicker({
   /** Only admins change roles, everyone else just sees them. */
   readOnly?: boolean
 }) {
-  if (readOnly) return <span className="text-[13px]">{roleLabel[value]}</span>
+  if (readOnly) return <span className="text-sm">{roleLabel[value]}</span>
 
   return (
     <Select
@@ -113,7 +113,7 @@ function RolePicker({
 function TwoFactorState({ enabled }: { enabled: boolean | null }) {
   if (enabled === null) {
     return (
-      <span className="inline-flex items-center gap-1.5 text-[12.5px] text-faint">
+      <span className="inline-flex items-center gap-1.5 text-xs text-faint">
         <CircleHelpIcon className="size-3.5" />
         Unbekannt
       </span>
@@ -122,7 +122,7 @@ function TwoFactorState({ enabled }: { enabled: boolean | null }) {
 
   if (enabled) {
     return (
-      <span className="inline-flex items-center gap-1.5 text-[12.5px] text-clean">
+      <span className="inline-flex items-center gap-1.5 text-xs text-clean">
         <CheckIcon className="size-3.5" />
         Aktiv
       </span>
@@ -130,7 +130,7 @@ function TwoFactorState({ enabled }: { enabled: boolean | null }) {
   }
 
   return (
-    <span className="inline-flex items-center gap-1.5 text-[12.5px] text-suspicious">
+    <span className="inline-flex items-center gap-1.5 text-xs text-suspicious">
       <TriangleAlertIcon className="size-3.5" />
       Nicht eingerichtet
     </span>
@@ -438,7 +438,7 @@ function TeamView({ team }: { team: Team }) {
                               </span>
                             ) : null}
                           </div>
-                          <div className="font-mono text-[11px] text-faint">
+                          <div className="text-xs text-muted-foreground">
                             {member.email}
                           </div>
                         </div>
@@ -459,7 +459,7 @@ function TeamView({ team }: { team: Team }) {
                     <TableCell>
                       <TwoFactorState enabled={member.twoFactorEnabled} />
                     </TableCell>
-                    <TableCell className="text-right font-mono">
+                    <TableCell className="text-right">
                       {member.analysisCount}
                     </TableCell>
                     <TableCell className="text-right">
@@ -492,7 +492,7 @@ function TeamView({ team }: { team: Team }) {
                           <div className="font-semibold text-muted-foreground">
                             {invitation.email}
                           </div>
-                          <div className="font-mono text-[11px] text-faint">
+                          <div className="text-xs text-muted-foreground">
                             Einladung verschickt am{" "}
                             {formatDate(invitation.invitedAt)}
                           </div>
@@ -514,9 +514,7 @@ function TeamView({ team }: { team: Team }) {
                     <TableCell>
                       <span className="text-xs text-faint">—</span>
                     </TableCell>
-                    <TableCell className="text-right font-mono text-faint">
-                      —
-                    </TableCell>
+                    <TableCell className="text-right text-faint">—</TableCell>
                     <TableCell className="text-right whitespace-nowrap">
                       {canManage ? (
                         <>

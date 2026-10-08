@@ -75,7 +75,7 @@ export function Page() {
               key={action}
               className="flex items-center gap-2.5 rounded-md border border-border px-3 py-2 text-foreground"
             >
-              <span className="grid size-5 shrink-0 place-items-center rounded bg-secondary font-mono text-[10px] font-semibold text-faint">
+              <span className="grid size-5 shrink-0 place-items-center rounded bg-secondary text-[10px] font-semibold text-faint">
                 {index + 1}
               </span>
               {actionLabels[action] ??
