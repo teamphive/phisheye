@@ -11,6 +11,7 @@ from ..constants import VERDICT_THRESHOLDS, WORKER_MAX_JOBS
 from ..database import get_db
 from ..models.mail_analysis import MailAnalysis
 from ..models.mail_attachment import MailAttachment
+from ..models.mail_link import MailLink
 from ..models.team_membership import TeamMembership
 from ..models.user import User
 from ..services.auth import get_current_user
@@ -152,15 +153,32 @@ async def get_analysis(
         .order_by(MailAttachment.id)
     )
     attachments = result.all()
+
+    result = await db.exec(
+        select(MailLink)
+        .where(MailLink.mail_analysis_id == analysis_id)
+        .order_by(MailLink.id)
+    )
+    links = result.all()
+
+    criteria = analysis.criteria or []
     running = analysis.status in ("pending", "processing")
 
     return {
         **_list_item(analysis),
         "thresholds": VERDICT_THRESHOLDS,
-        # The detection does not produce criteria and links yet
-        "criteria": [],
-        "criteria_total": 0,
-        "links": [],
+        "criteria": criteria,
+        # the sum before the cap, the page shows "Summe 120, gekappt auf 100"
+        "criteria_total": sum(criterion["weight"] for criterion in criteria),
+        "links": [
+            {
+                "text": link.text,
+                "target": link.target,
+                "finding": link.finding,
+                "tone": link.tone,
+            }
+            for link in links
+        ],
         "attachments": [_attachment(attachment) for attachment in attachments],
         "raw_headers": analysis.raw_headers or "",
         "decision": await _decision(analysis, db),
