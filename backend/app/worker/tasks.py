@@ -14,6 +14,7 @@ from ..models.mail_analysis import MailAnalysis
 from ..models.team import Team
 from ..models.team_invitation import TeamInvitation
 from ..models.user import User
+from ..services.bell import delete_old
 from ..services.domains import team_for_address
 from ..services.eml_validation import InvalidEmlError
 from ..services.invitations import deliver_invitation
@@ -183,6 +184,14 @@ async def send_failure_mail(ctx, analysis_id: int) -> None:
 
         analysis.notified_at = datetime.utcnow()
         await db.commit()
+
+
+async def delete_old_notifications(ctx) -> None:
+    async for db in get_session():
+        deleted = await delete_old(db)
+
+    if deleted:
+        logger.info("Deleted %s notifications older than 14 days", deleted)
 
 
 async def send_decision_mail(ctx, analysis_id: int) -> None:

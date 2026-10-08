@@ -9,6 +9,7 @@ from ..models.team_invitation import TeamInvitation
 from ..models.team_membership import TeamMembership
 from ..models.user import User
 from . import keycloak_admin
+from .bell import notify_joined
 from .notifications import send_invitation_mail
 
 logger = logging.getLogger(__name__)
@@ -38,6 +39,9 @@ async def accept_invitations(user: User, db: AsyncSession) -> None:
                 TeamMembership(team_id=team.id, user_id=user.id, role=invitation.role)
             )
             member_of.add(team.id)
+            await notify_joined(
+                team, user, await db.get(User, invitation.invited_by), db
+            )
 
             if user.active_team_id is None:
                 user.active_team_id = team.id

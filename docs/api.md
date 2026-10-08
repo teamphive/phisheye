@@ -179,10 +179,23 @@ Die meldende Person erfährt das Ergebnis erst, wenn ein Analyst entschieden hat
 
 | Methode | Pfad | Zweck |
 |---|---|---|
-| GET | `/notifications` | Liste, ungelesene zuerst |
-| POST | `/notifications/read` | Als gelesen markieren, Body `ids` oder leer für alle |
+| GET | `/notifications` | Eigene Einträge, ungelesene zuerst, höchstens 100 (umgesetzt) |
+| POST | `/notifications/read` | Als gelesen markieren, Body `ids` oder leer für alle, antwortet mit 204 (umgesetzt) |
 
-Das Backend löscht Benachrichtigungen 14 Tage nach `created_at`, gelesen oder nicht. `GET /notifications` liefert nichts Älteres.
+Das Backend löscht Benachrichtigungen 14 Tage nach `created_at`, gelesen oder nicht. `GET /notifications` liefert nichts Älteres. Gelöscht wird nachts um 3 Uhr per arq-Cron.
+
+Die Glocke gehört der Person, nicht dem Team: Beide Endpunkte brauchen nur die Anmeldung, kein aktives Team. So erreicht „… hat dich zum Team hinzugefügt“ auch jemanden, der noch in keinem Team ist. Fremde `ids` in `POST /notifications/read` werden ignoriert.
+
+Wer was bekommt:
+
+| Anlass | Empfänger | `kind`, `tone` | Titel |
+|---|---|---|---|
+| Analyse fertig | die zugewiesene Person (beim Upload die hochladende), ohne Zuweisung alle Admins und Analysten des Teams | `analysis`, Verdikt | „Analyse abgeschlossen: Phishing (100 %)“, Detail ist der Betreff |
+| Analyse nach dem letzten Versuch fehlgeschlagen | wie oben | `analysis`, `phishing` | „Analyse fehlgeschlagen“ |
+| Einladung angenommen | die neue Person | `team`, `info` | „Anna hat dich zum Team X hinzugefügt“ |
+| Einladung angenommen | alle anderen Mitglieder des Teams | `team`, `info` | „Gast ist dem Team X beigetreten“ |
+
+Audit bekommt keine Analyse-Meldungen, nur Team-Meldungen. Einträge zur Zwei-Faktor-Anmeldung gibt es nicht, die läuft in Keycloak und das Backend erfährt davon nichts. Die Einträge entstehen im selben Commit wie ihr Anlass, eine Glocke für ein nicht gespeichertes Ergebnis gibt es nicht.
 
 Das Frontend fragt `GET /notifications` alle 30 Sekunden neu, solange der Tab sichtbar ist, und sofort, wenn man zurückkommt.
 
