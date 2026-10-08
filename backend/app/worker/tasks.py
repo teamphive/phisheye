@@ -14,6 +14,7 @@ from ..models.team import Team
 from ..models.team_invitation import TeamInvitation
 from ..models.user import User
 from ..services.domains import team_for_address
+from ..services.eml_validation import InvalidEmlError
 from ..services.invitations import deliver_invitation
 from ..services.keycloak_admin import KeycloakAdminError
 from ..services.mail_analysis import analyze_and_store
@@ -78,6 +79,9 @@ async def _poll_report_mailbox() -> None:
                     db=db,
                     reported_by=reporter,
                 )
+            except InvalidEmlError as error:
+                # it would fail the same way on every run, so it goes
+                logger.warning("POP3 mail %s dropped: %s", uid, error.detail)
             except Exception:
                 logger.exception("Analysis of POP3 mail failed")
                 continue

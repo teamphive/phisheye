@@ -48,7 +48,7 @@ Instanz-Rollen: Das **Standard-Team** ist das Instanz-Team. Dort gibt es nur die
 | Methode | Pfad | Zweck |
 |---|---|---|
 | GET | `/analyses` | Liste für das aktive Team (umgesetzt) |
-| POST | `/analyses` | Upload einer `.eml` als Feld `file` (multipart), antwortet mit dem Listeneintrag (umgesetzt, läuft synchron im Request). Limit: 25 MB im Frontend, 30 MB im nginx, das Backend prüft noch nicht und müsste mit 413 antworten |
+| POST | `/analyses` | Upload einer `.eml` als Feld `file` (multipart), antwortet mit dem Listeneintrag (umgesetzt, läuft synchron im Request). Das Backend lehnt ab: Endung außer `.eml` (422), Datei ohne Mail-Header oder mit Binär-Signatur (422), mehr als 25 MB (413) |
 | GET | `/analyses/{id}` | Detail (umgesetzt, `criteria` und `links` noch leer, `ai_assessment` fehlt noch) |
 | DELETE | `/analyses/{id}` | Weich löschen, nur Admin (umgesetzt) |
 | POST | `/analyses/{id}/decision` | Verdikt bestätigen oder als falsch-positiv melden, Body `verdict`, antwortet mit `{ verdict, by, at }` (umgesetzt) |
@@ -110,6 +110,8 @@ Der letzte Admin kann sich weder herabstufen noch entfernen. Das Verlassen des l
 ## Outlook-Meldungen
 
 Mitarbeiter melden eine verdächtige Mail in Outlook, die Meldung geht an ein gemeinsames phisheye-Postfach. Das Backend holt es per POP3 ab und legt für jede Meldung eine Analyse an.
+
+- Was keine Mail ist, bekommt keine Analyse. Der Abruf verwirft es mit einer Warnung im Log und löscht es aus dem Postfach, sonst käme es bei jedem Lauf wieder.
 
 - Welches Team die Meldung bekommt, entscheidet die Domain der meldenden Adresse, nicht die des ursprünglichen Absenders.
 - Kennt kein Team die Domain, geht die Meldung ans Standard-Team. Sie wird nicht verworfen.
@@ -252,7 +254,6 @@ Je Treffer:
 
 - `GET /stats` für die Übersicht, siehe oben. Bis dahin zeigt das Frontend ohne Backend Platzhalterzahlen, mit Backend die Fehlermeldung.
 - KI-Einschätzung mit JEV, Anleitung mit Beispiel-Anfrage und Python-Code in [ai-assessment.md](ai-assessment.md). Zu tun: `typesafe-sdk` als Abhängigkeit, `TYPESAFE_API_KEY` in `.env` und `.env.example` (Key nur auf dem Server), in `mail_analysis` die Spalten `ai_verdict`, `ai_confidence` und `ai_model` (nullable, mit Alembic-Migration), JEV als eigener Schritt der Analyse und `ai_assessment` in `GET /analyses/{id}`. Antwortet JEV nicht, bleibt `ai_assessment` null und die Analyse läuft trotzdem durch. Bis dahin zeigt die Detailseite „Keine KI-Einschätzung“.
-- Backend-Prüfung auf 25 MB mit 413. Bisher begrenzen nur das Frontend und der nginx (30 MB).
 - Cron-Job für die harte Löschung: täglich alles mit `deleted_at` älter als 10 Tage endgültig entfernen (Datenbank, Anhänge, `.eml` in MinIO).
 - Analyse als arq-Job statt im Request. Erst damit sind `running`, `step` und `GET /queue` echt. Wird mit einem Spam-Testskript geprüft.
 - Abbrechen einer laufenden Analyse. Ein Endpunkt fehlt, bis dahin zeigt die Detailseite keinen Knopf dafür.

@@ -4,7 +4,7 @@ import pytest_asyncio
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
-from sqlmodel import SQLModel
+from sqlmodel import SQLModel, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import models  # noqa: F401  registers every table for create_all
@@ -308,3 +308,80 @@ def test_vt_results_become_plain_json():
     results = UserDict({"Engine": UserDict({"category": "malicious"})})
 
     assert json.dumps(_plain(results)) == '{"Engine": {"category": "malicious"}}'
+
+
+VALID_EML = (
+    b"From: anna@example.com\r\nTo: ben@example.com\r\nSubject: Hallo\r\n"
+    b"Date: Mon, 1 Oct 2026 10:00:00 +0000\r\n\r\nHi"
+)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "name, content",
+    [
+        ("notes.eml", b"just some text, nothing a mail would have"),
+        ("photo.eml", b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR"),
+        ("doc.eml", b"%PDF-1.7 not a mail"),
+        ("archive.eml", b"PK\x03\x04\x14\x00"),
+        ("nul.eml", b"From: a@b.de\x00\x00\x00binary after a header"),
+    ],
+)
+async def test_upload_rejects_files_that_only_carry_the_name(db, api, name, content):
+    _, _, anna, _, _ = await two_teams(db)
+    login_as(anna)
+    before = len((await db.exec(select(MailAnalysis))).all())
+
+    response = await api.post(
+        "/analyses", files={"file": (name, content, "message/rfc822")}
+    )
+
+    assert response.status_code == 422
+    # nothing is stored for a rejected file
+    assert len((await db.exec(select(MailAnalysis))).all()) == before
+
+
+@pytest.mark.asyncio
+async def test_upload_rejects_other_extensions(db, api):
+    _, _, anna, _, _ = await two_teams(db)
+    login_as(anna)
+
+    response = await api.post(
+        "/analyses", files={"file": ("mail.txt", VALID_EML, "text/plain")}
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_upload_rejects_a_file_over_the_size_limit(db, api, monkeypatch):
+    from app.services import eml_validation
+
+    _, _, anna, _, _ = await two_teams(db)
+    login_as(anna)
+    monkeypatch.setattr(eml_validation, "MAX_EML_BYTES", 10)
+
+    response = await api.post(
+        "/analyses", files={"file": ("big.eml", VALID_EML, "message/rfc822")}
+    )
+
+    assert response.status_code == 413
+
+
+@pytest.mark.asyncio
+async def test_upload_accepts_a_real_mail_in_any_case(db, api, monkeypatch):
+    from app.services import mail_analysis
+
+    async def store(content):
+        return "key"
+
+    monkeypatch.setattr(mail_analysis, "store_eml", store)
+    _, _, anna, _, _ = await two_teams(db)
+    login_as(anna)
+
+    response = await api.post(
+        "/analyses", files={"file": ("Mail.EML", VALID_EML, "message/rfc822")}
+    )
+
+    assert response.status_code == 200
+    assert response.json()["subject"] == "Hallo"

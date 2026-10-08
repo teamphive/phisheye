@@ -12,6 +12,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ..models.mail_analysis import MailAnalysis
 from ..models.mail_attachment import MailAttachment
+from . import eml_validation
 from .notifications import enqueue_analysis_ready
 from .object_storage import ObjectStorageError, delete_object, store_eml
 
@@ -38,6 +39,7 @@ async def analyze_and_store(
         raise HTTPException(status_code=400, detail="Uploaded file is empty")
 
     msg = BytesParser(policy=policy.default).parsebytes(content)
+    eml_validation.check_eml(content, msg)
     attachments = []
 
     for part in msg.iter_attachments():
