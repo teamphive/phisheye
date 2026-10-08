@@ -61,6 +61,8 @@ export type AnalysisDetail = {
   aiAssessment: AiAssessment | null
   /** Null while nobody has taken the analysis on. */
   handler: string | null
+  /** Assigned to whoever asks, it unlocks deciding and handing back. */
+  mine: boolean
   source: AnalysisSource
   /** Address of whoever reported the mail in Outlook, null for uploads. */
   reportedBy: string | null
@@ -84,9 +86,12 @@ export type AnalysisDetail = {
   } | null
 }
 
+/** The placeholders know people by name only, `mine` is worked out on reading. */
+type StoredDetail = Omit<AnalysisDetail, "mine">
+
 const thresholds = { suspicious: 40, phishing: 75 }
 
-const completed: AnalysisDetail = {
+const completed: StoredDetail = {
   id: "a-2026-0128",
   subject: "Ihre Rechnung RE-2024-88431 ist überfällig",
   sender: "buchhaltung@dhl-versand-tracking.top",
@@ -175,7 +180,7 @@ Auth-Results:    spf=fail dkim=fail dmarc=fail (p=none)`,
   error: null,
 }
 
-const running: AnalysisDetail = {
+const running: StoredDetail = {
   ...completed,
   id: "a-2026-0130",
   subject: "Neue Sprachnachricht (0:42)",
@@ -195,7 +200,7 @@ const running: AnalysisDetail = {
   startedAt: "2026-09-03T07:23:00Z",
 }
 
-const failed: AnalysisDetail = {
+const failed: StoredDetail = {
   ...running,
   id: "a-2026-0131",
   subject: "Ihr Paket konnte nicht zugestellt werden",
@@ -216,7 +221,7 @@ const failed: AnalysisDetail = {
 }
 
 // Finished without a score: no criteria and links, attachments and headers only
-const unrated: AnalysisDetail = {
+const unrated: StoredDetail = {
   ...completed,
   id: "a-2026-0132",
   subject: "Einladung: Quartalsgespräch Vertrieb",
@@ -323,22 +328,21 @@ export function mockQueue(): Queue {
 const decisions: Record<string, Decision | null> = {}
 const handlers: Record<string, string | null> = {}
 
-// The backend's rule: only the person the analysis is assigned to decides
-function requireAssignedTo(id: string, user: string) {
-  const { handler } = mockAnalysis(id)
-
-  if (handler === null) throw new ApiError(409, "Take the analysis on first")
-  if (handler !== user) {
-    throw new ForbiddenError("Only the assigned person can decide")
-  }
-}
-
+/**
+ * The backend's rule: a free analysis goes to whoever decides, in the same
+ * step. One that someone else has needs taking on first.
+ */
 export function mockDecide(
   id: string,
   verdict: Decision["verdict"],
   by: string
 ): Decision {
-  requireAssignedTo(id, by)
+  const { handler } = storedAnalysis(id)
+
+  if (handler !== null && handler !== by) {
+    throw new ForbiddenError("Only the assigned person can decide")
+  }
+  if (handler === null) mockAssign(id, by)
 
   const decision = { verdict, by, at: new Date().toISOString() }
   decisions[id] = decision
@@ -347,8 +351,14 @@ export function mockDecide(
   return decision
 }
 
+/** Only whoever has the analysis takes its decision back. */
 export function mockRevokeDecision(id: string, user: string) {
-  requireAssignedTo(id, user)
+  const { handler } = storedAnalysis(id)
+
+  if (handler === null) throw new ApiError(409, "Take the analysis on first")
+  if (handler !== user) {
+    throw new ForbiddenError("Only the assigned person can decide")
+  }
 
   decisions[id] = null
   mockSetDecision(id, null)
@@ -363,7 +373,7 @@ export function mockAssign(id: string, handler: string): Assignment {
 
 /** Only one's own and only while it is undecided. */
 export function mockRelease(id: string, user: string) {
-  const { decision, handler } = mockAnalysis(id)
+  const { decision, handler } = storedAnalysis(id)
 
   if (decision) throw new ApiError(409, "The analysis is decided already")
   if (handler !== null && handler !== user) {
@@ -382,7 +392,7 @@ export function mockEml(id: string) {
   return new Blob([text], { type: "message/rfc822" })
 }
 
-export function mockAnalysis(id: string): AnalysisDetail {
+function storedAnalysis(id: string): StoredDetail {
   const base = baseAnalysis(id)
 
   return {
@@ -390,6 +400,12 @@ export function mockAnalysis(id: string): AnalysisDetail {
     decision: id in decisions ? decisions[id] : base.decision,
     handler: id in handlers ? handlers[id] : base.handler,
   }
+}
+
+/** The detail as `user` gets it: whoever has taken it on sees mine. */
+export function mockAnalysis(id: string, user: string): AnalysisDetail {
+  const stored = storedAnalysis(id)
+  return { ...stored, mine: stored.handler === user }
 }
 
 // JEV's answer to go with the list's verdict. The suspicious mails get an
@@ -407,8 +423,8 @@ function mockAiAssessment(verdict: Verdict | null): AiAssessment | null {
   return null
 }
 
-function baseAnalysis(id: string): AnalysisDetail {
-  const byId: Record<string, AnalysisDetail> = {
+function baseAnalysis(id: string): StoredDetail {
+  const byId: Record<string, StoredDetail> = {
     [running.id]: running,
     [failed.id]: failed,
     [unrated.id]: unrated,

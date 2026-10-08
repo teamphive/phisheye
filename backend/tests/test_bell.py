@@ -150,7 +150,7 @@ async def test_finished_upload_rings_for_the_uploader(db, storage):
     assert notification.kind == "analysis"
     # the test mail passes every rule
     assert notification.tone == "clean"
-    assert notification.title == "Analyse abgeschlossen: Sauber (0 %)"
+    assert notification.title == "Analyse abgeschlossen: Legitim (0 %)"
     assert notification.detail == "„Ihre Rechnung“"
     assert notification.target == f"/analysen/{analysis_id}"
     # only the assigned person

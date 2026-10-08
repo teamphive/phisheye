@@ -136,7 +136,7 @@ async def test_a_decided_analysis_can_be_taken_over_but_not_handed_back(db, api)
 
 
 @pytest.mark.asyncio
-async def test_deciding_needs_the_assignment(db, api):
+async def test_deciding_a_free_analysis_assigns_the_decider(db, api):
     analysis, anna, *_ = await setup(db)
     login_as(anna)
 
@@ -144,11 +144,74 @@ async def test_deciding_needs_the_assignment(db, api):
         f"/analyses/{analysis.id}/decision", json={"verdict": "clean"}
     )
 
-    assert response.status_code == 409
+    # one click: decided and assigned in the same step
+    assert response.status_code == 200
+    assert response.json()["by"] == "Anna"
     detail = (await api.get(f"/analyses/{analysis.id}")).json()
-    # nothing was decided and nobody got the analysis by the way
-    assert detail["decision"] is None
-    assert detail["handler"] is None
+    assert detail["handler"] == "Anna"
+    assert detail["mine"] is True
+    assert detail["decision"]["verdict"] == "clean"
+
+
+@pytest.mark.asyncio
+async def test_the_second_decision_on_a_free_analysis_is_refused(db, api):
+    analysis, anna, carl, *_ = await setup(db)
+    decision = f"/analyses/{analysis.id}/decision"
+
+    # Anna and Carl both see it free, Anna is first
+    login_as(anna)
+    assert (await api.post(decision, json={"verdict": "phishing"})).status_code == 200
+
+    login_as(carl)
+    response = await api.post(decision, json={"verdict": "clean"})
+
+    # Carl's page is out of date: 403, and nothing of his is written
+    assert response.status_code == 403
+    detail = (await api.get(f"/analyses/{analysis.id}")).json()
+    assert detail["handler"] == "Anna"
+    assert detail["mine"] is False
+    assert detail["decision"]["verdict"] == "phishing"
+    assert detail["decision"]["by"] == "Anna"
+
+
+@pytest.mark.asyncio
+async def test_a_decision_at_the_same_time_has_one_winner(db, api):
+    analysis, anna, carl, *_ = await setup(db)
+    decision = f"/analyses/{analysis.id}/decision"
+
+    async def click(user, verdict):
+        login_as(user)
+        return (await api.post(decision, json={"verdict": verdict})).status_code
+
+    # no real parallelism in the test database, but both requests run the same
+    # single UPDATE and the loser must find the row taken
+    first = await click(anna, "phishing")
+    second = await click(carl, "clean")
+
+    assert sorted([first, second]) == [200, 403]
+
+
+@pytest.mark.asyncio
+async def test_the_assigned_person_can_decide_again(db, api):
+    analysis, anna, *_ = await setup(db)
+    login_as(anna)
+    decision = f"/analyses/{analysis.id}/decision"
+
+    await api.post(decision, json={"verdict": "phishing"})
+    response = await api.post(decision, json={"verdict": "clean"})
+
+    assert response.status_code == 200
+    detail = (await api.get(f"/analyses/{analysis.id}")).json()
+    assert detail["decision"]["verdict"] == "clean"
+
+
+@pytest.mark.asyncio
+async def test_taking_back_without_an_assignment_stays_a_conflict(db, api):
+    analysis, anna, *_ = await setup(db)
+    login_as(anna)
+
+    # only old data has a decision without an assignment
+    assert (await api.delete(f"/analyses/{analysis.id}/decision")).status_code == 409
 
 
 @pytest.mark.asyncio

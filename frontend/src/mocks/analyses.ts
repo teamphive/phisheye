@@ -23,6 +23,8 @@ export type AnalysisListItem = {
   score: number | null
   /** Null while nobody has taken the analysis on. */
   handler: string | null
+  /** Assigned to whoever asks. Names can repeat, so nothing compares them. */
+  mine: boolean
   /** Null until an analyst confirmed or overruled the verdict. */
   decision: Decision | null
   source: AnalysisSource
@@ -31,13 +33,16 @@ export type AnalysisListItem = {
   receivedAt: string
 }
 
+/** The placeholders know people by name only, `mine` is worked out on reading. */
+export type StoredAnalysis = Omit<AnalysisListItem, "mine">
+
 export const verdictLabel: Record<Verdict, string> = {
   clean: "Legitim",
   suspicious: "Verdächtig",
   phishing: "Phishing",
 }
 
-export const analyses: AnalysisListItem[] = [
+export const analyses: StoredAnalysis[] = [
   // Done, but the detection gave no score, as the backend does for now
   {
     id: "a-2026-0132",
@@ -274,7 +279,7 @@ export const analyses: AnalysisListItem[] = [
 ]
 
 /** A second team, so switching teams visibly changes the list. */
-const socAnalyses: AnalysisListItem[] = [
+const socAnalyses: StoredAnalysis[] = [
   {
     id: "a-2026-0129",
     subject: "Dringend: Zugangsdaten VPN aktualisieren",
@@ -308,7 +313,7 @@ const socAnalyses: AnalysisListItem[] = [
 ]
 
 /** Reports from domains no team has, they land in the default team. */
-const standardAnalyses: AnalysisListItem[] = [
+const standardAnalyses: StoredAnalysis[] = [
   {
     id: "a-2026-0134",
     subject: "Offene Rechnung Nr. 2026-4471 – letzte Mahnung",
@@ -338,7 +343,7 @@ const standardAnalyses: AnalysisListItem[] = [
 ]
 
 /** A team the signed in user only sees through the instance role. */
-const reedereiAnalyses: AnalysisListItem[] = [
+const reedereiAnalyses: StoredAnalysis[] = [
   {
     id: "a-2026-0136",
     subject: "Frachtbrief MV Nordlicht – bitte prüfen",
@@ -371,15 +376,23 @@ const reedereiAnalyses: AnalysisListItem[] = [
   },
 ]
 
-const analysesByTeam: Record<string, AnalysisListItem[]> = {
+const analysesByTeam: Record<string, StoredAnalysis[]> = {
   itsec: analyses,
   soc: socAnalyses,
   standard: standardAnalyses,
   reederei: reedereiAnalyses,
 }
 
-export function mockAnalyses(teamId: string): AnalysisListItem[] {
+export function storedAnalyses(teamId: string): StoredAnalysis[] {
   return analysesByTeam[teamId] ?? []
+}
+
+/** The list as `user` gets it: whoever has taken an analysis on sees mine. */
+export function mockAnalyses(teamId: string, user: string): AnalysisListItem[] {
+  return storedAnalyses(teamId).map((item) => ({
+    ...item,
+    mine: item.handler === user,
+  }))
 }
 
 export function mockDeleteAnalysis(id: string) {

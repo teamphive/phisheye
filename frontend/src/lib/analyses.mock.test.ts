@@ -45,38 +45,60 @@ describe("without a backend", () => {
   it("assigns and releases in the detail and in the list", async () => {
     const { claimAnalysis, fetchAnalyses, fetchAnalysis, releaseAnalysis } =
       await loadAnalyses()
-    const handlerInList = async () =>
+    const inList = async () =>
       (await fetchAnalyses("itsec")).find((item) => item.id === "a-2026-0132")
-        ?.handler
 
     await claimAnalysis("a-2026-0132")
-    expect((await fetchAnalysis("a-2026-0132")).handler).toBe("M. Sandmann")
-    expect(await handlerInList()).toBe("M. Sandmann")
+    expect(await fetchAnalysis("a-2026-0132")).toMatchObject({
+      handler: "M. Sandmann",
+      mine: true,
+    })
+    expect(await inList()).toMatchObject({ handler: "M. Sandmann", mine: true })
 
     await releaseAnalysis("a-2026-0132")
-    expect((await fetchAnalysis("a-2026-0132")).handler).toBeNull()
-    expect(await handlerInList()).toBeNull()
+    expect(await fetchAnalysis("a-2026-0132")).toMatchObject({
+      handler: null,
+      mine: false,
+    })
+    expect(await inList()).toMatchObject({ handler: null, mine: false })
   })
 
-  it("decides only what one has taken on", async () => {
-    const { claimAnalysis, decideAnalysis, fetchAnalyses } =
-      await loadAnalyses()
+  it("decides a free analysis in one click and takes it on", async () => {
+    const { decideAnalysis, fetchAnalyses } = await loadAnalyses()
 
-    // nobody has it, then someone else has it
-    await expect(decideAnalysis("a-2026-0132", "clean")).rejects.toMatchObject({
-      status: 409,
-    })
-    await expect(
-      decideAnalysis("a-2026-0131", "phishing")
-    ).rejects.toBeInstanceOf(ForbiddenError)
-
-    await claimAnalysis("a-2026-0132")
     const decision = await decideAnalysis("a-2026-0132", "clean")
 
     const item = (await fetchAnalyses("itsec")).find(
       (entry) => entry.id === "a-2026-0132"
     )
-    expect(item?.decision).toEqual(decision)
+    expect(item).toMatchObject({ decision, handler: "M. Sandmann", mine: true })
+  })
+
+  it("decides someone else's analysis only after taking it on", async () => {
+    const { claimAnalysis, decideAnalysis, fetchAnalysis } =
+      await loadAnalyses()
+
+    // T. Özdemir has it, a page that still showed it free gets the same
+    await expect(
+      decideAnalysis("a-2026-0131", "phishing")
+    ).rejects.toBeInstanceOf(ForbiddenError)
+    expect((await fetchAnalysis("a-2026-0131")).decision).toBeNull()
+
+    await claimAnalysis("a-2026-0131")
+    await decideAnalysis("a-2026-0131", "phishing")
+    expect((await fetchAnalysis("a-2026-0131")).decision?.verdict).toBe(
+      "phishing"
+    )
+  })
+
+  it("says mine only for one's own analyses", async () => {
+    const { fetchAnalyses } = await loadAnalyses()
+    const items = await fetchAnalyses("itsec")
+
+    const mine = items.filter((item) => item.mine)
+    expect(mine.length).toBeGreaterThan(0)
+    expect(mine.every((item) => item.handler === "M. Sandmann")).toBe(true)
+    expect(items.find((item) => item.id === "a-2026-0131")?.mine).toBe(false)
   })
 
   it("takes back only a decision of one's own analysis", async () => {

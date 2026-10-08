@@ -151,7 +151,7 @@ const aiText = {
 export function AnalysisDetailPage() {
   const { id = "" } = useParams()
   const navigate = useNavigate()
-  const { permissions, user } = useSession()
+  const { permissions } = useSession()
   const [loaded, setLoaded] = useState<{
     id: string
     data: AnalysisDetail
@@ -164,9 +164,10 @@ export function AnalysisDetailPage() {
     id: string
     value: Decision | null
   } | null>(null)
-  const [handlerOverride, setHandlerOverride] = useState<{
+  const [assignmentOverride, setAssignmentOverride] = useState<{
     id: string
-    value: string | null
+    handler: string | null
+    mine: boolean
   } | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [takeOverOpen, setTakeOverOpen] = useState(false)
@@ -190,7 +191,7 @@ export function AnalysisDetailPage() {
         setLoaded({ id, data })
         // fresh from the server, what this page changed is in there
         setOverride(null)
-        setHandlerOverride(null)
+        setAssignmentOverride(null)
         if (data.status === "running") timer = setTimeout(load, pollInterval)
       } catch (error) {
         if (!active) return
@@ -215,17 +216,20 @@ export function AnalysisDetailPage() {
   const decision =
     override?.id === id ? override.value : (analysis?.decision ?? null)
 
-  const handler =
-    handlerOverride?.id === id
-      ? handlerOverride.value
-      : (analysis?.handler ?? null)
+  const assignment =
+    assignmentOverride?.id === id
+      ? assignmentOverride
+      : { handler: analysis?.handler ?? null, mine: analysis?.mine ?? false }
+  const handler = assignment.handler
+  // The backend says whose it is, two people can have the same name
+  const mine = assignment.mine
 
   function setDecision(value: Decision | null) {
     setOverride({ id, value })
   }
 
-  function setHandler(value: string | null) {
-    setHandlerOverride({ id, value })
+  function setAssignment(handler: string | null, mine: boolean) {
+    setAssignmentOverride({ id, handler, mine })
   }
 
   // Someone else was faster, the page shows who has the analysis now
@@ -270,16 +274,19 @@ export function AnalysisDetailPage() {
   }
 
   const text = decisionText[analysis.score === null ? "unrated" : "rated"]
-  // handler is the same name GET /me hands out
-  const ownCase = handler !== null && handler === user.name
-  // Only the person the analysis is assigned to decides or takes it back
-  const mayDecide = permissions.analyze && ownCase
-  const mustClaim = permissions.analyze && !ownCase
+  // A free analysis is decided in one click and becomes one's own with it.
+  // One that someone else has must be taken on first, also to take back.
+  const mayDecide = permissions.analyze && (mine || handler === null)
+  const mayUndo = permissions.analyze && mine
+  const mustClaim = permissions.analyze && !(decision ? mayUndo : mayDecide)
 
   async function decide(verdict: Decision["verdict"]) {
     setPending("decide")
     try {
-      setDecision(await decideAnalysis(id, verdict))
+      const stored = await decideAnalysis(id, verdict)
+      setDecision(stored)
+      // the backend gave the free analysis to whoever decided
+      if (!mine) setAssignment(stored.by, true)
       toast.success(text.done[verdict])
     } catch (error) {
       toast.error("Entscheidung konnte nicht gespeichert werden", {
@@ -309,7 +316,10 @@ export function AnalysisDetailPage() {
   async function claim() {
     setPending("claim")
     try {
-      setHandler((await claimAnalysis(id)).handler)
+      setAssignment((await claimAnalysis(id)).handler, true)
+      // Taking on always works. If the page was behind, someone may have
+      // decided meanwhile, and that has to show before anyone decides again.
+      setAttempt((current) => current + 1)
     } catch (error) {
       toast.error("Analyse konnte nicht übernommen werden", {
         description: caseErrorMessage("claim", error),
@@ -329,7 +339,7 @@ export function AnalysisDetailPage() {
     setPending("release")
     try {
       await releaseAnalysis(id)
-      setHandler(null)
+      setAssignment(null, false)
     } catch (error) {
       toast.error("Analyse konnte nicht abgegeben werden", {
         description: caseErrorMessage("release", error),
@@ -413,7 +423,7 @@ export function AnalysisDetailPage() {
                     variant="ghost"
                     size="sm"
                     className="ml-1 h-auto px-2 py-0.5 text-xs"
-                    disabled={!mayDecide || pending !== null}
+                    disabled={!mayUndo || pending !== null}
                     onClick={undo}
                   >
                     {pending === "revoke" ? <Spinner /> : null}
@@ -524,18 +534,18 @@ export function AnalysisDetailPage() {
                     <span className="text-faint">Niemand</span>
                   )}
                   {/* Taking on works always, handing back only before a decision */}
-                  {permissions.analyze && !(ownCase && decision) ? (
+                  {permissions.analyze && !(mine && decision) ? (
                     <Button
                       variant="outline"
                       size="xs"
                       className="shrink-0"
                       disabled={pending !== null}
-                      onClick={ownCase ? release : takeOn}
+                      onClick={mine ? release : takeOn}
                     >
                       {pending === "claim" || pending === "release" ? (
                         <Spinner />
                       ) : null}
-                      {ownCase ? "Abgeben" : "Übernehmen"}
+                      {mine ? "Abgeben" : "Übernehmen"}
                     </Button>
                   ) : null}
                 </span>

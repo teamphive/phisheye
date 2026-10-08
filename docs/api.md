@@ -51,7 +51,7 @@ Instanz-Rollen: Das **Standard-Team** ist das Instanz-Team. Dort gibt es nur die
 | POST | `/analyses` | Upload einer `.eml` oder `.msg` als Feld `file` (multipart), antwortet mit dem Listeneintrag (umgesetzt, die Analyse läuft danach als arq-Job). Eine `.msg` wandelt das Backend vor dem Speichern in eine `.eml` um, gespeichert wird die umgewandelte Mail. Das Backend lehnt ab: andere Endungen (422), Dateien ohne Mail-Header oder mit Binär-Signatur (422), eine kaputte `.msg` (422), mehr als 25 MB (413) |
 | GET | `/analyses/{id}` | Detail (umgesetzt) |
 | DELETE | `/analyses/{id}` | Weich löschen, nur Admin (umgesetzt) |
-| POST | `/analyses/{id}/decision` | Verdikt bestätigen oder als falsch-positiv melden, Body `verdict`, antwortet mit `{ verdict, by, at }` (umgesetzt). Bei einer Outlook-Meldung geht zwei Minuten später die Mail an die meldende Person, siehe unten. Nur wer die Analyse zugewiesen hat, darf entscheiden: niemand zugewiesen 409, jemand anderes zugewiesen 403 |
+| POST | `/analyses/{id}/decision` | Verdikt bestätigen oder als falsch-positiv melden, Body `verdict`, antwortet mit `{ verdict, by, at }` (umgesetzt). Bei einer Outlook-Meldung geht zwei Minuten später die Mail an die meldende Person, siehe unten. Eine freie Analyse bekommt die entscheidende Person im selben Schritt zugewiesen, jemand anderes zugewiesen 403 |
 | DELETE | `/analyses/{id}/decision` | Entscheidung zurücknehmen (umgesetzt), die Zuweisung bleibt. Gleiche Regel wie beim Entscheiden: nur die zugewiesene Person (409 und 403). Ein noch wartender Mail-Job tut danach nichts |
 | POST | `/analyses/{id}/assignment` | Analyse übernehmen, antwortet mit `{ handler }` (umgesetzt, siehe Zuweisung) |
 | DELETE | `/analyses/{id}/assignment` | Analyse abgeben, antwortet mit 204 (umgesetzt, siehe Zuweisung) |
@@ -66,7 +66,7 @@ Eine Analyse ist höchstens einer Person zugewiesen. Die Detailseite zeigt sie i
 Datenmodell:
 
 - Neue Spalte `handled_by` in `mail_analyses`, nullable, Fremdschlüssel auf `users.id`, mit Alembic-Migration.
-- In Liste und Detail wird daraus `handler`: der `name` dieser Person, genau wie in `GET /me`, sonst null. Das Frontend vergleicht `handler` mit dem eigenen `name`, um „Abgeben“ statt „Übernehmen“ zu zeigen. Den festen Wert `"handler": None` in `_list_item` ersetzen. `_list_item` bekommt bisher nur die Analyse, für den Namen braucht die Liste einen Join auf `users` (nicht pro Zeile nachschlagen), das Detail kann ihn wie `_decision` per `db.get` holen.
+- In Liste und Detail wird daraus `handler`: der `name` dieser Person, genau wie in `GET /me`, sonst null. Dazu kommt `mine`: `true`, wenn `handled_by` die anfragende Person ist. Das Frontend zeigt damit „Abgeben“ statt „Übernehmen“ und schaltet die Entscheidungs-Knöpfe frei. Die Namen kommen in der Liste über Joins auf `users` (Zuweisung und Entscheidung), nicht pro Zeile.
 - Beim Upload (`POST /analyses`) ist `handled_by` die hochladende Person. Nur die Upload-Route gibt `handled_by` an `submit_analysis`, alle anderen Wege starten ohne Zuweisung.
 - Bei Outlook-Meldungen bleibt `handled_by` null. Dort ist `submitted_by` der System-Nutzer, der darf nie zugewiesen sein.
 - Die Migration füllt bestehende Analysen: Uploads (`reported_by` null) bekommen `submitted_by`, danach bekommen entschiedene Analysen ohne Zuweisung `decided_by`. Alle anderen bleiben null. Meldungen über den Mailgun-Webhook haben ebenfalls kein `reported_by`, deshalb schließt die Migration den System-Nutzer über seine Adresse aus.
@@ -89,13 +89,14 @@ Datenmodell:
 
 Zusammenspiel mit der Entscheidung:
 
-- Entscheiden und Zurücknehmen darf nur, wem die Analyse zugewiesen ist. Wer nicht zugewiesen ist, übernimmt sie zuerst. Niemand zugewiesen: 409 "Take the analysis on first". Jemand anderes zugewiesen: 403 "Only the assigned person can decide".
-- `POST /analyses/{id}/decision` weist nicht mehr zu. Die Antwort bleibt `{ verdict, by, at }`.
+- Entscheiden und Zurücknehmen darf nur, wem die Analyse zugewiesen ist. Jemand anderes zugewiesen: 403 "Only the assigned person can decide", die Person übernimmt sie zuerst.
+- Eine freie Analyse entscheidet man mit einem Klick: `POST /analyses/{id}/decision` weist sie dann der entscheidenden Person zu, im selben Schritt wie die Entscheidung. Das hält gegen gleichzeitige Klicks: Ein einziges bedingtes `UPDATE … WHERE handled_by IS NULL OR handled_by = :ich` prüft und schreibt zugleich, bei 0 Zeilen kommt 403. Fall: A und B sehen die Analyse frei, A entscheidet zuerst, B hat die Seite nicht neu geladen und klickt. B bekommt 403 und keine Änderung, das Frontend zeigt den Hinweis und lädt neu.
+- Zurücknehmen ohne Zuweisung bleibt 409, das gibt es nur bei alten Daten. Die Antwort auf `POST …/decision` bleibt `{ verdict, by, at }`, das Frontend setzt danach selbst `handler` auf `by` und `mine` auf true.
 - `DELETE /analyses/{id}/decision` lässt `handled_by` unverändert.
 - Übernehmen (`POST …/assignment`) dürfen Admin und Analyst, der Auditor nicht (403). Es geht auch bei einer schon entschiedenen Analyse, damit sie nie bei einer abwesenden Person hängen bleibt. Danach darf die neue Person die Entscheidung zurücknehmen oder ändern.
 - Abgeben (`DELETE …/assignment`) geht weiter nur bei unentschiedenen Analysen und nur für die zugewiesene Person.
 
-Tests, die das abdecken: übernehmen, fremde Analyse übernehmen, abgeben, fremde Analyse abgeben (403), Audit (403), anderes Team (404), entschiedene Analyse übernehmen (200) und abgeben (409), Entscheiden ohne Zuweisung (409), Entscheiden und Zurücknehmen durch Fremde (403), Upload startet mit der hochladenden Person, Meldung startet mit null.
+Tests, die das abdecken: übernehmen, fremde Analyse übernehmen, abgeben, fremde Analyse abgeben (403), Audit (403), anderes Team (404), entschiedene Analyse übernehmen (200) und abgeben (409), Entscheiden ohne Zuweisung weist zu, zwei Entscheidungen auf dieselbe freie Analyse: nur die erste gilt, die zweite bekommt 403, eine abgewiesene Entscheidung löst keine Mail aus, Entscheiden und Zurücknehmen durch Fremde (403), Upload startet mit der hochladenden Person, Meldung startet mit null.
 
 ## Übersicht
 
@@ -239,8 +240,9 @@ Passwort, zweiter Faktor, Backup-Codes und angemeldete Geräte verwaltet Keycloa
 | status | `running`, `completed`, `failed` |
 | verdict | `clean`, `suspicious`, `phishing` oder null |
 | score | 0 bis 100 oder null |
-| handler | string oder null. Name der zugewiesenen Person, genau wie `name` in `GET /me`, daran erkennt das Frontend die eigenen. Beim Upload die hochladende Person, bei Meldungen null, bis jemand übernimmt |
-| decision | `{ verdict, by, at }` oder null, wie im Detail (offen, das Backend liefert das Feld in der Liste noch nicht). Die Liste zeigt damit das Verdikt des Analysten statt der Erkennung, die Spalte „Status“ (bestätigt oder nicht) und den Filter „Nicht bestätigt“. Ohne das Feld steht überall „Nicht bestätigt“ |
+| handler | string oder null. Name der zugewiesenen Person, genau wie `name` in `GET /me`. Beim Upload die hochladende Person, bei Meldungen null, bis jemand übernimmt |
+| mine | bool. `true`, wenn die Analyse der anfragenden Person zugewiesen ist. Daran hängen „Abgeben“ und die Entscheidungs-Knöpfe, ein Namensvergleich mit `handler` ist nicht nötig (zwei Personen können gleich heißen) |
+| decision | `{ verdict, by, at }` oder null, genau wie im Detail. `by` ist der Name der entscheidenden Person. Die Liste zeigt damit das Verdikt des Analysten statt der Erkennung, die Spalte „Status“ (bestätigt oder nicht) und den Filter „Nicht bestätigt“. Gilt auch für die Treffer von `GET /analyses/search` und für die Antwort auf `POST /analyses` |
 | source | `upload` oder `report` (Outlook-Meldung) |
 | reported_by | Adresse der meldenden Person, null bei `upload` |
 | received_at | timestamp |

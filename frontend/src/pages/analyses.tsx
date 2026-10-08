@@ -81,7 +81,7 @@ function unconfirmed(item: AnalysisListItem) {
   return item.status === "completed" && !item.decision
 }
 
-function matches(item: AnalysisListItem, filter: Filter, userName: string) {
+function matches(item: AnalysisListItem, filter: Filter) {
   switch (filter) {
     case "all":
       return true
@@ -90,7 +90,7 @@ function matches(item: AnalysisListItem, filter: Filter, userName: string) {
     case "failed":
       return item.status === filter
     case "mine":
-      return item.handler === userName
+      return item.mine
     default:
       return shownVerdict(item) === filter
   }
@@ -177,7 +177,7 @@ function AnalysesList({
   teamName: string
 }) {
   const navigate = useNavigate()
-  const { user, permissions } = useSession()
+  const { permissions } = useSession()
   const [items, setItems] = useState<AnalysisListItem[] | null>(null)
   const [filter, setFilter] = useState<Filter>("all")
   const [query, setQuery] = useState("")
@@ -204,14 +204,14 @@ function AnalysesList({
     const needle = query.trim().toLowerCase()
 
     return items.filter((item) => {
-      if (!matches(item, filter, user.name)) return false
+      if (!matches(item, filter)) return false
       if (!needle) return true
       return (
         item.subject.toLowerCase().includes(needle) ||
         item.sender.toLowerCase().includes(needle)
       )
     })
-  }, [items, filter, query, user.name])
+  }, [items, filter, query])
 
   const pageCount = Math.max(1, Math.ceil(visible.length / pageSize))
   const currentPage = Math.min(page, pageCount)
