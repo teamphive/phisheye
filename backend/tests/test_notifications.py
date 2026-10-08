@@ -5,7 +5,8 @@ from app.services.notifications import (
     is_notifiable,
     render_failed,
     render_received,
-    send_analysis_mail,
+    send_failure_mail,
+    send_verdict_mail,
 )
 
 
@@ -16,7 +17,7 @@ def test_send_analysis_mail_requires_smtp_credentials(monkeypatch):
     analysis = MailAnalysis(team_id=1, submitted_by=1, subject="s", sender="x")
 
     with pytest.raises(RuntimeError):
-        send_analysis_mail("a@example.com", analysis)
+        send_verdict_mail("a@example.com", analysis, "phishing")
 
 
 def test_render_received_escapes_mail_content():
@@ -72,7 +73,7 @@ def test_result_mail_names_the_checks_that_fired(monkeypatch):
         ],
     )
 
-    send_analysis_mail("max@firma.de", analysis)
+    send_verdict_mail("max@firma.de", analysis, "phishing")
 
     (_, text, html) = sent[0]
     assert "Authentifizierung fehlgeschlagen: spf=fail" in text
@@ -82,7 +83,7 @@ def test_result_mail_names_the_checks_that_fired(monkeypatch):
     assert "Keine der Prüfungen" not in text
 
 
-def test_result_mail_of_a_clean_mail_says_nothing_fired(monkeypatch):
+def test_a_harmless_verdict_comes_without_reasons(monkeypatch):
     sent = sent_by(monkeypatch)
     analysis = MailAnalysis(
         id=1,
@@ -94,9 +95,11 @@ def test_result_mail_of_a_clean_mail_says_nothing_fired(monkeypatch):
         criteria=[{"name": "Anhang", "finding": "ok", "weight": 0}],
     )
 
-    send_analysis_mail("max@firma.de", analysis)
+    send_verdict_mail("max@firma.de", analysis, "clean")
 
-    assert "Keine der Prüfungen hat ausgelöst." in sent[0][1]
+    # a harmless mail has no reasons section at all
+    assert "Begründung" not in sent[0][1]
+    assert "Begründung" not in sent[0][2]
 
 
 def test_a_failed_analysis_sends_the_failure_mail(monkeypatch):
@@ -110,7 +113,7 @@ def test_a_failed_analysis_sends_the_failure_mail(monkeypatch):
         status="failed",
     )
 
-    send_analysis_mail("max@firma.de", analysis)
+    send_failure_mail("max@firma.de", analysis)
 
     subject, text, html = sent[0]
     assert subject == "Wir konnten deine Mail nicht prüfen"
@@ -118,3 +121,43 @@ def test_a_failed_analysis_sends_the_failure_mail(monkeypatch):
     # the subject comes from a foreign mail and stays escaped
     assert "<b>Rechnung</b>" not in html
     assert render_failed(analysis)[0] == subject
+
+
+def test_the_decision_wins_over_the_automatic_verdict(monkeypatch):
+    sent = sent_by(monkeypatch)
+    analysis = MailAnalysis(
+        id=1,
+        team_id=1,
+        submitted_by=1,
+        subject="Rechnung",
+        sender="a@b.de",
+        verdict="phishing",
+        criteria=[{"name": "Authentifizierung", "finding": "spf=fail", "weight": 40}],
+    )
+
+    # the analyst found a false alarm: harmless, and no reasons of the alarm
+    send_verdict_mail("max@firma.de", analysis, "clean")
+
+    subject, text, _ = sent[0]
+    assert subject == "Ergebnis: Sauber"
+    assert "spf=fail" not in text
+
+
+def test_a_correction_says_so(monkeypatch):
+    sent = sent_by(monkeypatch)
+    analysis = MailAnalysis(
+        id=1,
+        team_id=1,
+        submitted_by=1,
+        subject="Rechnung",
+        sender="a@b.de",
+        verdict="clean",
+        criteria=[],
+    )
+
+    send_verdict_mail("max@firma.de", analysis, "phishing", correction=True)
+
+    subject, text, html = sent[0]
+    assert subject == "Neubewertung: Phishing"
+    assert "Neubewertung" in text
+    assert "Neubewertung" in html
