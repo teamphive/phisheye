@@ -7,6 +7,8 @@ from test_team import team_with
 
 from app.constants import DECISION_MAIL_DELAY_SECONDS
 from app.models.mail_analysis import MailAnalysis
+from app.models.team_membership import TeamMembership
+from app.models.user import User
 from app.routes import analyze
 from app.worker import tasks
 
@@ -19,6 +21,7 @@ async def decided_analysis(
     notified_verdict=None,
     decided_ago=LONG_AGO,
     reported_by="max@firma.de",
+    assigned=True,
 ):
     team, (admin,) = await team_with(db, "admin")
     (analysis,) = await add(
@@ -29,7 +32,7 @@ async def decided_analysis(
             subject="Rechnung",
             sender="x@example.com",
             reported_by=reported_by,
-            handled_by=admin.id,
+            handled_by=admin.id if assigned else None,
             status="completed",
             verdict="phishing",
             decided_verdict=decided_verdict,
@@ -184,4 +187,57 @@ async def test_taking_a_decision_back_queues_nothing(db, api, monkeypatch):
 
     # the job already queued reads an empty decision and stays quiet
     assert response.status_code == 204
+    assert queued == []
+
+
+@pytest.mark.asyncio
+async def test_deciding_a_free_report_queues_the_mail_job(db, api, monkeypatch):
+    analysis_id, admin = await decided_analysis(
+        db, decided_verdict=None, assigned=False
+    )
+    login_as(admin)
+    queued = []
+
+    async def enqueue(analysis_id, decided_at):
+        queued.append(analysis_id)
+
+    monkeypatch.setattr(analyze, "enqueue_decision_mail", enqueue)
+
+    response = await api.post(
+        f"/analyses/{analysis_id}/decision", json={"verdict": "phishing"}
+    )
+
+    # the one click assigns and decides, and the reporter will hear of it
+    assert response.status_code == 200
+    assert queued == [analysis_id]
+    assert (await api.get(f"/analyses/{analysis_id}")).json()["mine"] is True
+
+
+@pytest.mark.asyncio
+async def test_a_refused_decision_queues_no_mail(db, api, monkeypatch):
+    analysis_id, admin = await decided_analysis(db, decided_verdict=None)
+    (other,) = await add(
+        db, User(email="other@example.com", name="Other", password_hash="")
+    )
+    await add(
+        db,
+        TeamMembership(
+            team_id=(await db.get(MailAnalysis, analysis_id)).team_id,
+            user_id=other.id,
+            role="analyst",
+        ),
+    )
+    login_as(other)
+    queued = []
+
+    async def enqueue(analysis_id, decided_at):
+        queued.append(analysis_id)
+
+    monkeypatch.setattr(analyze, "enqueue_decision_mail", enqueue)
+
+    response = await api.post(
+        f"/analyses/{analysis_id}/decision", json={"verdict": "clean"}
+    )
+
+    assert response.status_code == 403
     assert queued == []

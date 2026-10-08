@@ -3,7 +3,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, update
 from sqlalchemy.orm import aliased
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -347,11 +347,36 @@ async def decide(
 
     async with db.begin():
         analysis = await _team_analysis(analysis_id, membership, db)
-        _require_assigned_to(analysis, user)
-        analysis.decided_verdict = payload.verdict
-        analysis.decided_by = user.id
-        analysis.decided_at = datetime.utcnow()
-        db.add(analysis)
+
+        # One statement does the check and the write: a free analysis goes to
+        # the person who decides, one assigned to someone else changes nothing.
+        # Two people clicking at the same moment cannot both win, the database
+        # applies the UPDATEs one after the other and the second finds the row
+        # taken.
+        result = await db.execute(
+            update(MailAnalysis)
+            .where(MailAnalysis.id == analysis.id)
+            .where(
+                or_(
+                    MailAnalysis.handled_by.is_(None),
+                    MailAnalysis.handled_by == user.id,
+                )
+            )
+            .values(
+                handled_by=user.id,
+                decided_verdict=payload.verdict,
+                decided_by=user.id,
+                decided_at=datetime.utcnow(),
+            )
+        )
+
+        if result.rowcount == 0:
+            raise HTTPException(
+                status_code=403, detail="Only the assigned person can decide"
+            )
+
+        # the statement bypassed the loaded object, read the new values
+        await db.refresh(analysis)
 
     # the reporter hears of it after a pause, the job reads the state then
     if analysis.reported_by:

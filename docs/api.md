@@ -51,7 +51,7 @@ Instanz-Rollen: Das **Standard-Team** ist das Instanz-Team. Dort gibt es nur die
 | POST | `/analyses` | Upload einer `.eml` oder `.msg` als Feld `file` (multipart), antwortet mit dem Listeneintrag (umgesetzt, die Analyse läuft danach als arq-Job). Eine `.msg` wandelt das Backend vor dem Speichern in eine `.eml` um, gespeichert wird die umgewandelte Mail. Das Backend lehnt ab: andere Endungen (422), Dateien ohne Mail-Header oder mit Binär-Signatur (422), eine kaputte `.msg` (422), mehr als 25 MB (413) |
 | GET | `/analyses/{id}` | Detail (umgesetzt) |
 | DELETE | `/analyses/{id}` | Weich löschen, nur Admin (umgesetzt) |
-| POST | `/analyses/{id}/decision` | Verdikt bestätigen oder als falsch-positiv melden, Body `verdict`, antwortet mit `{ verdict, by, at }` (umgesetzt). Bei einer Outlook-Meldung geht zwei Minuten später die Mail an die meldende Person, siehe unten. Eine freie Analyse bekommt die entscheidende Person im selben Schritt zugewiesen (offen, bisher 409), jemand anderes zugewiesen 403 |
+| POST | `/analyses/{id}/decision` | Verdikt bestätigen oder als falsch-positiv melden, Body `verdict`, antwortet mit `{ verdict, by, at }` (umgesetzt). Bei einer Outlook-Meldung geht zwei Minuten später die Mail an die meldende Person, siehe unten. Eine freie Analyse bekommt die entscheidende Person im selben Schritt zugewiesen, jemand anderes zugewiesen 403 |
 | DELETE | `/analyses/{id}/decision` | Entscheidung zurücknehmen (umgesetzt), die Zuweisung bleibt. Gleiche Regel wie beim Entscheiden: nur die zugewiesene Person (409 und 403). Ein noch wartender Mail-Job tut danach nichts |
 | POST | `/analyses/{id}/assignment` | Analyse übernehmen, antwortet mit `{ handler }` (umgesetzt, siehe Zuweisung) |
 | DELETE | `/analyses/{id}/assignment` | Analyse abgeben, antwortet mit 204 (umgesetzt, siehe Zuweisung) |
@@ -90,13 +90,13 @@ Datenmodell:
 Zusammenspiel mit der Entscheidung:
 
 - Entscheiden und Zurücknehmen darf nur, wem die Analyse zugewiesen ist. Jemand anderes zugewiesen: 403 "Only the assigned person can decide", die Person übernimmt sie zuerst.
-- Eine freie Analyse entscheidet man mit einem Klick (offen, Oliver): `POST /analyses/{id}/decision` weist sie dann der entscheidenden Person zu, im selben Schritt wie die Entscheidung. Das muss gegen gleichzeitige Klicks halten: Die Zeile beim Lesen sperren (`SELECT … FOR UPDATE`) oder bedingt schreiben (`UPDATE … WHERE handled_by IS NULL OR handled_by = :ich`) und bei 0 Zeilen 403 antworten. Fall: A und B sehen die Analyse frei, A entscheidet zuerst, B hat die Seite nicht neu geladen und klickt. B bekommt 403 und keine Änderung, das Frontend zeigt den Hinweis und lädt neu. Bisher antwortet das Backend auf eine freie Analyse mit 409 "Take the analysis on first".
+- Eine freie Analyse entscheidet man mit einem Klick: `POST /analyses/{id}/decision` weist sie dann der entscheidenden Person zu, im selben Schritt wie die Entscheidung. Das hält gegen gleichzeitige Klicks: Ein einziges bedingtes `UPDATE … WHERE handled_by IS NULL OR handled_by = :ich` prüft und schreibt zugleich, bei 0 Zeilen kommt 403. Fall: A und B sehen die Analyse frei, A entscheidet zuerst, B hat die Seite nicht neu geladen und klickt. B bekommt 403 und keine Änderung, das Frontend zeigt den Hinweis und lädt neu.
 - Zurücknehmen ohne Zuweisung bleibt 409, das gibt es nur bei alten Daten. Die Antwort auf `POST …/decision` bleibt `{ verdict, by, at }`, das Frontend setzt danach selbst `handler` auf `by` und `mine` auf true.
 - `DELETE /analyses/{id}/decision` lässt `handled_by` unverändert.
 - Übernehmen (`POST …/assignment`) dürfen Admin und Analyst, der Auditor nicht (403). Es geht auch bei einer schon entschiedenen Analyse, damit sie nie bei einer abwesenden Person hängen bleibt. Danach darf die neue Person die Entscheidung zurücknehmen oder ändern.
 - Abgeben (`DELETE …/assignment`) geht weiter nur bei unentschiedenen Analysen und nur für die zugewiesene Person.
 
-Tests, die das abdecken: übernehmen, fremde Analyse übernehmen, abgeben, fremde Analyse abgeben (403), Audit (403), anderes Team (404), entschiedene Analyse übernehmen (200) und abgeben (409), Entscheiden ohne Zuweisung weist zu (offen, bisher 409), zwei Entscheidungen auf dieselbe freie Analyse: nur die erste gilt, die zweite bekommt 403 (offen), Entscheiden und Zurücknehmen durch Fremde (403), Upload startet mit der hochladenden Person, Meldung startet mit null.
+Tests, die das abdecken: übernehmen, fremde Analyse übernehmen, abgeben, fremde Analyse abgeben (403), Audit (403), anderes Team (404), entschiedene Analyse übernehmen (200) und abgeben (409), Entscheiden ohne Zuweisung weist zu, zwei Entscheidungen auf dieselbe freie Analyse: nur die erste gilt, die zweite bekommt 403, eine abgewiesene Entscheidung löst keine Mail aus, Entscheiden und Zurücknehmen durch Fremde (403), Upload startet mit der hochladenden Person, Meldung startet mit null.
 
 ## Übersicht
 
