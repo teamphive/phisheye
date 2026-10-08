@@ -51,11 +51,48 @@ Instanz-Rollen: Das **Standard-Team** ist das Instanz-Team. Dort gibt es nur die
 | POST | `/analyses` | Upload einer `.eml` oder `.msg` als Feld `file` (multipart), antwortet mit dem Listeneintrag (umgesetzt, läuft synchron im Request). Eine `.msg` wandelt das Backend vor der Analyse in eine `.eml` um, gespeichert wird die umgewandelte Mail. Das Backend lehnt ab: andere Endungen (422), Dateien ohne Mail-Header oder mit Binär-Signatur (422), eine kaputte `.msg` (422), mehr als 25 MB (413) |
 | GET | `/analyses/{id}` | Detail (umgesetzt, `criteria` und `links` noch leer, `ai_assessment` fehlt noch) |
 | DELETE | `/analyses/{id}` | Weich löschen, nur Admin (umgesetzt) |
-| POST | `/analyses/{id}/decision` | Verdikt bestätigen oder als falsch-positiv melden, Body `verdict`, antwortet mit `{ verdict, by, at }` (umgesetzt) |
-| DELETE | `/analyses/{id}/decision` | Entscheidung zurücknehmen (umgesetzt) |
+| POST | `/analyses/{id}/decision` | Verdikt bestätigen oder als falsch-positiv melden, Body `verdict`, antwortet mit `{ verdict, by, at }` (umgesetzt). Ist niemand zugewiesen, wird die entscheidende Person zugewiesen (offen, siehe Zuweisung) |
+| DELETE | `/analyses/{id}/decision` | Entscheidung zurücknehmen (umgesetzt), die Zuweisung bleibt |
+| POST | `/analyses/{id}/assignment` | Analyse übernehmen, antwortet mit `{ handler }` (offen, siehe Zuweisung) |
+| DELETE | `/analyses/{id}/assignment` | Analyse abgeben, antwortet mit 204 (offen, siehe Zuweisung) |
 | GET | `/analyses/{id}/eml` | Original-`.eml` aus MinIO herunterladen, geht über das Backend (MinIO ist von außen nicht erreichbar). Antwort mit `Content-Disposition: attachment` und `application/octet-stream`, die Datei kann Schadcode enthalten |
 | GET | `/analyses/search?q=` | Suche über Betreff, Absender, Link-Domain und Anhang-Hash, siehe unten (umgesetzt, ohne Link-Hosts) |
 | GET | `/queue` | Wartende Jobs und Worker-Auslastung, für die Fortschrittsanzeige. Sinnvoll erst, wenn die Analyse als arq-Job läuft |
+
+### Zuweisung
+
+Eine Analyse ist höchstens einer Person zugewiesen. Die Detailseite zeigt sie in der Karte „Fall“ unter „Zugewiesen“ mit „Übernehmen“ oder „Abgeben“. Nach einer Entscheidung kommt dort „Bearbeitet von“ dazu, das ist `decision.by` und braucht kein eigenes Feld.
+
+Datenmodell:
+
+- Neue Spalte `handled_by` in `mail_analyses`, nullable, Fremdschlüssel auf `users.id`, mit Alembic-Migration.
+- In Liste und Detail wird daraus `handler`: der `name` dieser Person, genau wie in `GET /me`, sonst null. Das Frontend vergleicht `handler` mit dem eigenen `name`, um „Abgeben“ statt „Übernehmen“ zu zeigen. Den festen Wert `"handler": None` in `_list_item` ersetzen. `_list_item` bekommt bisher nur die Analyse, für den Namen braucht die Liste einen Join auf `users` (nicht pro Zeile nachschlagen), das Detail kann ihn wie `_decision` per `db.get` holen.
+- Beim Upload (`POST /analyses`) ist `handled_by` die hochladende Person.
+- Bei Outlook-Meldungen bleibt `handled_by` null. Dort ist `submitted_by` der System-Nutzer, der darf nie zugewiesen sein.
+- Die Migration füllt bestehende Analysen: Uploads (`reported_by` null) bekommen `submitted_by`, danach bekommen entschiedene Analysen ohne Zuweisung `decided_by`. Alle anderen bleiben null.
+
+`POST /analyses/{id}/assignment`, ohne Body:
+
+- Nur Admin und Analyst, Audit bekommt 403 wie bei der Entscheidung (`require_role(membership, "admin", "analyst")`).
+- Analyse eines anderen Teams oder gelöscht: 404, wie überall über `_team_analysis`.
+- Setzt `handled_by` auf die anfragende Person, auch wenn schon jemand anderes zugewiesen ist. Die Oberfläche fragt in dem Fall vorher nach, das Backend nicht.
+- Schon entschieden (`decided_verdict` gesetzt): 409. Erst die Entscheidung zurücknehmen, die Oberfläche zeigt dann keinen Knopf.
+- Ist man schon selbst zugewiesen, einfach noch einmal 200.
+- Antwort 200 mit `{ "handler": "<name>" }`.
+
+`DELETE /analyses/{id}/assignment`:
+
+- Rollen und 404 wie bei `POST`.
+- Nur die zugewiesene Person darf abgeben. Wer jemand anderem eine Analyse abnehmen will, nimmt `POST`. Ist eine andere Person zugewiesen: 403.
+- Schon entschieden: 409, wie bei `POST`.
+- Setzt `handled_by` auf null, Antwort 204. Ist niemand zugewiesen, ebenfalls 204.
+
+Zusammenspiel mit der Entscheidung:
+
+- `POST /analyses/{id}/decision` setzt `handled_by` auf die entscheidende Person, wenn es null ist. Eine bestehende Zuweisung bleibt, auch wenn jemand anderes entscheidet. Die Antwort bleibt `{ verdict, by, at }`, das Frontend trägt den Namen selbst nach.
+- `DELETE /analyses/{id}/decision` lässt `handled_by` unverändert.
+
+Tests, die das abdecken sollten: übernehmen, fremde Analyse übernehmen, abgeben, fremde Analyse abgeben (403), Audit (403), anderes Team (404), entschieden (409 für beide), Entscheidung ohne Zuweisung setzt die entscheidende Person, Entscheidung mit Zuweisung lässt sie stehen, Upload startet mit der hochladenden Person, Meldung startet mit null.
 
 ## Übersicht
 
@@ -171,7 +208,7 @@ Passwort, zweiter Faktor, Backup-Codes und angemeldete Geräte verwaltet Keycloa
 | status | `running`, `completed`, `failed` |
 | verdict | `clean`, `suspicious`, `phishing` oder null |
 | score | 0 bis 100 oder null |
-| handler | string oder null, null bei Meldungen, die noch niemand übernommen hat |
+| handler | string oder null. Name der zugewiesenen Person, genau wie `name` in `GET /me`, daran erkennt das Frontend die eigenen. Beim Upload die hochladende Person, bei Meldungen null, bis jemand übernimmt |
 | source | `upload` oder `report` (Outlook-Meldung) |
 | reported_by | Adresse der meldenden Person, null bei `upload` |
 | received_at | timestamp |
@@ -259,4 +296,4 @@ Je Treffer:
 - Analyse als arq-Job statt im Request. Erst damit sind `running`, `step` und `GET /queue` echt. Wird mit einem Spam-Testskript geprüft.
 - Abbrechen einer laufenden Analyse. Ein Endpunkt fehlt, bis dahin zeigt die Detailseite keinen Knopf dafür.
 - Erneut starten einer fehlgeschlagenen Analyse durch Analysten. `POST /monitoring/jobs/{id}/retry` ist nur für Operatoren. Bis es einen Endpunkt für Analysten gibt, zeigt die Detailseite keinen Knopf und schickt Operatoren ins Monitoring.
-- Übernehmen einer gemeldeten Mail. Die Oberfläche zeigt `handler` null als „Niemand", ein Endpunkt zum Zuweisen fehlt.
+- Zuweisung: Übernehmen und Abgeben, alles unter [Zuweisung](#zuweisung). Bis dahin zeigt die Oberfläche mit Backend überall „Niemand“ und der Knopf meldet einen Fehler, ohne Backend läuft er gegen die Platzhalterdaten.
