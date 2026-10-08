@@ -28,6 +28,8 @@ export type Monitoring = {
   workers: { busy: number; total: number }
   jobs: { failed: number; total: number }
   virusTotal: { used: number; limit: number }
+  /** Answered JEV requests of the UTC day. JEV has no quota, only costs */
+  jev: { requests: number; inputTokens: number; costUsd: number }
   /** The last 24 hours across all teams, oldest first. */
   hourly: HourlyCount[]
   services: ServiceHealth[]
@@ -62,6 +64,7 @@ export function mockMonitoring(): Monitoring {
       total: hourlyCounts.reduce((sum, count) => sum + count, 0),
     },
     virusTotal: { used: 412, limit: 500 },
+    jev: { requests: 214, inputTokens: 380_000, costUsd: 0.016 },
     hourly,
     services: [
       { name: "API (FastAPI)", status: "ok" },

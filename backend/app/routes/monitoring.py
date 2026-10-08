@@ -7,7 +7,14 @@ from ..models.mail_analysis import MailAnalysis
 from ..models.user import User
 from ..services.auth import get_current_user
 from ..services.mail_analysis import requeue_analysis
-from ..services.monitoring import last_day, queue_counts, services, vt_limit, vt_used
+from ..services.monitoring import (
+    jev_usage,
+    last_day,
+    queue_counts,
+    services,
+    vt_limit,
+    vt_used,
+)
 
 router = APIRouter(tags=["monitoring"])
 
@@ -38,6 +45,7 @@ async def get_monitoring(
         "jobs": day["jobs"],
         # 0 if Redis does not answer, the services list then shows Redis down
         "virus_total": {"used": used or 0, "limit": vt_limit()},
+        "jev": await jev_usage(),
         "hourly": day["hourly"],
         "services": await services(db, used),
         "failures": day["failures"],

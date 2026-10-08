@@ -117,6 +117,18 @@ export function formatDecimal(value: number) {
   return oneDecimal.format(value)
 }
 
+const twoDecimals = new Intl.NumberFormat("de-DE", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})
+
+/** Dollars with two decimals: 0,02 $. A few tokens would show as 0,00 $
+ * although they cost something, so amounts below a cent read < 0,01 $ */
+export function formatDollars(value: number) {
+  if (value > 0 && value < 0.01) return "< 0,01 $"
+  return `${twoDecimals.format(value)} $`
+}
+
 /** A share between 0 and 1 as percent with one decimal: 8,3 % */
 export function formatPercent(share: number) {
   return `${formatDecimal(share * 100)} %`

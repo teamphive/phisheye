@@ -23,7 +23,10 @@ class FakeRedis:
         return False
 
     async def incr(self, key):
-        self.data[key] = self.data.get(key, 0) + 1
+        await self.incrby(key, 1)
+
+    async def incrby(self, key, amount):
+        self.data[key] = self.data.get(key, 0) + amount
 
     async def expire(self, key, seconds):
         pass
@@ -269,6 +272,42 @@ async def test_counting_never_fails_the_lookup(monkeypatch):
 
     # no exception, the analysis goes on
     await monitoring.count_vt_lookup()
+
+
+# JEV usage
+
+
+@pytest.mark.asyncio
+async def test_jev_requests_and_tokens_are_added_up(db, api, redis):
+    await monitoring.count_jev_usage(400_000)
+    await monitoring.count_jev_usage(600_000)
+
+    # 1 million input tokens at 0.042 dollars per million
+    assert await monitoring.jev_usage() == {
+        "requests": 2,
+        "input_tokens": 1_000_000,
+        "cost_usd": 0.042,
+    }
+
+    await two_teams(db)
+    login_as(await operator(db))
+    assert (await api.get("/monitoring")).json()["jev"]["requests"] == 2
+
+
+@pytest.mark.asyncio
+async def test_jev_usage_without_redis_is_zero(monkeypatch):
+    def broken():
+        raise ConnectionError("no redis")
+
+    monkeypatch.setattr(monitoring, "_redis", broken)
+
+    # counting does not raise, reading gives zeros
+    await monitoring.count_jev_usage(500)
+    assert await monitoring.jev_usage() == {
+        "requests": 0,
+        "input_tokens": 0,
+        "cost_usd": 0.0,
+    }
 
 
 def test_limit_from_env(monkeypatch):

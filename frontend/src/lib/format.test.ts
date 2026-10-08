@@ -6,6 +6,7 @@ import {
   formatDay,
   formatDecimal,
   formatDelta,
+  formatDollars,
   formatDuration,
   formatElapsed,
   formatFileSize,
@@ -73,6 +74,13 @@ describe("numbers", () => {
   it("shows a share as percent with one decimal", () => {
     expect(formatPercent(0.083)).toBe("8,3 %")
     expect(formatPercent(0)).toBe("0,0 %")
+  })
+
+  it("shows dollars with two decimals, less than a cent as such", () => {
+    expect(formatDollars(0.0216)).toBe("0,02 $")
+    expect(formatDollars(12.5)).toBe("12,50 $")
+    expect(formatDollars(0.0016)).toBe("< 0,01 $")
+    expect(formatDollars(0)).toBe("0,00 $")
   })
 
   it("puts a sign in front of a change, a real minus included", () => {

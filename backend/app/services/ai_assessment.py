@@ -11,6 +11,8 @@ from html.parser import HTMLParser
 
 from typesafe_sdk import AsyncTypeSafeClient, Choice, TypeSafeError
 
+from .monitoring import count_jev_usage
+
 logger = logging.getLogger(__name__)
 
 # A fixed version instead of jev-latest: the alias moves without warning on a
@@ -116,6 +118,8 @@ async def assess(msg: EmailMessage) -> dict | None:
         async with AsyncTypeSafeClient(model=MODEL, timeout=TIMEOUT_SECONDS) as client:
             response = await client.system_one(mail_state(msg), PHISHING_QUESTION)
 
+        # counted before reading the answer: the tokens are billed either way
+        await count_jev_usage(response.usage.input_tokens)
         answer = response.choices["phishing"]
     # wrong key, rate limit, timeout, an answer without our question
     except (TypeSafeError, KeyError) as exc:

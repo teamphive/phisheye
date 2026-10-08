@@ -69,6 +69,50 @@ async def vt_used() -> int | None:
     return int(value or 0)
 
 
+# JEV usage
+
+# TypeSafe bills input tokens, output is free, see docs/ai-assessment.md.
+# There is no quota and no API to ask for the balance, so we count ourselves
+JEV_USD_PER_MILLION_INPUT_TOKENS = 0.042
+
+
+def _jev_keys(day: datetime) -> tuple[str, str]:
+    return f"jev:requests:{day:%Y-%m-%d}", f"jev:tokens:{day:%Y-%m-%d}"
+
+
+async def count_jev_usage(input_tokens: int) -> None:
+    """One more answered request and its tokens. Never fails the analysis."""
+    try:
+        async with _redis() as redis:
+            requests_key, tokens_key = _jev_keys(datetime.utcnow())
+            await redis.incr(requests_key)
+            await redis.incrby(tokens_key, input_tokens)
+            for key in (requests_key, tokens_key):
+                await redis.expire(key, 2 * 24 * 3600)
+    except Exception:
+        logger.warning("Could not count the JEV usage")
+
+
+async def jev_usage() -> dict:
+    """Today's answered requests, input tokens and what they cost, about.
+
+    Zeros if Redis does not answer, the services list then shows Redis down.
+    """
+    try:
+        async with _redis() as redis:
+            requests_key, tokens_key = _jev_keys(datetime.utcnow())
+            requests = int(await redis.get(requests_key) or 0)
+            tokens = int(await redis.get(tokens_key) or 0)
+    except Exception:
+        requests = tokens = 0
+
+    return {
+        "requests": requests,
+        "input_tokens": tokens,
+        "cost_usd": round(tokens / 1_000_000 * JEV_USD_PER_MILLION_INPUT_TOKENS, 4),
+    }
+
+
 # Service status
 
 

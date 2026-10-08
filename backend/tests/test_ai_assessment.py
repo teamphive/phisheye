@@ -128,6 +128,26 @@ async def test_phishing_answer(jev):
 
 
 @pytest.mark.asyncio
+async def test_the_tokens_of_every_answer_are_counted(jev, monkeypatch):
+    counted = []
+
+    async def count(input_tokens):
+        counted.append(input_tokens)
+
+    monkeypatch.setattr(ai_assessment, "count_jev_usage", count)
+    _, reply = jev
+    # billed even when the answer is not to our question
+    responses = [answer("phishing"), {**answer("phishing"), "answers": {}}]
+
+    for body in responses:
+        reply["response"] = httpx2.Response(200, json=body)
+        await assess(mail())
+
+    # the input_tokens of the documented response
+    assert counted == [412, 412]
+
+
+@pytest.mark.asyncio
 async def test_legitimate_becomes_clean(jev):
     _, reply = jev
     reply["response"] = httpx2.Response(200, json=answer("legitimate", 0.61))
