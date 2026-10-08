@@ -12,7 +12,7 @@ const margin = { top: 12, right: 12, bottom: 26, left: 32 }
 const series = [
   { key: "phishing", label: "Phishing", color: "var(--chart-4)" },
   { key: "suspicious", label: "Verdächtig", color: "var(--chart-3)" },
-  { key: "clean", label: "Sauber", color: "var(--chart-2)" },
+  { key: "clean", label: "Legitim", color: "var(--chart-2)" },
   { key: "unrated", label: "Nicht bewertet", color: "var(--chart-5)" },
 ] as const
 

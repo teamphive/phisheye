@@ -45,7 +45,7 @@ const verdictTiles: {
 }[] = [
   { key: "phishing", label: "Phishing", tone: "bg-phishing" },
   { key: "suspicious", label: "Verdächtig", tone: "bg-suspicious" },
-  { key: "clean", label: "Sauber", tone: "bg-clean" },
+  { key: "clean", label: "Legitim", tone: "bg-clean" },
   { key: "unrated", label: "Nicht bewertet", tone: "bg-faint" },
 ]
 
@@ -186,7 +186,7 @@ function Dashboard({ teamId, period }: { teamId: string; period: Period }) {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           title="Falsch-positiv-Quote"
-          description="Phishing- und Verdächtig-Verdikte, die ein Analyst als sauber eingestuft hat"
+          description="Phishing- und Verdächtig-Verdikte, die ein Analyst als legitim eingestuft hat"
           value={
             stats.falsePositiveRate === null
               ? null

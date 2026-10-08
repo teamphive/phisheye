@@ -117,48 +117,69 @@ async def test_other_teams_analysis_is_not_found(db, api):
 
 
 @pytest.mark.asyncio
-async def test_decided_analysis_cannot_change_hands(db, api):
+async def test_a_decided_analysis_can_be_taken_over_but_not_handed_back(db, api):
     analysis, anna, carl, *_ = await setup(db)
     login_as(anna)
+    await api.post(url(analysis))
     await api.post(f"/analyses/{analysis.id}/decision", json={"verdict": "phishing"})
 
-    assert (await api.post(url(analysis))).status_code == 409
+    # a colleague can take it over, so it never gets stuck with someone absent
+    login_as(carl)
+    assert (await api.post(url(analysis))).status_code == 200
+    assert await handler_of(api, analysis) == "Carl"
+    # but nobody hands a decided analysis back to nobody
     assert (await api.delete(url(analysis))).status_code == 409
 
-    # after taking the decision back it works again
-    await api.delete(f"/analyses/{analysis.id}/decision")
+    # the new owner can take the decision back, and then hand it back
+    assert (await api.delete(f"/analyses/{analysis.id}/decision")).status_code == 204
     assert (await api.delete(url(analysis))).status_code == 204
 
 
 @pytest.mark.asyncio
-async def test_deciding_without_assignment_assigns_the_decider(db, api):
+async def test_deciding_needs_the_assignment(db, api):
     analysis, anna, *_ = await setup(db)
     login_as(anna)
 
-    await api.post(f"/analyses/{analysis.id}/decision", json={"verdict": "clean"})
+    response = await api.post(
+        f"/analyses/{analysis.id}/decision", json={"verdict": "clean"}
+    )
 
-    assert await handler_of(api, analysis) == "Anna"
+    assert response.status_code == 409
+    detail = (await api.get(f"/analyses/{analysis.id}")).json()
+    # nothing was decided and nobody got the analysis by the way
+    assert detail["decision"] is None
+    assert detail["handler"] is None
 
 
 @pytest.mark.asyncio
-async def test_deciding_keeps_an_existing_assignment(db, api):
+async def test_only_the_assigned_person_decides_and_takes_back(db, api):
     analysis, anna, carl, *_ = await setup(db)
+    decision = f"/analyses/{analysis.id}/decision"
     login_as(anna)
     await api.post(url(analysis))
 
     login_as(carl)
-    await api.post(f"/analyses/{analysis.id}/decision", json={"verdict": "clean"})
+    assert (await api.post(decision, json={"verdict": "clean"})).status_code == 403
 
+    login_as(anna)
+    assert (await api.post(decision, json={"verdict": "clean"})).status_code == 200
+
+    # Carl can neither change it nor take it back
+    login_as(carl)
+    assert (await api.post(decision, json={"verdict": "phishing"})).status_code == 403
+    assert (await api.delete(decision)).status_code == 403
     detail = (await api.get(f"/analyses/{analysis.id}")).json()
-    # Anna stays assigned, Carl shows as the one who decided
-    assert detail["handler"] == "Anna"
-    assert detail["decision"]["by"] == "Carl"
+    assert detail["decision"]["verdict"] == "clean"
+
+    login_as(anna)
+    assert (await api.delete(decision)).status_code == 204
 
 
 @pytest.mark.asyncio
 async def test_revoking_the_decision_keeps_the_assignment(db, api):
     analysis, anna, *_ = await setup(db)
     login_as(anna)
+    await api.post(url(analysis))
     await api.post(f"/analyses/{analysis.id}/decision", json={"verdict": "clean"})
 
     await api.delete(f"/analyses/{analysis.id}/decision")

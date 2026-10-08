@@ -7,6 +7,13 @@ export type AnalysisStatus = "running" | "completed" | "failed"
 /** Uploaded in phisheye, or reported in Outlook and fetched from the mailbox. */
 export type AnalysisSource = "upload" | "report"
 
+/** What an analyst decided, it outranks the verdict of the detection. */
+export type Decision = {
+  verdict: "phishing" | "clean"
+  by: string
+  at: string
+}
+
 export type AnalysisListItem = {
   id: string
   subject: string
@@ -16,6 +23,8 @@ export type AnalysisListItem = {
   score: number | null
   /** Null while nobody has taken the analysis on. */
   handler: string | null
+  /** Null until an analyst confirmed or overruled the verdict. */
+  decision: Decision | null
   source: AnalysisSource
   /** Address of whoever reported the mail in Outlook, null for uploads. */
   reportedBy: string | null
@@ -23,7 +32,7 @@ export type AnalysisListItem = {
 }
 
 export const verdictLabel: Record<Verdict, string> = {
-  clean: "Sauber",
+  clean: "Legitim",
   suspicious: "Verdächtig",
   phishing: "Phishing",
 }
@@ -38,6 +47,7 @@ export const analyses: AnalysisListItem[] = [
     verdict: null,
     score: null,
     handler: null,
+    decision: null,
     source: "upload",
     reportedBy: null,
     receivedAt: "2026-09-03T07:31:00Z",
@@ -50,6 +60,7 @@ export const analyses: AnalysisListItem[] = [
     verdict: "phishing",
     score: 100,
     handler: "M. Sandmann",
+    decision: null,
     source: "upload",
     reportedBy: null,
     receivedAt: "2026-09-03T07:12:00Z",
@@ -62,6 +73,11 @@ export const analyses: AnalysisListItem[] = [
     verdict: "phishing",
     score: 97,
     handler: "M. Sandmann",
+    decision: {
+      verdict: "phishing",
+      by: "M. Sandmann",
+      at: "2026-09-03T06:58:00Z",
+    },
     source: "upload",
     reportedBy: null,
     receivedAt: "2026-09-03T06:41:00Z",
@@ -74,6 +90,7 @@ export const analyses: AnalysisListItem[] = [
     verdict: "phishing",
     score: 91,
     handler: null,
+    decision: null,
     source: "report",
     reportedBy: "j.meyer@hansa-logistik.de",
     receivedAt: "2026-09-03T06:15:00Z",
@@ -86,6 +103,7 @@ export const analyses: AnalysisListItem[] = [
     verdict: null,
     score: null,
     handler: "T. Özdemir",
+    decision: null,
     source: "upload",
     reportedBy: null,
     receivedAt: "2026-09-03T06:12:00Z",
@@ -98,6 +116,7 @@ export const analyses: AnalysisListItem[] = [
     verdict: null,
     score: null,
     handler: "T. Özdemir",
+    decision: null,
     source: "upload",
     reportedBy: null,
     receivedAt: "2026-09-03T07:23:00Z",
@@ -110,6 +129,7 @@ export const analyses: AnalysisListItem[] = [
     verdict: "suspicious",
     score: 68,
     handler: "L. Brinkmann",
+    decision: null,
     source: "upload",
     reportedBy: null,
     receivedAt: "2026-09-03T06:02:00Z",
@@ -122,6 +142,7 @@ export const analyses: AnalysisListItem[] = [
     verdict: "suspicious",
     score: 51,
     handler: "T. Özdemir",
+    decision: null,
     source: "upload",
     reportedBy: null,
     receivedAt: "2026-09-02T14:48:00Z",
@@ -134,6 +155,7 @@ export const analyses: AnalysisListItem[] = [
     verdict: "clean",
     score: 8,
     handler: "M. Sandmann",
+    decision: null,
     source: "upload",
     reportedBy: null,
     receivedAt: "2026-09-02T13:20:00Z",
@@ -146,6 +168,7 @@ export const analyses: AnalysisListItem[] = [
     verdict: "clean",
     score: 3,
     handler: null,
+    decision: null,
     source: "report",
     reportedBy: "p.hartmann@hansa-logistik.de",
     receivedAt: "2026-09-02T09:05:00Z",
@@ -158,6 +181,11 @@ export const analyses: AnalysisListItem[] = [
     verdict: "phishing",
     score: 88,
     handler: "L. Brinkmann",
+    decision: {
+      verdict: "phishing",
+      by: "L. Brinkmann",
+      at: "2026-09-02T16:20:00Z",
+    },
     source: "upload",
     reportedBy: null,
     receivedAt: "2026-09-01T15:37:00Z",
@@ -170,6 +198,11 @@ export const analyses: AnalysisListItem[] = [
     verdict: "clean",
     score: 0,
     handler: "M. Sandmann",
+    decision: {
+      verdict: "clean",
+      by: "M. Sandmann",
+      at: "2026-09-02T15:40:00Z",
+    },
     source: "upload",
     reportedBy: null,
     receivedAt: "2026-09-01T11:02:00Z",
@@ -182,6 +215,7 @@ export const analyses: AnalysisListItem[] = [
     verdict: "phishing",
     score: 79,
     handler: null,
+    decision: null,
     source: "report",
     reportedBy: "s.peters@hansa-logistik.com",
     receivedAt: "2026-08-31T08:44:00Z",
@@ -194,6 +228,11 @@ export const analyses: AnalysisListItem[] = [
     verdict: "suspicious",
     score: 60,
     handler: "L. Brinkmann",
+    decision: {
+      verdict: "clean",
+      by: "L. Brinkmann",
+      at: "2026-09-02T14:05:00Z",
+    },
     source: "upload",
     reportedBy: null,
     receivedAt: "2026-08-29T13:15:00Z",
@@ -206,6 +245,11 @@ export const analyses: AnalysisListItem[] = [
     verdict: "clean",
     score: 20,
     handler: "M. Sandmann",
+    decision: {
+      verdict: "clean",
+      by: "M. Sandmann",
+      at: "2026-09-02T13:30:00Z",
+    },
     source: "upload",
     reportedBy: null,
     receivedAt: "2026-08-28T07:30:00Z",
@@ -218,6 +262,11 @@ export const analyses: AnalysisListItem[] = [
     verdict: "phishing",
     score: 94,
     handler: "T. Özdemir",
+    decision: {
+      verdict: "phishing",
+      by: "T. Özdemir",
+      at: "2026-09-02T12:10:00Z",
+    },
     source: "upload",
     reportedBy: null,
     receivedAt: "2026-08-27T16:58:00Z",
@@ -234,6 +283,11 @@ const socAnalyses: AnalysisListItem[] = [
     verdict: "phishing",
     score: 85,
     handler: "L. Brinkmann",
+    decision: {
+      verdict: "phishing",
+      by: "L. Brinkmann",
+      at: "2026-09-03T07:05:00Z",
+    },
     source: "upload",
     reportedBy: null,
     receivedAt: "2026-09-03T05:48:00Z",
@@ -246,6 +300,7 @@ const socAnalyses: AnalysisListItem[] = [
     verdict: "clean",
     score: 5,
     handler: "M. Sandmann",
+    decision: null,
     source: "upload",
     reportedBy: null,
     receivedAt: "2026-09-02T22:10:00Z",
@@ -262,6 +317,7 @@ const standardAnalyses: AnalysisListItem[] = [
     verdict: "phishing",
     score: 88,
     handler: null,
+    decision: null,
     source: "report",
     reportedBy: "k.lange@bauhof-meyer.de",
     receivedAt: "2026-09-03T08:20:00Z",
@@ -274,6 +330,7 @@ const standardAnalyses: AnalysisListItem[] = [
     verdict: "clean",
     score: 8,
     handler: null,
+    decision: null,
     source: "report",
     reportedBy: "r.weber@bauhof-meyer.de",
     receivedAt: "2026-09-02T12:35:00Z",
@@ -290,6 +347,7 @@ const reedereiAnalyses: AnalysisListItem[] = [
     verdict: "suspicious",
     score: 58,
     handler: "H. Jansen",
+    decision: null,
     source: "upload",
     reportedBy: null,
     receivedAt: "2026-09-03T07:05:00Z",
@@ -302,6 +360,11 @@ const reedereiAnalyses: AnalysisListItem[] = [
     verdict: "clean",
     score: 11,
     handler: "P. Claussen",
+    decision: {
+      verdict: "clean",
+      by: "P. Claussen",
+      at: "2026-09-02T16:30:00Z",
+    },
     source: "upload",
     reportedBy: null,
     receivedAt: "2026-09-02T15:50:00Z",
@@ -330,6 +393,15 @@ export function mockSetHandler(id: string, handler: string | null) {
   for (const [teamId, items] of Object.entries(analysesByTeam)) {
     analysesByTeam[teamId] = items.map((item) =>
       item.id === id ? { ...item, handler } : item
+    )
+  }
+}
+
+/** A decision or taking it back shows in the list as well. */
+export function mockSetDecision(id: string, decision: Decision | null) {
+  for (const [teamId, items] of Object.entries(analysesByTeam)) {
+    analysesByTeam[teamId] = items.map((item) =>
+      item.id === id ? { ...item, decision } : item
     )
   }
 }

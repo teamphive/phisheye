@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { Link, useNavigate } from "react-router"
 import {
+  CheckIcon,
   DownloadIcon,
   FlagIcon,
   MailIcon,
@@ -38,7 +39,11 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { fetchAnalyses } from "@/lib/analyses"
 import { errorMessage } from "@/lib/api"
 import { downloadCsv } from "@/lib/csv"
-import { formatDateTime, formatShortDateTime } from "@/lib/format"
+import {
+  formatDateTime,
+  formatRelativeTime,
+  formatShortDateTime,
+} from "@/lib/format"
 import {
   verdictLabel,
   type AnalysisListItem,
@@ -48,29 +53,46 @@ import {
 const pageSize = 10
 
 type Filter =
-  "all" | "phishing" | "suspicious" | "clean" | "running" | "failed" | "mine"
+  | "all"
+  | "phishing"
+  | "suspicious"
+  | "clean"
+  | "unconfirmed"
+  | "failed"
+  | "mine"
 
 const filters: { value: Filter; label: string }[] = [
   { value: "all", label: "Alle" },
   { value: "phishing", label: "Phishing" },
   { value: "suspicious", label: "Verdächtig" },
-  { value: "clean", label: "Sauber" },
-  { value: "running", label: "Läuft" },
+  { value: "clean", label: "Legitim" },
+  { value: "unconfirmed", label: "Nicht bestätigt" },
   { value: "failed", label: "Fehlgeschlagen" },
   { value: "mine", label: "Nur meine" },
 ]
+
+// The analyst's decision outranks the detection, as in the stats
+function shownVerdict(item: AnalysisListItem) {
+  return item.decision?.verdict ?? item.verdict
+}
+
+// Done, but no analyst has confirmed or overruled the verdict yet
+function unconfirmed(item: AnalysisListItem) {
+  return item.status === "completed" && !item.decision
+}
 
 function matches(item: AnalysisListItem, filter: Filter, userName: string) {
   switch (filter) {
     case "all":
       return true
-    case "running":
+    case "unconfirmed":
+      return unconfirmed(item)
     case "failed":
       return item.status === filter
     case "mine":
       return item.handler === userName
     default:
-      return item.verdict === filter
+      return shownVerdict(item) === filter
   }
 }
 
@@ -95,24 +117,30 @@ function exportAnalyses(items: AnalysisListItem[], teamName: string) {
       "Absender",
       "Status",
       "Verdikt",
+      "Bestätigt von",
       "Score",
       "Quelle",
       "Gemeldet von",
       "Bearbeiter",
       "Eingang",
     ],
-    ...items.map((item) => [
-      item.id,
-      item.subject,
-      item.sender,
-      statusLabel[item.status],
-      item.verdict ? verdictLabel[item.verdict] : null,
-      item.score,
-      item.source === "report" ? "Outlook-Meldung" : "Upload",
-      item.reportedBy,
-      item.handler,
-      formatDateTime(item.receivedAt),
-    ]),
+    ...items.map((item) => {
+      const verdict = shownVerdict(item)
+
+      return [
+        item.id,
+        item.subject,
+        item.sender,
+        statusLabel[item.status],
+        verdict ? verdictLabel[verdict] : null,
+        item.decision?.by ?? null,
+        item.score,
+        item.source === "report" ? "Outlook-Meldung" : "Upload",
+        item.reportedBy,
+        item.handler,
+        formatDateTime(item.receivedAt),
+      ]
+    }),
   ])
 
   toast.success(
@@ -296,7 +324,7 @@ function AnalysesList({
                 <TableRow>
                   <TableHead>Betreff / Absender</TableHead>
                   <TableHead>Verdikt</TableHead>
-                  <TableHead className="text-right">Score</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead>Quelle</TableHead>
                   <TableHead>Bearbeiter</TableHead>
                   <TableHead>Eingang</TableHead>
@@ -320,15 +348,11 @@ function AnalysesList({
                     <TableCell>
                       <VerdictBadge
                         status={item.status}
-                        verdict={item.verdict}
+                        verdict={shownVerdict(item)}
                       />
                     </TableCell>
-                    <TableCell className="text-right font-medium tabular-nums">
-                      {item.score === null ? (
-                        <span className="text-faint">—</span>
-                      ) : (
-                        `${item.score} %`
-                      )}
+                    <TableCell className="whitespace-nowrap">
+                      <ConfirmationStatus item={item} />
                     </TableCell>
                     <TableCell>
                       {item.source === "report" ? (
@@ -400,4 +424,26 @@ function AnalysesList({
       </Card>
     </>
   )
+}
+
+/** Whether an analyst has confirmed or overruled the verdict. */
+function ConfirmationStatus({ item }: { item: AnalysisListItem }) {
+  if (item.decision) {
+    return (
+      <Badge
+        variant="outline"
+        title={`von ${item.decision.by}, ${formatRelativeTime(item.decision.at)}`}
+      >
+        <CheckIcon />
+        Bestätigt
+      </Badge>
+    )
+  }
+
+  if (unconfirmed(item)) {
+    return <span className="text-muted-foreground">Nicht bestätigt</span>
+  }
+
+  // running or failed, there is nothing to confirm yet
+  return <span className="text-faint">—</span>
 }

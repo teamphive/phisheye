@@ -51,8 +51,8 @@ Instanz-Rollen: Das **Standard-Team** ist das Instanz-Team. Dort gibt es nur die
 | POST | `/analyses` | Upload einer `.eml` oder `.msg` als Feld `file` (multipart), antwortet mit dem Listeneintrag (umgesetzt, die Analyse läuft danach als arq-Job). Eine `.msg` wandelt das Backend vor dem Speichern in eine `.eml` um, gespeichert wird die umgewandelte Mail. Das Backend lehnt ab: andere Endungen (422), Dateien ohne Mail-Header oder mit Binär-Signatur (422), eine kaputte `.msg` (422), mehr als 25 MB (413) |
 | GET | `/analyses/{id}` | Detail (umgesetzt) |
 | DELETE | `/analyses/{id}` | Weich löschen, nur Admin (umgesetzt) |
-| POST | `/analyses/{id}/decision` | Verdikt bestätigen oder als falsch-positiv melden, Body `verdict`, antwortet mit `{ verdict, by, at }` (umgesetzt). Bei einer Outlook-Meldung geht zwei Minuten später die Mail an die meldende Person, siehe unten. Ist niemand zugewiesen, wird die entscheidende Person zugewiesen (offen, siehe Zuweisung) |
-| DELETE | `/analyses/{id}/decision` | Entscheidung zurücknehmen (umgesetzt), die Zuweisung bleibt. Ein noch wartender Mail-Job tut danach nichts |
+| POST | `/analyses/{id}/decision` | Verdikt bestätigen oder als falsch-positiv melden, Body `verdict`, antwortet mit `{ verdict, by, at }` (umgesetzt). Bei einer Outlook-Meldung geht zwei Minuten später die Mail an die meldende Person, siehe unten. Nur wer die Analyse zugewiesen hat, darf entscheiden: niemand zugewiesen 409, jemand anderes zugewiesen 403 |
+| DELETE | `/analyses/{id}/decision` | Entscheidung zurücknehmen (umgesetzt), die Zuweisung bleibt. Gleiche Regel wie beim Entscheiden: nur die zugewiesene Person (409 und 403). Ein noch wartender Mail-Job tut danach nichts |
 | POST | `/analyses/{id}/assignment` | Analyse übernehmen, antwortet mit `{ handler }` (umgesetzt, siehe Zuweisung) |
 | DELETE | `/analyses/{id}/assignment` | Analyse abgeben, antwortet mit 204 (umgesetzt, siehe Zuweisung) |
 | GET | `/analyses/{id}/eml` | Original-`.eml` aus MinIO herunterladen, geht über das Backend (MinIO ist von außen nicht erreichbar). Antwort mit `Content-Disposition: attachment` und `application/octet-stream`, die Datei kann Schadcode enthalten |
@@ -89,10 +89,13 @@ Datenmodell:
 
 Zusammenspiel mit der Entscheidung:
 
-- `POST /analyses/{id}/decision` setzt `handled_by` auf die entscheidende Person, wenn es null ist. Eine bestehende Zuweisung bleibt, auch wenn jemand anderes entscheidet. Die Antwort bleibt `{ verdict, by, at }`, das Frontend trägt den Namen selbst nach.
+- Entscheiden und Zurücknehmen darf nur, wem die Analyse zugewiesen ist. Wer nicht zugewiesen ist, übernimmt sie zuerst. Niemand zugewiesen: 409 "Take the analysis on first". Jemand anderes zugewiesen: 403 "Only the assigned person can decide".
+- `POST /analyses/{id}/decision` weist nicht mehr zu. Die Antwort bleibt `{ verdict, by, at }`.
 - `DELETE /analyses/{id}/decision` lässt `handled_by` unverändert.
+- Übernehmen (`POST …/assignment`) dürfen Admin und Analyst, der Auditor nicht (403). Es geht auch bei einer schon entschiedenen Analyse, damit sie nie bei einer abwesenden Person hängen bleibt. Danach darf die neue Person die Entscheidung zurücknehmen oder ändern.
+- Abgeben (`DELETE …/assignment`) geht weiter nur bei unentschiedenen Analysen und nur für die zugewiesene Person.
 
-Tests, die das abdecken sollten: übernehmen, fremde Analyse übernehmen, abgeben, fremde Analyse abgeben (403), Audit (403), anderes Team (404), entschieden (409 für beide), Entscheidung ohne Zuweisung setzt die entscheidende Person, Entscheidung mit Zuweisung lässt sie stehen, Upload startet mit der hochladenden Person, Meldung startet mit null.
+Tests, die das abdecken: übernehmen, fremde Analyse übernehmen, abgeben, fremde Analyse abgeben (403), Audit (403), anderes Team (404), entschiedene Analyse übernehmen (200) und abgeben (409), Entscheiden ohne Zuweisung (409), Entscheiden und Zurücknehmen durch Fremde (403), Upload startet mit der hochladenden Person, Meldung startet mit null.
 
 ## Übersicht
 
@@ -237,6 +240,7 @@ Passwort, zweiter Faktor, Backup-Codes und angemeldete Geräte verwaltet Keycloa
 | verdict | `clean`, `suspicious`, `phishing` oder null |
 | score | 0 bis 100 oder null |
 | handler | string oder null. Name der zugewiesenen Person, genau wie `name` in `GET /me`, daran erkennt das Frontend die eigenen. Beim Upload die hochladende Person, bei Meldungen null, bis jemand übernimmt |
+| decision | `{ verdict, by, at }` oder null, wie im Detail (offen, das Backend liefert das Feld in der Liste noch nicht). Die Liste zeigt damit das Verdikt des Analysten statt der Erkennung, die Spalte „Status“ (bestätigt oder nicht) und den Filter „Nicht bestätigt“. Ohne das Feld steht überall „Nicht bestätigt“ |
 | source | `upload` oder `report` (Outlook-Meldung) |
 | reported_by | Adresse der meldenden Person, null bei `upload` |
 | received_at | timestamp |
@@ -253,7 +257,7 @@ Passwort, zweiter Faktor, Backup-Codes und angemeldete Geräte verwaltet Keycloa
 | attachments | Liste, siehe unten | |
 | raw_headers | text | |
 | decision | `{ verdict, by, at }` oder null | |
-| duration_seconds | number oder null | |
+| duration_seconds | number oder null | zeigt das Frontend nicht mehr an, kann weg |
 | step | string oder null | nur solange `status` `running` ist |
 | started_at | timestamp oder null | dito |
 | error | `{ detail, step, attempt, max_attempts, at }` oder null | nur bei `failed` |

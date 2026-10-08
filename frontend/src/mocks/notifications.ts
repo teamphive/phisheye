@@ -71,7 +71,7 @@ const notifications: Notification[] = [
     id: "n-03",
     kind: "analysis",
     tone: "clean",
-    title: "Analyse abgeschlossen: Sauber (3 %)",
+    title: "Analyse abgeschlossen: Legitim (3 %)",
     detail: "„Wartungsfenster Fileserver am 03.09.“",
     target: "/analysen/a-2026-0122",
     createdAt: "2026-09-09T09:05:00Z",

@@ -29,6 +29,7 @@ async def decided_analysis(
             subject="Rechnung",
             sender="x@example.com",
             reported_by=reported_by,
+            handled_by=admin.id,
             status="completed",
             verdict="phishing",
             decided_verdict=decided_verdict,

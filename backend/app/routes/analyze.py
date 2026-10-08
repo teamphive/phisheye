@@ -314,12 +314,10 @@ async def decide(
 
     async with db.begin():
         analysis = await _team_analysis(analysis_id, membership, db)
+        _require_assigned_to(analysis, user)
         analysis.decided_verdict = payload.verdict
         analysis.decided_by = user.id
         analysis.decided_at = datetime.utcnow()
-        # whoever decides without anyone assigned takes the analysis on,
-        # an existing assignment stays
-        analysis.handled_by = analysis.handled_by or user.id
         db.add(analysis)
 
     # the reporter hears of it after a pause, the job reads the state then
@@ -336,6 +334,7 @@ async def decide(
 @router.delete("/analyses/{analysis_id}/decision", status_code=204)
 async def revoke_decision(
     analysis_id: int,
+    user: User = Depends(get_current_user),
     membership: TeamMembership = Depends(get_active_membership),
     db: AsyncSession = Depends(get_db),
 ):
@@ -343,10 +342,22 @@ async def revoke_decision(
 
     async with db.begin():
         analysis = await _team_analysis(analysis_id, membership, db)
+        _require_assigned_to(analysis, user)
         analysis.decided_verdict = None
         analysis.decided_by = None
         analysis.decided_at = None
         db.add(analysis)
+
+
+def _require_assigned_to(analysis: MailAnalysis, user: User) -> None:
+    """Only the person the analysis is assigned to may decide or take it back."""
+    if analysis.handled_by is None:
+        raise HTTPException(status_code=409, detail="Take the analysis on first")
+
+    if analysis.handled_by != user.id:
+        raise HTTPException(
+            status_code=403, detail="Only the assigned person can decide"
+        )
 
 
 def _require_undecided(analysis: MailAnalysis) -> None:
@@ -362,15 +373,15 @@ async def claim_analysis(
     membership: TeamMembership = Depends(get_active_membership),
     db: AsyncSession = Depends(get_db),
 ):
-    """Takes the analysis on, also away from someone else.
+    """Takes the analysis on, also away from someone else, also a decided one.
 
-    The frontend asks before taking one away, the backend does not.
+    The frontend asks before taking one away, the backend does not. Whoever
+    has the analysis is the only one who can decide it or take that back.
     """
     require_role(membership, "admin", "analyst")
 
     async with db.begin():
         analysis = await _team_analysis(analysis_id, membership, db)
-        _require_undecided(analysis)
         analysis.handled_by = user.id
         db.add(analysis)
 

@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
+import { ForbiddenError } from "@/lib/api"
+
 vi.mock("@/lib/keycloak", () => ({
   authEnabled: false,
   keycloak: { tokenParsed: undefined },
@@ -56,14 +58,51 @@ describe("without a backend", () => {
     expect(await handlerInList()).toBeNull()
   })
 
-  it("assigns whoever decides, unless someone has it already", async () => {
-    const { decideAnalysis, fetchAnalysis } = await loadAnalyses()
+  it("decides only what one has taken on", async () => {
+    const { claimAnalysis, decideAnalysis, fetchAnalyses } =
+      await loadAnalyses()
 
-    await decideAnalysis("a-2026-0132", "clean")
-    expect((await fetchAnalysis("a-2026-0132")).handler).toBe("M. Sandmann")
+    // nobody has it, then someone else has it
+    await expect(decideAnalysis("a-2026-0132", "clean")).rejects.toMatchObject({
+      status: 409,
+    })
+    await expect(
+      decideAnalysis("a-2026-0131", "phishing")
+    ).rejects.toBeInstanceOf(ForbiddenError)
 
-    await decideAnalysis("a-2026-0131", "phishing")
-    expect((await fetchAnalysis("a-2026-0131")).handler).toBe("T. Özdemir")
+    await claimAnalysis("a-2026-0132")
+    const decision = await decideAnalysis("a-2026-0132", "clean")
+
+    const item = (await fetchAnalyses("itsec")).find(
+      (entry) => entry.id === "a-2026-0132"
+    )
+    expect(item?.decision).toEqual(decision)
+  })
+
+  it("takes back only a decision of one's own analysis", async () => {
+    const { claimAnalysis, fetchAnalysis, revokeDecision } =
+      await loadAnalyses()
+
+    // decided by L. Brinkmann, who still has it
+    await expect(revokeDecision("a-2026-0121")).rejects.toBeInstanceOf(
+      ForbiddenError
+    )
+
+    // taking on works for a decided analysis too, then it is one's own
+    await claimAnalysis("a-2026-0121")
+    await revokeDecision("a-2026-0121")
+    expect((await fetchAnalysis("a-2026-0121")).decision).toBeNull()
+  })
+
+  it("hands back only one's own undecided analysis", async () => {
+    const { releaseAnalysis } = await loadAnalyses()
+
+    await expect(releaseAnalysis("a-2026-0127")).rejects.toMatchObject({
+      status: 409,
+    })
+    await expect(releaseAnalysis("a-2026-0131")).rejects.toBeInstanceOf(
+      ForbiddenError
+    )
   })
 
   it("drops a deleted analysis from the team's list", async () => {

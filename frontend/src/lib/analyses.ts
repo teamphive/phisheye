@@ -1,4 +1,12 @@
-import { apiBlob, apiEnabled, apiFetch, mockLatency } from "@/lib/api"
+import {
+  ApiError,
+  ForbiddenError,
+  apiBlob,
+  apiEnabled,
+  apiFetch,
+  errorMessage,
+  mockLatency,
+} from "@/lib/api"
 import { sessionUser } from "@/lib/session"
 import {
   mockAnalyses,
@@ -113,7 +121,7 @@ export async function decideAnalysis(id: string, verdict: Decision["verdict"]) {
 export async function revokeDecision(id: string) {
   if (!apiEnabled) {
     await mockLatency()
-    return mockRevokeDecision(id)
+    return mockRevokeDecision(id, sessionUser().name)
   }
 
   await apiFetch<void>(`/analyses/${encodeURIComponent(id)}/decision`, {
@@ -138,7 +146,7 @@ export async function claimAnalysis(id: string) {
 export async function releaseAnalysis(id: string) {
   if (!apiEnabled) {
     await mockLatency()
-    return mockRelease(id)
+    return mockRelease(id, sessionUser().name)
   }
 
   await apiFetch<void>(`/analyses/${encodeURIComponent(id)}/assignment`, {
@@ -156,4 +164,48 @@ export async function deleteAnalysis(id: string) {
   await apiFetch<void>(`/analyses/${encodeURIComponent(id)}`, {
     method: "DELETE",
   })
+}
+
+export type CaseAction = "decide" | "revoke" | "claim" | "release"
+
+/**
+ * Words for the backend's assignment rules. Only the assigned person decides
+ * or takes a decision back: nobody assigned is 409, someone else 403. A 409
+ * on handing back means the analysis is decided already.
+ */
+export function caseErrorMessage(action: CaseAction, error: unknown) {
+  const conflict = error instanceof ApiError && error.status === 409
+  const forbidden = error instanceof ForbiddenError
+
+  if (action === "decide" || action === "revoke") {
+    if (conflict) {
+      return "Niemand hat die Analyse übernommen. Übernimm sie zuerst."
+    }
+    if (forbidden) {
+      return "Jemand anderes hat die Analyse inzwischen übernommen. Übernimm sie, um selbst zu entscheiden."
+    }
+  }
+
+  if (action === "claim" && forbidden) {
+    return "Mit der Rolle Audit kannst du keine Analysen übernehmen."
+  }
+
+  if (action === "release") {
+    if (conflict) {
+      return "Die Analyse ist schon entschieden. Nimm die Entscheidung zuerst zurück."
+    }
+    if (forbidden) {
+      return "Jemand anderes hat die Analyse inzwischen übernommen."
+    }
+  }
+
+  return errorMessage(error)
+}
+
+/** A rule was broken because the page is behind, a reload shows who has it now. */
+export function isStaleCase(error: unknown) {
+  return (
+    error instanceof ForbiddenError ||
+    (error instanceof ApiError && error.status === 409)
+  )
 }

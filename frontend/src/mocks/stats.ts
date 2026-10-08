@@ -121,7 +121,7 @@ export function mockStats(
 
   // the work list comes from the placeholder analyses, so its links open
   const open = mockAnalyses(teamId)
-    .filter((item) => item.status === "completed" && item.verdict !== "clean")
+    .filter((item) => item.status === "completed" && !item.decision)
     .sort((a, b) => b.receivedAt.localeCompare(a.receivedAt))
 
   // spread the phishing count over the domains, the first one gets the most
