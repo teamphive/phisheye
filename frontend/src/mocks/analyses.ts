@@ -14,7 +14,7 @@ export type AnalysisListItem = {
   status: AnalysisStatus
   verdict: Verdict | null
   score: number | null
-  /** Null for a report nobody has taken on yet. */
+  /** Null while nobody has taken the analysis on. */
   handler: string | null
   source: AnalysisSource
   /** Address of whoever reported the mail in Outlook, null for uploads. */
@@ -322,6 +322,15 @@ export function mockAnalyses(teamId: string): AnalysisListItem[] {
 export function mockDeleteAnalysis(id: string) {
   for (const [teamId, items] of Object.entries(analysesByTeam)) {
     analysesByTeam[teamId] = items.filter((item) => item.id !== id)
+  }
+}
+
+/** Taking an analysis on or handing it back shows in the list as well. */
+export function mockSetHandler(id: string, handler: string | null) {
+  for (const [teamId, items] of Object.entries(analysesByTeam)) {
+    analysesByTeam[teamId] = items.map((item) =>
+      item.id === id ? { ...item, handler } : item
+    )
   }
 }
 
