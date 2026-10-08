@@ -48,6 +48,8 @@ conventional_commits = true
 # drops "Merge pull request ...", "db schema" and similar
 filter_unconventional = true
 commit_preprocessors = [
+    # one-off: the squash title of #45 is not a conventional commit
+    { pattern = '^Feat/frontend design system', replace = "feat(frontend): apply the new design system, inter font and hook-eye logo" },
     # link the PR number that GitHub appends to squash merges
     { pattern = '\(#([0-9]+)\)', replace = "([#${1}](<REPO>/pull/${1}))" },
 ]

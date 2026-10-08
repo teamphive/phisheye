@@ -93,7 +93,7 @@ export function AnalysisNewPage() {
     <div className="mx-auto flex max-w-[820px] flex-col gap-4">
       <PageHeader
         title="Neue Analyse"
-        description="Verdächtige Mail als Datei hochladen — sie wird im Team geteilt."
+        description="Verdächtige Mail als Datei hochladen. Sie wird im Team geteilt."
       />
 
       <Card>
@@ -150,7 +150,7 @@ export function AnalysisNewPage() {
                 className="size-[34px] text-faint"
                 strokeWidth={1.6}
               />
-              <h3 className="mt-3 text-[15px] font-semibold">
+              <h3 className="mt-3 text-base font-semibold">
                 Mail hier ablegen
               </h3>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -163,7 +163,7 @@ export function AnalysisNewPage() {
                   Datei auswählen
                 </button>
               </p>
-              <p className="mt-1.5 font-mono text-[11px] text-faint">
+              <p className="mt-1.5 text-xs text-muted-foreground">
                 .eml · eine Datei · max. 25 MB
               </p>
             </div>
@@ -176,7 +176,7 @@ export function AnalysisNewPage() {
           ) : null}
         </CardContent>
         <CardFooter className="justify-between gap-4">
-          <span className="text-[11.5px] text-faint">
+          <span className="text-xs text-faint">
             Anhang-Hashes werden automatisch bei VirusTotal geprüft. Die Analyse
             läuft im Hintergrund, du wirst benachrichtigt.
           </span>

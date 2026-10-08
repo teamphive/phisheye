@@ -1,5 +1,11 @@
-import { Link, NavLink } from "react-router"
-import { ActivityIcon, MailIcon, PlusIcon, UsersIcon } from "lucide-react"
+import { Link, useLocation } from "react-router"
+import {
+  ActivityIcon,
+  LayoutDashboardIcon,
+  MailIcon,
+  PlusIcon,
+  UsersIcon,
+} from "lucide-react"
 
 import { BrandMark } from "@/components/brand-mark"
 import { useSession } from "@/components/session-provider"
@@ -17,44 +23,50 @@ import {
 import { cn } from "@/lib/utils"
 
 const mainNavigation = [
+  { to: "/", label: "Übersicht", icon: LayoutDashboardIcon },
   { to: "/analysen", label: "Analysen", icon: MailIcon },
-  { to: "/team", label: "Team", icon: UsersIcon },
 ]
 
 export function AppSidebar() {
   const { permissions } = useSession()
+  const { pathname } = useLocation()
+
+  const isActive = (to: string) =>
+    to === "/" ? pathname === "/" : pathname.startsWith(to)
 
   return (
-    <Sidebar collapsible="none" className="border-border sticky top-0 h-svh border-r">
-      <SidebarHeader className="gap-3">
-        <Link
-          to="/"
-          className="hover:bg-muted flex items-center gap-2.5 rounded-md px-2 py-1.5"
-        >
-          <BrandMark className="text-primary size-7" />
-          <span className="text-[17px] font-bold tracking-tight">phisheye</span>
+    <Sidebar
+      collapsible="none"
+      className="sticky top-0 h-svh border-r border-border"
+    >
+      <SidebarHeader className="gap-4 p-3">
+        <Link to="/" className="flex items-center gap-2 px-2 py-1">
+          <BrandMark className="size-6 text-primary" />
+          <span className="text-base font-semibold tracking-tight">
+            phisheye
+          </span>
         </Link>
 
         {permissions.analyze ? (
           <Link
             to="/analysen/neu"
-            className={cn(
-              buttonVariants({ size: "lg" }),
-              "w-full font-semibold"
-            )}
+            className={cn(buttonVariants({ size: "lg" }), "w-full")}
           >
-            <PlusIcon className="size-4" />
+            <PlusIcon />
             Neue Analyse
           </Link>
         ) : null}
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarGroup>
+        <SidebarGroup className="px-3">
           <SidebarMenu>
             {mainNavigation.map((item) => (
               <SidebarMenuItem key={item.to}>
-                <SidebarMenuButton render={<NavLink to={item.to} />}>
+                <SidebarMenuButton
+                  isActive={isActive(item.to)}
+                  render={<Link to={item.to} />}
+                >
                   <item.icon />
                   <span>{item.label}</span>
                 </SidebarMenuButton>
@@ -64,17 +76,29 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter>
-        {permissions.monitor ? (
-          <SidebarMenu>
+      <SidebarFooter className="p-3">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              isActive={isActive("/team")}
+              render={<Link to="/team" />}
+            >
+              <UsersIcon />
+              <span>Team</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          {permissions.monitor ? (
             <SidebarMenuItem>
-              <SidebarMenuButton render={<NavLink to="/monitoring" />}>
+              <SidebarMenuButton
+                isActive={isActive("/monitoring")}
+                render={<Link to="/monitoring" />}
+              >
                 <ActivityIcon />
                 <span>Monitoring</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
-          </SidebarMenu>
-        ) : null}
+          ) : null}
+        </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
   )

@@ -10,10 +10,10 @@ const margin = { top: 12, right: 12, bottom: 26, left: 32 }
 
 // Bottom to top. Phishing sits on the baseline, so its bars compare directly.
 const series = [
-  { key: "phishing", label: "Phishing", color: "var(--phishing)" },
-  { key: "suspicious", label: "Verdächtig", color: "var(--suspicious)" },
-  { key: "clean", label: "Sauber", color: "var(--clean)" },
-  { key: "unrated", label: "Nicht bewertet", color: "var(--faint)" },
+  { key: "phishing", label: "Phishing", color: "var(--chart-4)" },
+  { key: "suspicious", label: "Verdächtig", color: "var(--chart-3)" },
+  { key: "clean", label: "Sauber", color: "var(--chart-2)" },
+  { key: "unrated", label: "Nicht bewertet", color: "var(--chart-5)" },
 ] as const
 
 function totalOf(entry: DayCounts) {
@@ -128,7 +128,7 @@ export function DailyChart({ data }: { data: DayCounts[] }) {
                   y={y(tick)}
                   textAnchor="end"
                   dominantBaseline="middle"
-                  className="fill-faint font-mono text-[10.5px]"
+                  className="fill-muted-foreground text-xs"
                 >
                   {tick}
                 </text>
@@ -176,7 +176,7 @@ export function DailyChart({ data }: { data: DayCounts[] }) {
                 }
                 y={height - 6}
                 textAnchor={label.anchor}
-                className="fill-faint font-mono text-[10.5px]"
+                className="fill-muted-foreground text-xs"
               >
                 {formatDay(data[label.index].day)}
               </text>
@@ -193,14 +193,14 @@ export function DailyChart({ data }: { data: DayCounts[] }) {
               transform: "translate(-50%, -100%)",
             }}
           >
-            <div className="text-[13px] font-semibold">
+            <div className="text-sm font-semibold">
               {formatWeekday(hovered.day)} · {totals[active]}{" "}
               {totals[active] === 1 ? "Analyse" : "Analysen"}
             </div>
             {series.map(({ key, label, color }) => (
               <div
                 key={key}
-                className="flex items-center gap-1.5 font-mono text-[10.5px] text-muted-foreground"
+                className="flex items-center gap-1.5 text-xs text-muted-foreground"
               >
                 <span
                   className="size-2 rounded-[2px]"

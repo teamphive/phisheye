@@ -210,7 +210,7 @@ export function AnalysisDetailPage() {
       <Card className="mx-auto mt-[8vh] max-w-[52ch]">
         <CardContent className="flex flex-col items-center gap-3 text-center">
           <TriangleAlertIcon className="size-6 text-phishing" />
-          <div className="text-[15px] font-semibold">
+          <div className="text-base font-semibold">
             Analyse konnte nicht geladen werden
           </div>
           <p className="text-sm text-muted-foreground">{errorMessage(error)}</p>
@@ -295,9 +295,7 @@ export function AnalysisDetailPage() {
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbPage className="font-mono">
-              #{analysis.id}
-            </BreadcrumbPage>
+            <BreadcrumbPage className="">#{analysis.id}</BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
@@ -308,13 +306,12 @@ export function AnalysisDetailPage() {
             {analysis.subject}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            <span className="font-mono">{analysis.sender}</span> · eingegangen
-            am {formatDateTime(analysis.receivedAt)}
+            <span className="">{analysis.sender}</span> · eingegangen am{" "}
+            {formatDateTime(analysis.receivedAt)}
             {analysis.source === "report" ? (
               <>
                 {" "}
-                · gemeldet von{" "}
-                <span className="font-mono">{analysis.reportedBy}</span>
+                · gemeldet von <span className="">{analysis.reportedBy}</span>
               </>
             ) : null}
             {analysis.handler ? ` · ${analysis.handler}` : null}
@@ -323,7 +320,7 @@ export function AnalysisDetailPage() {
 
         {analysis.status === "completed" ? (
           decision ? (
-            <div className="flex shrink-0 items-center gap-2 rounded-md border border-clean/25 bg-clean-soft px-3 py-1.5 text-[13px] font-semibold text-clean">
+            <div className="flex shrink-0 items-center gap-2 rounded-md border border-clean/25 bg-clean-soft px-3 py-1.5 text-sm font-semibold text-clean">
               <CheckIcon className="size-4" />
               {text.done[decision.verdict]} von {decision.by} ·{" "}
               {formatRelativeTime(decision.at)}
@@ -427,7 +424,7 @@ export function AnalysisDetailPage() {
               {analysis.source === "report" ? (
                 <Row label="Gemeldet von">
                   <span
-                    className="min-w-0 truncate font-mono text-xs"
+                    className="min-w-0 truncate text-xs"
                     title={analysis.reportedBy ?? undefined}
                   >
                     {analysis.reportedBy}
@@ -449,15 +446,13 @@ export function AnalysisDetailPage() {
                 )}
               </Row>
               <Row label="Analyse-ID">
-                <span className="font-mono text-xs text-faint">
+                <span className="text-xs text-muted-foreground">
                   #{analysis.id}
                 </span>
               </Row>
               {analysis.durationSeconds !== null ? (
                 <Row label="Dauer">
-                  <span className="font-mono">
-                    {analysis.durationSeconds} Sek
-                  </span>
+                  <span className="">{analysis.durationSeconds} Sek</span>
                 </Row>
               ) : null}
             </CardContent>
@@ -596,8 +591,8 @@ function RunningCard({ analysis }: { analysis: AnalysisDetail }) {
               <Loader2Icon className="size-[18px] animate-spin" />
             </span>
             <div className="flex-1">
-              <div className="text-[15px] font-semibold">Analyse läuft</div>
-              <p className="mt-0.5 text-[13px] text-muted-foreground">
+              <div className="text-base font-semibold">Analyse läuft</div>
+              <p className="mt-0.5 text-sm text-muted-foreground">
                 Aktueller Schritt:{" "}
                 <b className="font-semibold">
                   {analysis.step ?? "Wartet auf einen freien Worker"}
@@ -605,21 +600,21 @@ function RunningCard({ analysis }: { analysis: AnalysisDetail }) {
               </p>
             </div>
             {analysis.startedAt ? (
-              <span className="font-mono text-xs text-faint">
+              <span className="text-xs text-muted-foreground">
                 {formatRelativeTime(analysis.startedAt)}
               </span>
             ) : null}
           </div>
 
           <div className="h-[7px] overflow-hidden rounded bg-secondary">
-            <div className="h-full w-2/5 animate-pulse rounded bg-primary" />
+            <div className="h-full w-2/5 animate-pulse rounded bg-foreground/60" />
           </div>
 
           <Separator />
 
           {/* Cancelling waits for an endpoint, see docs/api.md */}
           <p className="text-xs text-muted-foreground">
-            Du kannst die Seite verlassen — die Benachrichtigung kommt, sobald
+            Du kannst die Seite verlassen, die Benachrichtigung kommt, sobald
             die Analyse fertig ist.
           </p>
         </CardContent>
@@ -664,8 +659,8 @@ function QueueCard() {
     <Card className="opacity-90">
       <CardHeader className="flex-row items-center justify-between">
         <div>
-          <CardTitle className="text-[13px]">Warteschlange</CardTitle>
-          <p className="mt-0.5 text-[11.5px] text-muted-foreground">
+          <CardTitle className="text-sm">Warteschlange</CardTitle>
+          <p className="mt-0.5 text-xs text-muted-foreground">
             {queue.waiting === 0
               ? "Keine Mail wartet auf einen freien Worker"
               : queue.waiting === 1
@@ -683,20 +678,20 @@ function QueueCard() {
             key={item.position}
             className="flex items-center gap-3 border-b border-border px-6 py-2 last:border-b-0"
           >
-            <span className="grid size-5 shrink-0 place-items-center rounded bg-secondary font-mono text-[10px] font-semibold text-faint">
+            <span className="grid size-5 shrink-0 place-items-center rounded bg-secondary text-[10px] font-semibold text-faint">
               {item.position}
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-[12.5px] font-medium">
+              <span className="block truncate text-xs font-medium">
                 {item.subject}
               </span>
-              <span className="block truncate font-mono text-[10.5px] text-faint">
+              <span className="block truncate text-xs text-muted-foreground">
                 {item.sender} ·{" "}
                 {item.source === "report" ? "gemeldet" : "hochgeladen"} von{" "}
                 {item.submittedBy}
               </span>
             </span>
-            <span className="font-mono text-[10.5px] text-faint">
+            <span className="text-xs text-muted-foreground">
               wartet {formatElapsed(item.queuedAt)}
             </span>
           </div>
@@ -717,10 +712,10 @@ function FailedCard({ analysis }: { analysis: AnalysisDetail }) {
         <div className="flex items-start gap-3 rounded-md border border-phishing/25 bg-phishing-soft p-4">
           <TriangleAlertIcon className="mt-0.5 size-[18px] shrink-0 text-phishing" />
           <div>
-            <div className="text-[15px] font-semibold">
+            <div className="text-base font-semibold">
               Analyse fehlgeschlagen
             </div>
-            <p className="mt-1 max-w-[56ch] text-[13px] text-muted-foreground">
+            <p className="mt-1 max-w-[56ch] text-sm text-muted-foreground">
               {analysis.error.detail}
             </p>
           </div>
@@ -770,10 +765,8 @@ function AiAssessmentCard({
             <SparklesIcon className="size-[18px]" />
           </span>
           <div>
-            <div className="text-[15px] font-semibold">
-              Keine KI-Einschätzung
-            </div>
-            <p className="mt-0.5 max-w-[56ch] text-[13px] text-muted-foreground">
+            <div className="text-base font-semibold">Keine KI-Einschätzung</div>
+            <p className="mt-0.5 max-w-[56ch] text-sm text-muted-foreground">
               JEV hat zu dieser Mail nicht geantwortet.
               {rulesVerdict
                 ? " Das Verdikt stützt sich nur auf die Regeln."
@@ -800,7 +793,7 @@ function AiAssessmentCard({
           JEV bewertet den Text der Mail, unabhängig von den Regeln
         </CardDescription>
         <CardAction>
-          <span className="font-mono text-[11px] text-faint">
+          <span className="text-xs text-muted-foreground">
             {assessment.model}
           </span>
         </CardAction>
@@ -820,7 +813,7 @@ function AiAssessmentCard({
             <div className={`text-lg font-semibold ${text.tone}`}>
               {text.answer}
             </div>
-            <p className="text-[13px] text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               {agreement(assessment.verdict, rulesVerdict)}
             </p>
           </div>
@@ -828,7 +821,7 @@ function AiAssessmentCard({
             <div className="text-2xl leading-none font-semibold tabular-nums">
               {percent} %
             </div>
-            <div className="mt-1 text-[11.5px] text-muted-foreground">
+            <div className="mt-1 text-xs text-muted-foreground">
               Konfidenz {confidenceLabel(assessment.confidence)}
             </div>
           </div>
@@ -837,11 +830,11 @@ function AiAssessmentCard({
         <div className="flex flex-col gap-1.5">
           <div className="h-[7px] overflow-hidden rounded bg-secondary">
             <div
-              className={`h-full rounded ${unsure ? "bg-suspicious" : "bg-primary"}`}
+              className={`h-full rounded ${unsure ? "bg-suspicious" : "bg-foreground"}`}
               style={{ width: `${percent}%` }}
             />
           </div>
-          <p className="text-[11.5px] text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             Wie eindeutig sich JEV entschieden hat, nicht die Wahrscheinlichkeit
             für Phishing. Unter {unsureBelow * 100} % ist die Antwort unsicher,
             ab {clearFrom * 100} % eindeutig.
@@ -849,7 +842,7 @@ function AiAssessmentCard({
         </div>
 
         {unsure ? (
-          <div className="flex items-start gap-2 rounded-md border border-suspicious/25 bg-suspicious-soft p-3 text-[13px]">
+          <div className="flex items-start gap-2 rounded-md border border-suspicious/25 bg-suspicious-soft p-3 text-sm">
             <TriangleAlertIcon className="mt-0.5 size-4 shrink-0 text-suspicious" />
             JEV ist sich bei dieser Mail nicht sicher. Die Einschätzung besser
             nicht als Grundlage für die Entscheidung nehmen.
@@ -880,7 +873,7 @@ function CompletedCards({ analysis }: { analysis: AnalysisDetail }) {
           <CardContent className="flex flex-col gap-4">
             <div className="flex items-start gap-4">
               <span
-                className={`${tone} text-[56px] leading-none font-semibold tracking-tighter`}
+                className={`${tone} text-5xl leading-none font-semibold tracking-tighter`}
               >
                 {score}
                 <span className="text-2xl font-medium"> %</span>
@@ -914,10 +907,8 @@ function CompletedCards({ analysis }: { analysis: AnalysisDetail }) {
               <CircleHelpIcon className="size-[18px]" />
             </span>
             <div>
-              <div className="text-[15px] font-semibold">
-                Noch nicht bewertet
-              </div>
-              <p className="mt-0.5 max-w-[56ch] text-[13px] text-muted-foreground">
+              <div className="text-base font-semibold">Noch nicht bewertet</div>
+              <p className="mt-0.5 max-w-[56ch] text-sm text-muted-foreground">
                 Die Erkennung hat für diese Mail keinen Score geliefert. Anhänge
                 und Header stehen trotzdem unten.
               </p>
@@ -995,7 +986,7 @@ function CompletedCards({ analysis }: { analysis: AnalysisDetail }) {
                 <TableRow key={file.sha256}>
                   <TableCell>
                     <span className="block font-semibold">{file.filename}</span>
-                    <span className="block font-mono text-[11px] text-faint">
+                    <span className="block text-xs text-muted-foreground">
                       {formatFileSize(file.size)}
                     </span>
                   </TableCell>
@@ -1042,10 +1033,10 @@ function CompletedCards({ analysis }: { analysis: AnalysisDetail }) {
                     <TableCell className="font-semibold">
                       {criterion.name}
                     </TableCell>
-                    <TableCell className="font-mono text-muted-foreground">
+                    <TableCell className="text-muted-foreground">
                       {criterion.finding}
                     </TableCell>
-                    <TableCell className="text-right font-mono font-semibold text-phishing tabular-nums">
+                    <TableCell className="text-right font-medium text-phishing tabular-nums">
                       +{criterion.weight}
                     </TableCell>
                   </TableRow>
@@ -1055,11 +1046,11 @@ function CompletedCards({ analysis }: { analysis: AnalysisDetail }) {
                     colSpan={2}
                     className="font-semibold text-muted-foreground"
                   >
-                    Risiko-Score — Summe {analysis.criteriaTotal}, gekappt auf
+                    Risiko-Score, Summe {analysis.criteriaTotal}, gekappt auf
                     100
                   </TableCell>
                   <TableCell
-                    className={`${tone} text-right font-mono text-sm font-bold tabular-nums`}
+                    className={`${tone} text-right text-sm font-bold tabular-nums`}
                   >
                     {score}
                   </TableCell>
@@ -1076,7 +1067,7 @@ function CompletedCards({ analysis }: { analysis: AnalysisDetail }) {
         </CardHeader>
         <CardContent>
           {analysis.rawHeaders ? (
-            <pre className="overflow-x-auto rounded-md border border-border bg-secondary p-4 font-mono text-[11.5px] leading-relaxed text-muted-foreground">
+            <pre className="overflow-x-auto rounded-md border border-border bg-secondary p-4 font-mono text-xs leading-relaxed text-muted-foreground">
               {analysis.rawHeaders}
             </pre>
           ) : (

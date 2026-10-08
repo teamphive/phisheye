@@ -220,7 +220,7 @@ export function NotificationsPage() {
                         <ItemTitle>{entry.title}</ItemTitle>
                         <ItemDescription>{entry.detail}</ItemDescription>
                       </ItemContent>
-                      <ItemActions className="font-mono text-[10.5px] text-faint">
+                      <ItemActions className="text-xs text-muted-foreground">
                         {timeLabel(entry.createdAt, group.bucket)}
                       </ItemActions>
                     </Item>

@@ -12,35 +12,35 @@
       .pad { padding-left: 20px !important; padding-right: 20px !important; }
     }
     @media (prefers-color-scheme: dark) {
-      .bg-page { background-color: #07090b !important; }
-      .bg-card { background-color: #10151a !important; border-color: #1f282f !important; }
-      .bg-inset { background-color: #161c22 !important; border-color: #1f282f !important; }
-      .text-main { color: #e6edf0 !important; }
-      .text-muted { color: #8fa0a8 !important; }
-      .rule { border-color: #1f282f !important; }
-      .brand { color: #2cc2da !important; }
-      .tone-clean { background-color: #0c2417 !important; color: #46e08a !important; }
-      .tone-suspicious { background-color: #2a2008 !important; color: #f5b93a !important; }
-      .tone-phishing { background-color: #2b1216 !important; color: #ff5a6a !important; }
+      .bg-page { background-color: #0b0b0e !important; }
+      .bg-card { background-color: #121215 !important; border-color: #26262b !important; }
+      .bg-inset { background-color: #18181c !important; border-color: #26262b !important; }
+      .text-main { color: #e4e4e7 !important; }
+      .text-muted { color: #a1a1aa !important; }
+      .rule { border-color: #26262b !important; }
+      .brand, .link { color: #7da3f5 !important; }
+      .tone-clean { background-color: #12231a !important; color: #4fc58d !important; }
+      .tone-suspicious { background-color: #262012 !important; color: #e2ab4b !important; }
+      .tone-phishing { background-color: #2a1718 !important; color: #f27573 !important; }
     }
   </style>
 </head>
-<body class="bg-page" style="margin:0;padding:0;background-color:#f5f7fa;">
+<body class="bg-page" style="margin:0;padding:0;background-color:#f8f9fc;">
   <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">{% block preheader %}{% endblock %}</div>
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="bg-page" style="background-color:#f5f7fa;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="bg-page" style="background-color:#f8f9fc;">
     <tr>
       <td align="center" style="padding:32px 12px;">
         <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" class="container" style="width:560px;max-width:100%;">
           <tr>
-            <td style="padding:0 4px 16px 4px;font-family:'Instrument Sans',-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;font-size:20px;font-weight:700;letter-spacing:-0.3px;color:#2b5ce6;" class="brand">
+            <td style="padding:0 4px 16px 4px;font-family:Inter,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;font-size:20px;font-weight:600;letter-spacing:-0.3px;color:#2b5ce6;" class="brand">
               phisheye
             </td>
           </tr>
           <tr>
-            <td class="bg-card" style="background-color:#ffffff;border:1px solid #dde3ec;border-radius:10px;">
+            <td class="bg-card" style="background-color:#ffffff;border:1px solid #e2e6f0;border-radius:8px;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr>
-                  <td class="pad text-main" style="padding:32px 32px 32px 32px;font-family:'Instrument Sans',-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;color:#0f1724;">
+                  <td class="pad text-main" style="padding:32px 32px 32px 32px;font-family:Inter,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;color:#151830;">
                     {% block content %}{% endblock %}
                   </td>
                 </tr>
@@ -48,7 +48,7 @@
             </td>
           </tr>
           <tr>
-            <td class="text-muted" style="padding:16px 4px 0 4px;font-family:'Instrument Sans',-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#5c687f;">
+            <td class="text-muted" style="padding:16px 4px 0 4px;font-family:Inter,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#71717a;">
               {% block footer %}Diese Nachricht kommt automatisch von phisheye, weil du eine Mail zur Prüfung eingereicht hast. Bitte antworte nicht darauf.{% endblock %}
             </td>
           </tr>

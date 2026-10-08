@@ -1,13 +1,13 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/instrument-sans";
+@import "@fontsource-variable/inter";
 @import "@fontsource-variable/jetbrains-mono";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-    --font-sans: 'Instrument Sans Variable', ui-sans-serif, system-ui, sans-serif;
+    --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
     --font-mono: 'JetBrains Mono Variable', ui-monospace, SFMono-Regular, Menlo, monospace;
     --font-heading: var(--font-sans);
 
@@ -64,115 +64,116 @@
 
 /* ---------------------------------------------------------------
    Light theme. Every colour in the app comes from here.
-   --primary is the brand colour, --accent is shadcn's subtle
-   hover background. Do not mix those two up.
+   Cool, almost neutral greys carry the interface. --primary is the brand
+   blue: primary buttons, links, the logo, focus ring. --accent is a faint
+   blue wash for hover and active states.
    --------------------------------------------------------------- */
 :root {
-    --radius: 0.625rem;
+    --radius: 0.5rem;
 
-    --background: #f5f7fa;
-    --foreground: #0f1724;
+    --background: #f8f9fc;
+    --foreground: #151830;
 
     --card: #ffffff;
-    --card-foreground: #0f1724;
+    --card-foreground: #18181b;
     --popover: #ffffff;
-    --popover-foreground: #0f1724;
+    --popover-foreground: #18181b;
 
     --primary: #2b5ce6;
     --primary-foreground: #ffffff;
 
-    --secondary: #edf0f6;
-    --secondary-foreground: #0f1724;
-    --muted: #edf0f6;
-    --muted-foreground: #5c687f;
-    --accent: #e7edfd;
-    --accent-foreground: #1e48c4;
+    --secondary: #f0f2f8;
+    --secondary-foreground: #18181b;
+    --muted: #f0f2f8;
+    --muted-foreground: #71717a;
+    --accent: #eaeffc;
+    --accent-foreground: #1a1f3a;
 
-    --destructive: #c42e3b;
+    --destructive: #dc2626;
 
-    --border: #dde3ec;
-    --input: #c6cfdd;
-    --ring: #2b5ce6;
+    --border: #e2e6f0;
+    --input: #d0d6e6;
+    --ring: #7b9af0;
 
-    --surface-strong: #e4e9f2;
-    --faint: #8a94a8;
+    --surface-strong: #e6e9f2;
+    --faint: #a1a1aa;
 
-    --clean: #0e8f63;
-    --clean-soft: #dcf3e9;
-    --suspicious: #b06a00;
-    --suspicious-soft: #fbeeda;
-    --phishing: #c42e3b;
-    --phishing-soft: #fbe4e6;
+    --clean: #15803d;
+    --clean-soft: #e9f6ee;
+    --suspicious: #a16207;
+    --suspicious-soft: #fbf3df;
+    --phishing: #c62828;
+    --phishing-soft: #fbeaea;
 
     --chart-1: #2b5ce6;
-    --chart-2: #0e8f63;
-    --chart-3: #b06a00;
-    --chart-4: #c42e3b;
-    --chart-5: #5c687f;
+    --chart-2: #3fa56b;
+    --chart-3: #e2a32f;
+    --chart-4: #e0524d;
+    --chart-5: #cfcfd6;
 
     --sidebar: #ffffff;
-    --sidebar-foreground: #0f1724;
+    --sidebar-foreground: #18181b;
     --sidebar-primary: #2b5ce6;
     --sidebar-primary-foreground: #ffffff;
-    --sidebar-accent: #e7edfd;
-    --sidebar-accent-foreground: #1e48c4;
-    --sidebar-border: #dde3ec;
-    --sidebar-ring: #2b5ce6;
+    --sidebar-accent: #eaeffc;
+    --sidebar-accent-foreground: #1a1f3a;
+    --sidebar-border: #e2e6f0;
+    --sidebar-ring: #7b9af0;
 }
 
 /* ---------------------------------------------------------------
-   Dark theme. Same tokens, different values.
+   Dark theme. Same tokens on neutral near-black greys. Blue only marks primary actions,
+   links and the logo; hover and active states stay grey.
    --------------------------------------------------------------- */
 .dark {
-    --background: #090d14;
-    --foreground: #e7ecf5;
+    --background: #0b0b0e;
+    --foreground: #e4e4e7;
 
-    --card: #111825;
-    --card-foreground: #e7ecf5;
-    --popover: #111825;
-    --popover-foreground: #e7ecf5;
+    --card: #121215;
+    --card-foreground: #e4e4e7;
+    --popover: #151518;
+    --popover-foreground: #e4e4e7;
 
-    --primary: #6f9bff;
-    --primary-foreground: #0b1220;
+    --primary: #7da3f5;
+    --primary-foreground: #0b0b0e;
 
-    --secondary: #18202e;
-    --secondary-foreground: #e7ecf5;
-    --muted: #18202e;
-    --muted-foreground: #8b98ad;
-    --accent: #17223d;
-    --accent-foreground: #9dbaff;
+    --secondary: #202025;
+    --secondary-foreground: #e4e4e7;
+    --muted: #18181c;
+    --muted-foreground: #a1a1aa;
+    --accent: #1f1f24;
+    --accent-foreground: #fafafa;
 
-    --destructive: #ff6b72;
+    --destructive: #f87171;
 
-    --border: #232c3c;
-    --input: #354155;
-    --ring: #6f9bff;
+    --border: #26262b;
+    --input: #34343b;
+    --ring: #6b7fbf;
 
-    --surface-strong: #1f2937;
-    --faint: #6b778c;
+    --surface-strong: #222227;
+    --faint: #71717a;
 
-    --clean: #34c88f;
-    --clean-soft: #12291f;
-    --suspicious: #e0a33a;
-    --suspicious-soft: #2b2110;
-    --phishing: #ff6b72;
-    --phishing-soft: #2d1416;
+    --clean: #4fc58d;
+    --clean-soft: #12231a;
+    --suspicious: #e2ab4b;
+    --suspicious-soft: #262012;
+    --phishing: #f27573;
+    --phishing-soft: #2a1718;
 
-    /* one step darker than --primary, a chart line needs OKLCH L <= 0.67 on the dark card */
-    --chart-1: #5b8af5;
-    --chart-2: #34c88f;
-    --chart-3: #e0a33a;
-    --chart-4: #ff6b72;
-    --chart-5: #8b98ad;
+    --chart-1: #7da3f5;
+    --chart-2: #4fc58d;
+    --chart-3: #e2ab4b;
+    --chart-4: #f27573;
+    --chart-5: #8f8f99;
 
-    --sidebar: #111825;
-    --sidebar-foreground: #e7ecf5;
-    --sidebar-primary: #6f9bff;
-    --sidebar-primary-foreground: #0b1220;
-    --sidebar-accent: #17223d;
-    --sidebar-accent-foreground: #9dbaff;
-    --sidebar-border: #232c3c;
-    --sidebar-ring: #6f9bff;
+    --sidebar: #0d0d10;
+    --sidebar-foreground: #e4e4e7;
+    --sidebar-primary: #7da3f5;
+    --sidebar-primary-foreground: #0b0b0e;
+    --sidebar-accent: #1f1f24;
+    --sidebar-accent-foreground: #fafafa;
+    --sidebar-border: #26262b;
+    --sidebar-ring: #6b7fbf;
 }
 
 @layer base {

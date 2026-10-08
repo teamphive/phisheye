@@ -84,20 +84,20 @@ export function SettingsPage() {
           <CardContent className="flex flex-col gap-4">
             <div className="flex items-center gap-3.5">
               <Avatar className="size-[52px]">
-                <AvatarFallback className="bg-primary text-[17px] font-semibold text-primary-foreground">
+                <AvatarFallback className="bg-muted text-base font-medium text-foreground">
                   {user.initials}
                 </AvatarFallback>
               </Avatar>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[15px] font-semibold">{user.name}</span>
+                  <span className="text-base font-semibold">{user.name}</span>
                   {user.instanceRole ? (
                     <Badge variant="secondary">
                       {instanceRoleLabel[user.instanceRole]}
                     </Badge>
                   ) : null}
                 </div>
-                <div className="font-mono text-[11.5px] text-faint">
+                <div className="text-xs text-muted-foreground">
                   {teamRoleLabel(activeTeam)} · Team {activeTeam.name}
                 </div>
               </div>

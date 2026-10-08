@@ -28,23 +28,23 @@ export function ForbiddenPage({
 
   return (
     <div className="mx-auto mt-[8vh] flex max-w-[46ch] flex-col items-center gap-2 text-center">
-      <span className="text-phishing mb-1 font-mono text-[46px] leading-none font-semibold tracking-tight">
+      <span className="mb-1 text-5xl leading-none font-semibold tracking-tight text-phishing">
         403
       </span>
-      <h1 className="text-[22px] font-semibold tracking-tight">Kein Zugriff</h1>
-      <p className="text-muted-foreground text-sm">
+      <h1 className="text-2xl font-semibold tracking-tight">Kein Zugriff</h1>
+      <p className="text-sm text-muted-foreground">
         {permission ? reasons[permission] : "Dafür fehlt dir die Berechtigung."}{" "}
         {isInstanceMatter ? null : (
           <>
             Deine Rolle im Team {activeTeam.name} ist{" "}
-            <b className="text-foreground font-semibold">
+            <b className="font-semibold text-foreground">
               {teamRoleLabel(activeTeam)}
             </b>
             .
           </>
         )}
       </p>
-      <p className="text-faint text-xs">
+      <p className="text-xs text-faint">
         {isInstanceMatter
           ? "Instanz-Admin ist, wer im Standard-Team Admin ist."
           : activeTeam.viaInstance
