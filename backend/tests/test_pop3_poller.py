@@ -80,8 +80,7 @@ def test_extract_eml_decodes_base64_message_rfc822():
     assert extract_eml(outer) == inner
 
 
-def test_extract_eml_takes_a_forwarded_msg_attachment():
-    msg_bytes = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" + b"\x00" * 64
+def report_with_msg(msg_bytes: bytes) -> bytes:
     outer = EmailMessage()
     outer["From"] = "reporter@example.com"
     outer["Subject"] = "Fwd: phishing"
@@ -92,5 +91,20 @@ def test_extract_eml_takes_a_forwarded_msg_attachment():
         subtype="vnd.ms-outlook",
         filename="Original.msg",
     )
+    return outer.as_bytes()
 
-    assert extract_eml(outer.as_bytes()) == msg_bytes
+
+def test_extract_eml_converts_a_forwarded_msg_attachment(monkeypatch):
+    from app.services import pop3_poller
+
+    monkeypatch.setattr(pop3_poller, "msg_to_eml", lambda content: b"converted")
+
+    assert extract_eml(report_with_msg(b"\xd0\xcf\x11\xe0 msg")) == b"converted"
+
+
+def test_extract_eml_keeps_the_report_when_the_msg_is_unreadable():
+    # an OLE start with nothing behind it, extract-msg cannot open that
+    raw_mail = report_with_msg(b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" + b"\x00" * 64)
+
+    # the report itself is analyzed instead of being dropped
+    assert extract_eml(raw_mail) == raw_mail
