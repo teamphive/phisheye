@@ -115,6 +115,25 @@ async def enqueue_decision_mail(analysis_id: int, decided_at: datetime) -> None:
         logger.exception("Could not queue the decision mail for %s", analysis_id)
 
 
+async def enqueue_receipt_mail(analysis_id: int) -> None:
+    """Queues the receipt for a report that came in by mail.
+
+    Never fails the analysis. The job id keeps a second enqueue out.
+    """
+    try:
+        pool = await create_pool(redis_settings())
+        try:
+            await pool.enqueue_job(
+                "send_receipt_mail",
+                analysis_id,
+                _job_id=f"receipt-mail-{analysis_id}",
+            )
+        finally:
+            await pool.aclose()
+    except Exception:
+        logger.exception("Could not queue the receipt for analysis %s", analysis_id)
+
+
 async def enqueue_team_invitation(invitation_id: int) -> None:
     """Queues the invitation mail. Never fails the invitation itself."""
     try:
@@ -327,6 +346,12 @@ def is_notifiable(address: str) -> bool:
         and parsed.lower() != own
         and local.lower() not in _NO_REPLY_LOCALS
     )
+
+
+def send_receipt_mail(to: str, analysis: MailAnalysis) -> None:
+    """Tells the reporter that the mail arrived, nothing about its verdict."""
+    subject, text, html = render_received(analysis)
+    _send(to, subject, text, html)
 
 
 def send_failure_mail(to: str, analysis: MailAnalysis) -> None:

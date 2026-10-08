@@ -20,6 +20,8 @@ class MailAnalysis(SQLModel, table=True):
     notified_at: datetime | None = None
     # the verdict the reporter was told last, a different decision follows as a correction
     notified_verdict: str | None = None
+    # when the reporter got the receipt, the one mail sent at intake
+    received_at: datetime | None = None
 
     raw_headers: str | None = Field(default=None, sa_column=Column(Text))
 

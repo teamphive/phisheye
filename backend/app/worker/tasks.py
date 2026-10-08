@@ -27,6 +27,9 @@ from ..services.notifications import (
 from ..services.notifications import (
     send_failure_mail as send_failure_mail_to,
 )
+from ..services.notifications import (
+    send_receipt_mail as send_receipt_mail_to,
+)
 from ..services.pop3_poller import (
     delete_mails,
     extract_eml,
@@ -146,19 +149,51 @@ async def _may_notify(db, analysis: MailAnalysis) -> str | None:
     if not recipient or not is_notifiable(recipient):
         return None
 
-    # the reporter address comes from a foreign mail, cap what one address gets
-    recent = await db.exec(
-        select(func.count())
-        .select_from(MailAnalysis)
-        .where(MailAnalysis.reported_by == recipient)
-        .where(MailAnalysis.notified_at > datetime.utcnow() - timedelta(hours=1))
-    )
+    # the reporter address comes from a foreign mail, cap what one address gets.
+    # Receipt and decision are two mails, so both count.
+    since = datetime.utcnow() - timedelta(hours=1)
+    sent = 0
 
-    if recent.one() >= MAX_MAILS_PER_HOUR:
+    for column in (MailAnalysis.received_at, MailAnalysis.notified_at):
+        recent = await db.exec(
+            select(func.count())
+            .select_from(MailAnalysis)
+            .where(MailAnalysis.reported_by == recipient)
+            .where(column > since)
+        )
+        sent += recent.one()
+
+    if sent >= MAX_MAILS_PER_HOUR:
         logger.warning("Notification limit reached for %s", recipient)
         return None
 
     return recipient
+
+
+async def send_receipt_mail(ctx, analysis_id: int) -> None:
+    async for db in get_session():
+        analysis = await db.get(MailAnalysis, analysis_id)
+
+        if analysis is None or analysis.deleted_at is not None:
+            return
+
+        # once is enough, and a receipt after the verdict would only confuse
+        if analysis.received_at is not None or analysis.notified_verdict is not None:
+            return
+
+        recipient = await _may_notify(db, analysis)
+
+        if recipient is None:
+            return
+
+        try:
+            await asyncio.to_thread(send_receipt_mail_to, recipient, analysis)
+        except (smtplib.SMTPException, OSError) as exc:
+            logger.exception("Receipt for analysis %s failed", analysis_id)
+            raise Retry(defer=ctx["job_try"] * 60) from exc
+
+        analysis.received_at = datetime.utcnow()
+        await db.commit()
 
 
 async def send_failure_mail(ctx, analysis_id: int) -> None:

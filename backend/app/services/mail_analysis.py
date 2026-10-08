@@ -21,7 +21,7 @@ from .ai_assessment import assess
 from .bell import notify_analysis_done, notify_analysis_failed
 from .detection import detect
 from .msg_convert import is_msg, msg_to_eml
-from .notifications import redis_settings
+from .notifications import enqueue_receipt_mail, redis_settings
 from .object_storage import ObjectStorageError, delete_object, load_eml, store_eml
 
 logger = logging.getLogger(__name__)
@@ -93,8 +93,12 @@ async def submit_analysis(
             logger.exception("Failed to remove orphaned EML object %s", storage_key)
         raise
 
-    # the result mail follows when the analysis is done, see analyze_mail
     await enqueue_analysis(analysis.id)
+
+    # a report gets a receipt at once. The verdict follows later, and only
+    # once an analyst has decided
+    if reported_by:
+        await enqueue_receipt_mail(analysis.id)
 
     return analysis
 
