@@ -142,6 +142,13 @@ const completed: AnalysisDetail = {
       finding: "Unauffällig",
       tone: "clean",
     },
+    // tracking links of mailing tools run to a thousand characters
+    {
+      text: "",
+      target: `https://links.mailer-out.top/ls/click?upn=u001.${"2FQ3DjjznsWL5wzg8wf0rZjJC8wQMAQdlVKB-2FRdKBTGdPhSR59".repeat(16)}`,
+      finding: "Unauffällig",
+      tone: "clean",
+    },
   ],
   attachments: [
     {

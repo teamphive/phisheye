@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router"
 import {
   CheckIcon,
   CircleHelpIcon,
+  CopyIcon,
   DownloadIcon,
   FlagIcon,
   InfoIcon,
@@ -15,6 +16,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 
+import { ExpandableLine } from "@/components/expandable-line"
 import { ScoreMeter } from "@/components/score-meter"
 import { useSession } from "@/components/session-provider"
 import { VerdictBadge } from "@/components/verdict-badge"
@@ -72,6 +74,7 @@ import {
 } from "@/lib/analyses"
 import { ApiError, errorMessage } from "@/lib/api"
 import { saveFile } from "@/lib/download"
+import { keyHeaders, parseHeaders } from "@/lib/headers"
 import {
   formatDateTime,
   formatElapsed,
@@ -84,6 +87,7 @@ import { verdictLabel, type Verdict } from "@/mocks/analyses"
 import {
   type AiAssessment,
   type AnalysisDetail,
+  type AnalysisLink,
   type Attachment,
   type Decision,
   type Queue,
@@ -1057,52 +1061,7 @@ function CompletedCards({ analysis }: { analysis: AnalysisDetail }) {
         rulesVerdict={analysis.verdict}
       />
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">
-            Enthaltene Links ({analysis.links.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="px-0">
-          {/* Fixed columns that wrap: long URLs never push the card sideways */}
-          <Table className="table-fixed">
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[28%]">Anzeigetext</TableHead>
-                <TableHead className="w-[40%]">Tatsächliches Ziel</TableHead>
-                <TableHead className="w-[32%]">Befund</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {analysis.links.length === 0 ? (
-                <EmptyRow colSpan={3}>
-                  {rated
-                    ? "Die Mail enthält keine Links."
-                    : "Die Links werden erst mit der Bewertung ausgewertet."}
-                </EmptyRow>
-              ) : null}
-              {analysis.links.map((link) => (
-                <TableRow key={link.target}>
-                  <TableCell className="wrap-anywhere whitespace-normal">
-                    {link.text}
-                  </TableCell>
-                  <TableCell className="font-mono wrap-anywhere whitespace-normal">
-                    {link.target}
-                  </TableCell>
-                  <TableCell className="whitespace-normal">
-                    <Badge
-                      variant={link.tone}
-                      className="h-auto max-w-full justify-start text-left wrap-anywhere whitespace-normal"
-                    >
-                      {link.finding}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <LinksCard links={analysis.links} rated={rated} />
 
       <Card>
         <CardHeader>
@@ -1205,22 +1164,184 @@ function CompletedCards({ analysis }: { analysis: AnalysisDetail }) {
         </Card>
       ) : null}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Header (Auszug)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {analysis.rawHeaders ? (
-            <pre className="rounded-md border border-border bg-secondary p-4 font-mono text-xs leading-relaxed wrap-anywhere whitespace-pre-wrap text-muted-foreground">
-              {analysis.rawHeaders}
-            </pre>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Zu dieser Mail sind keine Header gespeichert.
-            </p>
-          )}
-        </CardContent>
-      </Card>
+      <HeadersCard raw={analysis.rawHeaders} />
     </>
+  )
+}
+
+// A newsletter brings dozens of links, the rest waits behind a button
+const linksShown = 10
+
+function LinksCard({
+  links,
+  rated,
+}: {
+  links: AnalysisLink[]
+  rated: boolean
+}) {
+  const [all, setAll] = useState(false)
+  const shown = all ? links : links.slice(0, linksShown)
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm">
+          Enthaltene Links ({links.length})
+        </CardTitle>
+        {links.length > 0 ? (
+          <CardDescription className="text-xs">
+            Ein Klick auf ein Ziel zeigt die ganze Adresse
+          </CardDescription>
+        ) : null}
+      </CardHeader>
+      <CardContent className="px-0">
+        {/* Fixed columns, one line per link: long URLs push nothing aside */}
+        <Table className="table-fixed">
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[26%]">Anzeigetext</TableHead>
+              <TableHead className="w-[50%]">Tatsächliches Ziel</TableHead>
+              <TableHead className="w-[24%]">Befund</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {links.length === 0 ? (
+              <EmptyRow colSpan={3}>
+                {rated
+                  ? "Die Mail enthält keine Links."
+                  : "Die Links werden erst mit der Bewertung ausgewertet."}
+              </EmptyRow>
+            ) : null}
+            {shown.map((link, index) => (
+              // the same target can come twice in one mail
+              <TableRow key={index}>
+                <TableCell className="align-top whitespace-normal">
+                  {link.text ? (
+                    <span
+                      className="line-clamp-2 wrap-anywhere"
+                      title={link.text}
+                    >
+                      {link.text}
+                    </span>
+                  ) : (
+                    // an image or a button without text
+                    <span className="text-faint">ohne Text</span>
+                  )}
+                </TableCell>
+                <TableCell className="align-top whitespace-normal">
+                  <ExpandableLine
+                    value={link.target}
+                    preview={<UrlPreview url={link.target} />}
+                    className="font-mono text-xs"
+                  />
+                </TableCell>
+                <TableCell className="align-top whitespace-normal">
+                  <Badge
+                    variant={link.tone}
+                    className="h-auto max-w-full justify-start text-left wrap-anywhere whitespace-normal"
+                  >
+                    {link.finding}
+                  </Badge>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        {links.length > linksShown ? (
+          <div className="px-(--card-spacing) pt-2">
+            <Button variant="ghost" size="sm" onClick={() => setAll(!all)}>
+              {all ? "Weniger anzeigen" : `Alle ${links.length} Links anzeigen`}
+            </Button>
+          </div>
+        ) : null}
+      </CardContent>
+    </Card>
+  )
+}
+
+// The host tells a real link from a fake one, so it stands out
+function UrlPreview({ url }: { url: string }) {
+  const parts = /^([a-z][a-z0-9+.-]*:\/\/)([^/?#]*)(.*)$/i.exec(url)
+  if (!parts) return url
+
+  const [, scheme, host, rest] = parts
+  return (
+    <>
+      <span className="text-muted-foreground">{scheme}</span>
+      <span className="font-semibold text-foreground">{host}</span>
+      <span className="text-muted-foreground">{rest}</span>
+    </>
+  )
+}
+
+function HeadersCard({ raw }: { raw: string }) {
+  const [all, setAll] = useState(false)
+  const headers = parseHeaders(raw)
+  const important = keyHeaders(headers)
+  // without any of the usual headers there is nothing to pick from
+  const shown = all || important.length === 0 ? headers : important
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(raw)
+      toast.success("Header kopiert")
+    } catch {
+      toast.error("Kopieren hat nicht geklappt")
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm">Header</CardTitle>
+        {headers.length > 0 ? (
+          <CardDescription className="text-xs">
+            {shown === headers
+              ? `Alle ${headers.length} in der Reihenfolge der Mail, ein Klick zeigt den ganzen Wert`
+              : "Die wichtigsten, ein Klick zeigt den ganzen Wert"}
+          </CardDescription>
+        ) : null}
+        {headers.length > 0 ? (
+          <CardAction className="flex gap-1">
+            {important.length > 0 && important.length < headers.length ? (
+              <Button variant="ghost" size="sm" onClick={() => setAll(!all)}>
+                {all ? "Nur wichtige" : `Alle ${headers.length} anzeigen`}
+              </Button>
+            ) : null}
+            <Button variant="ghost" size="sm" onClick={copy}>
+              <CopyIcon className="size-4" />
+              Kopieren
+            </Button>
+          </CardAction>
+        ) : null}
+      </CardHeader>
+      <CardContent>
+        {headers.length > 0 ? (
+          <div className="flex flex-col gap-1 rounded-md border border-border bg-secondary p-3 font-mono text-xs leading-relaxed">
+            {shown.map((header, index) => (
+              <div
+                key={index}
+                className="grid grid-cols-[minmax(0,10rem)_minmax(0,1fr)] gap-3"
+              >
+                <span
+                  className="truncate font-semibold text-foreground"
+                  title={header.name}
+                >
+                  {header.name}
+                </span>
+                <ExpandableLine
+                  value={header.value}
+                  className="text-muted-foreground"
+                />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Zu dieser Mail sind keine Header gespeichert.
+          </p>
+        )}
+      </CardContent>
+    </Card>
   )
 }
