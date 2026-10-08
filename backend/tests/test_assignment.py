@@ -183,14 +183,8 @@ async def test_upload_starts_with_the_uploader(db, api, storage):
 
 
 @pytest.mark.asyncio
-async def test_report_starts_with_nobody(db, api, storage, monkeypatch):
+async def test_report_starts_with_nobody(db, api, storage):
     team_a, _, anna, _, _ = await two_teams(db)
-
-    async def no_mail(analysis_id):
-        pass
-
-    # a report also queues the mail to the reporter, not in this test
-    monkeypatch.setattr(mail_analysis, "enqueue_analysis_ready", no_mail)
 
     # Outlook report and Mailgun webhook both come in as the system user,
     # without handled_by

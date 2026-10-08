@@ -1,6 +1,7 @@
 import logging
 import os
 import smtplib
+from datetime import datetime, timedelta
 from email.message import EmailMessage
 from email.utils import parseaddr
 from pathlib import Path
@@ -9,6 +10,7 @@ from arq import create_pool
 from arq.connections import RedisSettings
 from jinja2 import Environment, FileSystemLoader
 
+from ..constants import DECISION_MAIL_DELAY_SECONDS
 from ..models.mail_analysis import MailAnalysis
 
 logger = logging.getLogger(__name__)
@@ -55,6 +57,27 @@ _NO_REPLY_LOCALS = {
 
 def redis_settings() -> RedisSettings:
     return RedisSettings.from_dsn(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
+
+
+async def enqueue_decision_mail(analysis_id: int, decided_at: datetime) -> None:
+    """Queues the mail for a decision, it goes out after a pause.
+
+    Never fails the decision. Every click gets its own job id, arq would
+    ignore a repeated one. The job looks at the state when it runs.
+    """
+    try:
+        pool = await create_pool(redis_settings())
+        try:
+            await pool.enqueue_job(
+                "send_decision_mail",
+                analysis_id,
+                _job_id=f"decision-mail-{analysis_id}-{decided_at.timestamp()}",
+                _defer_by=timedelta(seconds=DECISION_MAIL_DELAY_SECONDS),
+            )
+        finally:
+            await pool.aclose()
+    except Exception:
+        logger.exception("Could not queue the decision mail for %s", analysis_id)
 
 
 async def enqueue_team_invitation(invitation_id: int) -> None:
@@ -142,24 +165,38 @@ def render_failed(analysis: MailAnalysis) -> tuple[str, str, str]:
 
 
 def render_result(
-    analysis: MailAnalysis, reasons: list[dict[str, str]]
+    analysis: MailAnalysis,
+    reasons: list[dict[str, str]],
+    verdict: str | None = None,
+    correction: bool = False,
 ) -> tuple[str, str, str]:
     """Returns subject, plain text and html of the result mail.
 
     `reasons` is a list of `{"name": ..., "finding": ...}`, one per triggered check.
+    `verdict` is what the analyst decided, the automatic one when it is missing.
+    `correction` marks a mail that replaces an earlier one with another verdict.
     """
-    verdict = analysis.verdict or "suspicious"
+    verdict = verdict or analysis.verdict or "suspicious"
     tone = _TONES[verdict]
     html = _templates.get_template("result.html").render(
-        analysis=analysis, verdict=verdict, tone=tone, reasons=reasons
+        analysis=analysis,
+        verdict=verdict,
+        tone=tone,
+        reasons=reasons,
+        correction=correction,
     )
-    lines = [f"{tone['headline']} ({tone['label']})", "", tone["advice"], ""]
+    lines = []
+    if correction:
+        lines += ["Neubewertung: Wir haben unsere Einschätzung geändert.", ""]
+    lines += [f"{tone['headline']} ({tone['label']})", "", tone["advice"], ""]
     lines += [f"Betreff: {analysis.subject}", f"Absender: {analysis.sender}", ""]
-    lines.append("Begründung:")
-    lines += [f"- {r['name']}: {r['finding']}" for r in reasons] or [
-        "Keine der Prüfungen hat ausgelöst."
-    ]
-    return f"Ergebnis: {tone['label']}", "\n".join(lines) + "\n", html
+    if verdict == "phishing":
+        lines.append("Begründung:")
+        lines += [f"- {r['name']}: {r['finding']}" for r in reasons] or [
+            "Keine der Prüfungen hat ausgelöst."
+        ]
+    prefix = "Neubewertung" if correction else "Ergebnis"
+    return f"{prefix}: {tone['label']}", "\n".join(lines) + "\n", html
 
 
 def is_notifiable(address: str) -> bool:
@@ -176,20 +213,25 @@ def is_notifiable(address: str) -> bool:
     )
 
 
-def send_analysis_mail(to: str, analysis: MailAnalysis) -> None:
-    """Sends the result mail, or the failure mail when the analysis did not finish."""
-    if analysis.status == "failed":
-        subject, text, html = render_failed(analysis)
-    elif analysis.verdict in _TONES:
-        reasons = [
-            {"name": criterion["name"], "finding": criterion["finding"]}
-            for criterion in analysis.criteria or []
-            if criterion.get("weight", 0) > 0
-        ]
-        subject, text, html = render_result(analysis, reasons)
-    else:
-        subject, text, html = render_received(analysis)
+def send_failure_mail(to: str, analysis: MailAnalysis) -> None:
+    """Tells the reporter that the analysis did not finish."""
+    subject, text, html = render_failed(analysis)
+    _send(to, subject, text, html)
 
+
+def send_verdict_mail(
+    to: str, analysis: MailAnalysis, verdict: str, correction: bool = False
+) -> None:
+    """Tells the reporter what the analyst decided, with the reasons for phishing."""
+    reasons = [
+        {"name": criterion["name"], "finding": criterion["finding"]}
+        for criterion in analysis.criteria or []
+        if criterion.get("weight", 0) > 0
+    ]
+    # a mail judged harmless has no use for the reasons of a wrong alarm
+    subject, text, html = render_result(
+        analysis, reasons if verdict == "phishing" else [], verdict, correction
+    )
     _send(to, subject, text, html)
 
 

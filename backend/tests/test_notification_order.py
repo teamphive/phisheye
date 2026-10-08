@@ -41,7 +41,7 @@ def use_session(monkeypatch, db):
     monkeypatch.setattr(tasks, "get_session", session)
 
 
-def finish_analysis(monkeypatch, db, status="completed"):
+def finish_analysis(monkeypatch, status="completed"):
     async def run(analysis_id, session):
         async with session.begin():
             analysis = await session.get(MailAnalysis, analysis_id)
@@ -52,8 +52,12 @@ def finish_analysis(monkeypatch, db, status="completed"):
     monkeypatch.setattr(tasks, "run_analysis", run)
 
 
+async def failing_run(analysis_id, session):
+    raise RuntimeError("boom")
+
+
 @pytest.mark.asyncio
-async def test_submit_queues_the_analysis_but_not_the_mail(db, monkeypatch):
+async def test_submit_queues_the_analysis_but_no_mail(db, monkeypatch):
     queued = []
 
     class Pool:
@@ -83,42 +87,20 @@ async def test_submit_queues_the_analysis_but_not_the_mail(db, monkeypatch):
         reported_by="max@firma.de",
     )
 
-    # the mail would race the analysis, it follows once the analysis is done
+    # the reporter hears nothing until an analyst has decided
     assert queued == ["analyze_mail"]
 
 
 @pytest.mark.asyncio
-async def test_result_mail_is_queued_after_the_analysis(db, monkeypatch):
+async def test_a_finished_analysis_sends_no_mail_on_its_own(db, monkeypatch):
     analysis_id = await reported_analysis(db)
     use_session(monkeypatch, db)
-    finish_analysis(monkeypatch, db)
-    redis = FakeRedis()
-
-    await tasks.analyze_mail({"job_try": 1, "redis": redis}, analysis_id)
-
-    assert redis.jobs == [
-        (
-            "send_analysis_ready",
-            (analysis_id,),
-            {"_job_id": f"analysis-ready-{analysis_id}"},
-        )
-    ]
-
-
-@pytest.mark.asyncio
-async def test_an_upload_gets_no_mail(db, monkeypatch):
-    analysis_id = await reported_analysis(db, reported_by=None)
-    use_session(monkeypatch, db)
-    finish_analysis(monkeypatch, db)
+    finish_analysis(monkeypatch)
     redis = FakeRedis()
 
     await tasks.analyze_mail({"job_try": 1, "redis": redis}, analysis_id)
 
     assert redis.jobs == []
-
-
-async def failing_run(analysis_id, session):
-    raise RuntimeError("boom")
 
 
 @pytest.mark.asyncio
@@ -135,7 +117,21 @@ async def test_a_failed_analysis_tells_the_reporter(db, monkeypatch):
 
     analysis = await db.get(MailAnalysis, analysis_id)
     assert analysis.status == "failed"
-    assert [job[0] for job in redis.jobs] == ["send_analysis_ready"]
+    assert [job[0] for job in redis.jobs] == ["send_failure_mail"]
+
+
+@pytest.mark.asyncio
+async def test_a_failed_upload_sends_no_mail(db, monkeypatch):
+    analysis_id = await reported_analysis(db, reported_by=None)
+    use_session(monkeypatch, db)
+    monkeypatch.setattr(tasks, "run_analysis", failing_run)
+    redis = FakeRedis()
+
+    await tasks.analyze_mail(
+        {"job_try": tasks.MAX_ANALYSIS_TRIES, "redis": redis}, analysis_id
+    )
+
+    assert redis.jobs == []
 
 
 @pytest.mark.asyncio
@@ -148,46 +144,33 @@ async def test_a_try_with_retries_left_sends_no_mail(db, monkeypatch):
     with pytest.raises(Retry):
         await tasks.analyze_mail({"job_try": 1, "redis": redis}, analysis_id)
 
-    # still pending: the next try may finish it, and then the result goes out
+    # still pending: the next try may finish it
     assert redis.jobs == []
 
 
 @pytest.mark.asyncio
-async def test_the_mail_job_sends_the_failure_mail(db, monkeypatch):
+async def test_the_failure_mail_job_sends_once_the_analysis_failed(db, monkeypatch):
     analysis_id = await reported_analysis(db, status="failed")
     use_session(monkeypatch, db)
     sent = []
-    monkeypatch.setattr(tasks, "send_analysis_mail", lambda *a: sent.append(a))
+    monkeypatch.setattr(tasks, "send_failure_mail_to", lambda *a: sent.append(a))
 
-    await tasks.send_analysis_ready({"job_try": 1}, analysis_id)
-
-    assert len(sent) == 1
-
-
-@pytest.mark.asyncio
-async def test_the_mail_job_does_nothing_before_the_analysis_is_done(db, monkeypatch):
-    analysis_id = await reported_analysis(db, status="processing")
-    use_session(monkeypatch, db)
-    sent = []
-    monkeypatch.setattr(tasks, "send_analysis_mail", lambda *a: sent.append(a))
-
-    await tasks.send_analysis_ready({"job_try": 1}, analysis_id)
-
-    analysis = await db.get(MailAnalysis, analysis_id)
-    # no receipt mail, and the one result mail is still possible later
-    assert sent == []
-    assert analysis.notified_at is None
-
-
-@pytest.mark.asyncio
-async def test_the_mail_job_sends_the_result_once_the_analysis_is_done(db, monkeypatch):
-    analysis_id = await reported_analysis(db, status="completed")
-    use_session(monkeypatch, db)
-    sent = []
-    monkeypatch.setattr(tasks, "send_analysis_mail", lambda *a: sent.append(a))
-
-    await tasks.send_analysis_ready({"job_try": 1}, analysis_id)
+    await tasks.send_failure_mail({"job_try": 1}, analysis_id)
 
     analysis = await db.get(MailAnalysis, analysis_id)
     assert len(sent) == 1
     assert analysis.notified_at is not None
+
+
+@pytest.mark.asyncio
+async def test_the_failure_mail_job_does_nothing_for_a_running_analysis(
+    db, monkeypatch
+):
+    analysis_id = await reported_analysis(db, status="processing")
+    use_session(monkeypatch, db)
+    sent = []
+    monkeypatch.setattr(tasks, "send_failure_mail_to", lambda *a: sent.append(a))
+
+    await tasks.send_failure_mail({"job_try": 1}, analysis_id)
+
+    assert sent == []
