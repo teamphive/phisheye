@@ -98,9 +98,11 @@ Tests, die das abdecken sollten: übernehmen, fremde Analyse übernehmen, abgebe
 
 | Methode | Pfad | Zweck |
 |---|---|---|
-| GET | `/stats?from=&to=&tz=` | Kennzahlen des aktiven Teams für die Startseite, jede Rolle |
+| GET | `/stats?from=&to=&tz=` | Kennzahlen des aktiven Teams für die Startseite, jede Rolle (umgesetzt) |
 
 Das Frontend schickt den Zeitraum fertig berechnet: `from` ist Mitternacht vor 6 bzw. 29 Tagen in der Zeitzone des Browsers, `to` ist jetzt, beide als ISO 8601 in UTC. `tz` ist die Zeitzone als IANA-Name (`Europe/Berlin`), nach ihr teilt das Backend die Tage für `daily` ein (`created_at AT TIME ZONE tz`). So entscheidet der Browser, wo ein Tag beginnt, und nicht die UTC-Mitternacht des Servers.
+
+Das Backend rechnet in Python, nicht in SQL: Die Analysen des Zeitraums werden geladen und mit `zoneinfo` in Tage geteilt. Ein Team hat dort wenige hundert Analysen, und so rechnen Postgres und SQLite in den Tests gleich (SQLite kennt weder `AT TIME ZONE` noch einen Median). 422 bei unbekannter Zeitzone, `from` nicht vor `to` oder mehr als 366 Tagen.
 
 Gezählt werden abgeschlossene, nicht gelöschte Analysen des aktiven Teams mit `created_at` in `[from, to)`. Das Verdikt einer Analyse ist die Entscheidung des Analysten (`decided_verdict`), wenn es eine gibt, sonst das der Erkennung. `suspicious` kommt deshalb nur aus der Erkennung. Laufende und fehlgeschlagene Analysen zählen nicht mit.
 
@@ -290,7 +292,6 @@ Je Treffer:
 
 ## Offen
 
-- `GET /stats` für die Übersicht, siehe oben. Bis dahin zeigt das Frontend ohne Backend Platzhalterzahlen, mit Backend die Fehlermeldung.
 - Cron-Job für die harte Löschung: täglich alles mit `deleted_at` älter als 10 Tage endgültig entfernen (Datenbank, Anhänge, `.eml` in MinIO).
 - Spam-Testskript, das viele Mails auf einmal hochlädt und prüft, ob Warteschlange und Worker mithalten.
 - Abbrechen einer laufenden Analyse. Ein Endpunkt fehlt, bis dahin zeigt die Detailseite keinen Knopf dafür.

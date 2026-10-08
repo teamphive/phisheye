@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import start_http_server
 from prometheus_fastapi_instrumentator import Instrumentator
 
-from .routes import analyze, me, team, webhooks
+from .routes import analyze, me, stats, team, webhooks
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +39,7 @@ app.add_middleware(
 
 app.include_router(analyze.router)
 app.include_router(me.router)
+app.include_router(stats.router)
 app.include_router(team.router)
 app.include_router(webhooks.router)
 
