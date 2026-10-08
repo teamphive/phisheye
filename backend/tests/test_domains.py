@@ -190,7 +190,7 @@ async def test_poller_routes_reports_by_domain(db, monkeypatch):
         "fetch_new_mails",
         lambda: [("1", report("anna@firma.de")), ("2", report("max@fremd.de"))],
     )
-    monkeypatch.setattr(tasks, "analyze_and_store", analyze)
+    monkeypatch.setattr(tasks, "submit_analysis", analyze)
     monkeypatch.setattr(tasks, "delete_mails", lambda uids: None)
     monkeypatch.setattr(tasks, "get_session", session)
 
@@ -236,7 +236,7 @@ async def test_poller_goes_on_after_a_failed_mail(db, monkeypatch):
             ("3", report("c@fremd.de")),
         ],
     )
-    monkeypatch.setattr(tasks, "analyze_and_store", analyze)
+    monkeypatch.setattr(tasks, "submit_analysis", analyze)
     monkeypatch.setattr(tasks, "delete_mails", deleted.append)
     monkeypatch.setattr(tasks, "get_session", session)
 
@@ -264,7 +264,7 @@ async def test_poller_drops_a_mail_that_is_no_mail(db, monkeypatch):
 
     deleted = []
     monkeypatch.setattr(tasks, "fetch_new_mails", lambda: [("1", b"junk")])
-    monkeypatch.setattr(tasks, "analyze_and_store", analyze)
+    monkeypatch.setattr(tasks, "submit_analysis", analyze)
     monkeypatch.setattr(tasks, "delete_mails", deleted.append)
     monkeypatch.setattr(tasks, "get_session", session)
 

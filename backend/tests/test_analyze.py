@@ -375,7 +375,12 @@ async def test_upload_accepts_a_real_mail_in_any_case(db, api, monkeypatch):
     async def store(content):
         return "key"
 
+    async def enqueue(analysis_id):
+        pass
+
     monkeypatch.setattr(mail_analysis, "store_eml", store)
+    # the job itself runs in the worker, not in this test
+    monkeypatch.setattr(mail_analysis, "enqueue_analysis", enqueue)
     _, _, anna, _, _ = await two_teams(db)
     login_as(anna)
 
@@ -397,7 +402,11 @@ async def test_upload_takes_a_msg_and_analyses_the_converted_mail(db, api, monke
         stored.append(content)
         return "key"
 
+    async def enqueue(analysis_id):
+        pass
+
     monkeypatch.setattr(mail_analysis, "store_eml", store)
+    monkeypatch.setattr(mail_analysis, "enqueue_analysis", enqueue)
     monkeypatch.setattr(mail_analysis, "msg_to_eml", lambda _: VALID_EML)
     _, _, anna, _, _ = await two_teams(db)
     login_as(anna)
@@ -430,10 +439,21 @@ async def test_upload_rejects_a_broken_msg(db, api):
 async def test_nul_bytes_never_reach_the_database(db, api, monkeypatch):
     from app.services import mail_analysis
 
+    stored = {}
+
     async def store(content):
+        stored["key"] = content
         return "key"
 
+    async def load(key):
+        return stored[key]
+
+    async def enqueue(analysis_id):
+        pass
+
     monkeypatch.setattr(mail_analysis, "store_eml", store)
+    monkeypatch.setattr(mail_analysis, "load_eml", load)
+    monkeypatch.setattr(mail_analysis, "enqueue_analysis", enqueue)
     monkeypatch.setenv("VT_API_KEY", "key")
 
     class Client:
@@ -468,6 +488,9 @@ async def test_nul_bytes_never_reach_the_database(db, api, monkeypatch):
     )
 
     assert response.status_code == 200
+
+    # the attachments are stored by the worker, not by the upload
+    await mail_analysis.run_analysis(response.json()["id"], db)
 
     (attachment,) = (await db.exec(select(MailAttachment))).all()
     assert attachment.filename == "a.png"

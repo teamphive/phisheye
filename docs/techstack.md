@@ -44,7 +44,7 @@ flowchart TB
 
 ## Ablauf einer Analyse
 
-Zielbild. Stand heute läuft die Analyse noch synchron im Request, Worker, Regeln und KI kommen nach, siehe [API](api.md).
+Zielbild. Stand heute läuft die Analyse als arq-Job im Worker, Regeln und KI kommen nach, siehe [API](api.md).
 
 ```mermaid
 sequenceDiagram
