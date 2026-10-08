@@ -1,5 +1,6 @@
 # ruff: noqa: F811  the fixtures come from test_analyze and are used by name
 import pytest
+from arq import Retry
 from test_analyze import add, db  # noqa: F401
 from test_team import team_with
 
@@ -116,27 +117,51 @@ async def test_an_upload_gets_no_mail(db, monkeypatch):
     assert redis.jobs == []
 
 
+async def failing_run(analysis_id, session):
+    raise RuntimeError("boom")
+
+
 @pytest.mark.asyncio
-async def test_a_failed_analysis_sends_no_mail(db, monkeypatch):
+async def test_a_failed_analysis_tells_the_reporter(db, monkeypatch):
     analysis_id = await reported_analysis(db)
     use_session(monkeypatch, db)
+    monkeypatch.setattr(tasks, "run_analysis", failing_run)
     redis = FakeRedis()
 
-    async def run(analysis_id, session):
-        raise RuntimeError("boom")
-
-    async def record(*args):
-        pass
-
-    monkeypatch.setattr(tasks, "run_analysis", run)
-    monkeypatch.setattr(tasks, "record_failure", record)
-
-    # the last try ends the job quietly, no retry and no mail
+    # the last try ends the job quietly and the real failure record marks it failed
     await tasks.analyze_mail(
         {"job_try": tasks.MAX_ANALYSIS_TRIES, "redis": redis}, analysis_id
     )
 
+    analysis = await db.get(MailAnalysis, analysis_id)
+    assert analysis.status == "failed"
+    assert [job[0] for job in redis.jobs] == ["send_analysis_ready"]
+
+
+@pytest.mark.asyncio
+async def test_a_try_with_retries_left_sends_no_mail(db, monkeypatch):
+    analysis_id = await reported_analysis(db)
+    use_session(monkeypatch, db)
+    monkeypatch.setattr(tasks, "run_analysis", failing_run)
+    redis = FakeRedis()
+
+    with pytest.raises(Retry):
+        await tasks.analyze_mail({"job_try": 1, "redis": redis}, analysis_id)
+
+    # still pending: the next try may finish it, and then the result goes out
     assert redis.jobs == []
+
+
+@pytest.mark.asyncio
+async def test_the_mail_job_sends_the_failure_mail(db, monkeypatch):
+    analysis_id = await reported_analysis(db, status="failed")
+    use_session(monkeypatch, db)
+    sent = []
+    monkeypatch.setattr(tasks, "send_analysis_mail", lambda *a: sent.append(a))
+
+    await tasks.send_analysis_ready({"job_try": 1}, analysis_id)
+
+    assert len(sent) == 1
 
 
 @pytest.mark.asyncio

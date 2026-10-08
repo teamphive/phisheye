@@ -3,6 +3,7 @@ import pytest
 from app.models.mail_analysis import MailAnalysis
 from app.services.notifications import (
     is_notifiable,
+    render_failed,
     render_received,
     send_analysis_mail,
 )
@@ -96,3 +97,24 @@ def test_result_mail_of_a_clean_mail_says_nothing_fired(monkeypatch):
     send_analysis_mail("max@firma.de", analysis)
 
     assert "Keine der Prüfungen hat ausgelöst." in sent[0][1]
+
+
+def test_a_failed_analysis_sends_the_failure_mail(monkeypatch):
+    sent = sent_by(monkeypatch)
+    analysis = MailAnalysis(
+        id=1,
+        team_id=1,
+        submitted_by=1,
+        subject="<b>Rechnung</b>",
+        sender="a@b.de",
+        status="failed",
+    )
+
+    send_analysis_mail("max@firma.de", analysis)
+
+    subject, text, html = sent[0]
+    assert subject == "Wir konnten deine Mail nicht prüfen"
+    assert "Melde die Mail bitte" in text
+    # the subject comes from a foreign mail and stays escaped
+    assert "<b>Rechnung</b>" not in html
+    assert render_failed(analysis)[0] == subject

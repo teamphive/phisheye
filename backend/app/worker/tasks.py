@@ -109,16 +109,22 @@ async def analyze_mail(ctx, analysis_id: int) -> None:
             if attempt < MAX_ANALYSIS_TRIES:
                 raise Retry(defer=attempt * 30) from exc
 
+            # the last try failed: the reporter hears that as well
+            await _queue_result_mail(ctx, analysis_id, db)
             return
 
         await _queue_result_mail(ctx, analysis_id, db)
 
 
 async def _queue_result_mail(ctx, analysis_id: int, db) -> None:
-    """The reporter hears back once the analysis is done, never before."""
+    """The reporter hears back once the analysis is over, never before."""
     analysis = await db.get(MailAnalysis, analysis_id)
 
-    if analysis is None or analysis.status != "completed" or not analysis.reported_by:
+    if (
+        analysis is None
+        or analysis.status not in ("completed", "failed")
+        or not analysis.reported_by
+    ):
         return
 
     try:
@@ -139,8 +145,8 @@ async def send_analysis_ready(ctx, analysis_id: int) -> None:
         if analysis is None or analysis.notified_at is not None:
             return
 
-        # the mail carries the verdict, an unfinished analysis has none yet
-        if analysis.status != "completed":
+        # an unfinished analysis has nothing to report yet
+        if analysis.status not in ("completed", "failed"):
             return
 
         recipient = analysis.reported_by

@@ -128,6 +128,19 @@ def render_received(analysis: MailAnalysis) -> tuple[str, str, str]:
     return "Wir haben deine Mail erhalten", text, html
 
 
+def render_failed(analysis: MailAnalysis) -> tuple[str, str, str]:
+    """Returns subject, plain text and html of the mail for a failed analysis."""
+    html = _templates.get_template("failed.html").render(analysis=analysis)
+    text = (
+        "Wir konnten deine Mail nicht prüfen.\n\n"
+        f"Betreff: {analysis.subject}\n"
+        f"Absender: {analysis.sender}\n\n"
+        "Bei der Prüfung ist ein Fehler aufgetreten. Melde die Mail bitte in ein "
+        "paar Minuten noch einmal. Bis dahin: keine Links öffnen, keine Anhänge öffnen.\n"
+    )
+    return "Wir konnten deine Mail nicht prüfen", text, html
+
+
 def render_result(
     analysis: MailAnalysis, reasons: list[dict[str, str]]
 ) -> tuple[str, str, str]:
@@ -164,8 +177,10 @@ def is_notifiable(address: str) -> bool:
 
 
 def send_analysis_mail(to: str, analysis: MailAnalysis) -> None:
-    """Sends the result mail once a verdict exists, the receipt mail before."""
-    if analysis.verdict in _TONES:
+    """Sends the result mail, or the failure mail when the analysis did not finish."""
+    if analysis.status == "failed":
+        subject, text, html = render_failed(analysis)
+    elif analysis.verdict in _TONES:
         reasons = [
             {"name": criterion["name"], "finding": criterion["finding"]}
             for criterion in analysis.criteria or []
