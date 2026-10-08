@@ -21,7 +21,6 @@ import { errorMessage } from "@/lib/api"
 import { formatDate, formatRelativeTime } from "@/lib/format"
 import {
   authEnabled,
-  openAccount,
   runAccountAction,
   takeFinishedAction,
   type AccountAction,
@@ -278,26 +277,6 @@ function SecurityItems({
           <SessionsDialog devices={devices} onChange={onChange} />
         </ItemActions>
       </Item>
-
-      {authEnabled ? (
-        <>
-          <ItemSeparator className="my-0" />
-
-          <Item className="px-0 py-3.5">
-            <ItemContent>
-              <ItemTitle>Kontoverwaltung von Keycloak</ItemTitle>
-              <ItemDescription>
-                Alles, was hier fehlt, zum Beispiel verknüpfte Konten.
-              </ItemDescription>
-            </ItemContent>
-            <ItemActions>
-              <Button variant="outline" size="sm" onClick={openAccount}>
-                Öffnen
-              </Button>
-            </ItemActions>
-          </Item>
-        </>
-      ) : null}
     </ItemGroup>
   )
 }

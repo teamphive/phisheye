@@ -1041,12 +1041,13 @@ function CompletedCards({ analysis }: { analysis: AnalysisDetail }) {
           </CardTitle>
         </CardHeader>
         <CardContent className="px-0">
-          <Table>
+          {/* Fixed columns that wrap: long URLs never push the card sideways */}
+          <Table className="table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead>Anzeigetext</TableHead>
-                <TableHead>Tatsächliches Ziel</TableHead>
-                <TableHead>Befund</TableHead>
+                <TableHead className="w-[28%]">Anzeigetext</TableHead>
+                <TableHead className="w-[40%]">Tatsächliches Ziel</TableHead>
+                <TableHead className="w-[32%]">Befund</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1059,14 +1060,19 @@ function CompletedCards({ analysis }: { analysis: AnalysisDetail }) {
               ) : null}
               {analysis.links.map((link) => (
                 <TableRow key={link.target}>
-                  <TableCell>{link.text}</TableCell>
-                  <TableCell className="font-mono">
-                    <span className="block max-w-[26ch] truncate">
-                      {link.target}
-                    </span>
+                  <TableCell className="wrap-anywhere whitespace-normal">
+                    {link.text}
                   </TableCell>
-                  <TableCell>
-                    <Badge variant={link.tone}>{link.finding}</Badge>
+                  <TableCell className="font-mono wrap-anywhere whitespace-normal">
+                    {link.target}
+                  </TableCell>
+                  <TableCell className="whitespace-normal">
+                    <Badge
+                      variant={link.tone}
+                      className="h-auto max-w-full justify-start text-left wrap-anywhere whitespace-normal"
+                    >
+                      {link.finding}
+                    </Badge>
                   </TableCell>
                 </TableRow>
               ))}
@@ -1082,12 +1088,12 @@ function CompletedCards({ analysis }: { analysis: AnalysisDetail }) {
           </CardTitle>
         </CardHeader>
         <CardContent className="px-0">
-          <Table>
+          <Table className="table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead>Datei</TableHead>
-                <TableHead>SHA-256</TableHead>
-                <TableHead>VirusTotal</TableHead>
+                <TableHead className="w-[46%]">Datei</TableHead>
+                <TableHead className="w-[28%]">SHA-256</TableHead>
+                <TableHead className="w-[26%]">VirusTotal</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1096,13 +1102,16 @@ function CompletedCards({ analysis }: { analysis: AnalysisDetail }) {
               ) : null}
               {analysis.attachments.map((file) => (
                 <TableRow key={file.sha256}>
-                  <TableCell>
+                  <TableCell className="wrap-anywhere whitespace-normal">
                     <span className="block font-semibold">{file.filename}</span>
                     <span className="block text-xs text-muted-foreground">
                       {formatFileSize(file.size)}
                     </span>
                   </TableCell>
-                  <TableCell className="font-mono" title={file.sha256}>
+                  <TableCell
+                    className="font-mono wrap-anywhere whitespace-normal"
+                    title={file.sha256}
+                  >
                     {shortenHash(file.sha256)}
                   </TableCell>
                   <TableCell>
@@ -1126,12 +1135,12 @@ function CompletedCards({ analysis }: { analysis: AnalysisDetail }) {
             </p>
           </CardHeader>
           <CardContent className="px-0">
-            <Table>
+            <Table className="table-fixed">
               <TableHeader>
                 <TableRow>
-                  <TableHead>Kriterium</TableHead>
+                  <TableHead className="w-[36%]">Kriterium</TableHead>
                   <TableHead>Befund</TableHead>
-                  <TableHead className="text-right">Gewicht</TableHead>
+                  <TableHead className="w-20 text-right">Gewicht</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1142,10 +1151,10 @@ function CompletedCards({ analysis }: { analysis: AnalysisDetail }) {
                 ) : null}
                 {triggered.map((criterion) => (
                   <TableRow key={criterion.name}>
-                    <TableCell className="font-semibold">
+                    <TableCell className="font-semibold wrap-anywhere whitespace-normal">
                       {criterion.name}
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
+                    <TableCell className="wrap-anywhere whitespace-normal text-muted-foreground">
                       {criterion.finding}
                     </TableCell>
                     <TableCell className="text-right font-medium text-phishing tabular-nums">
@@ -1156,7 +1165,7 @@ function CompletedCards({ analysis }: { analysis: AnalysisDetail }) {
                 <TableRow className="bg-secondary hover:bg-secondary">
                   <TableCell
                     colSpan={2}
-                    className="font-semibold text-muted-foreground"
+                    className="font-semibold whitespace-normal text-muted-foreground"
                   >
                     Risiko-Score, Summe {analysis.criteriaTotal}, gekappt auf
                     100
@@ -1179,7 +1188,7 @@ function CompletedCards({ analysis }: { analysis: AnalysisDetail }) {
         </CardHeader>
         <CardContent>
           {analysis.rawHeaders ? (
-            <pre className="overflow-x-auto rounded-md border border-border bg-secondary p-4 font-mono text-xs leading-relaxed text-muted-foreground">
+            <pre className="rounded-md border border-border bg-secondary p-4 font-mono text-xs leading-relaxed wrap-anywhere whitespace-pre-wrap text-muted-foreground">
               {analysis.rawHeaders}
             </pre>
           ) : (
