@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import smtplib
 from datetime import datetime, timedelta
 from email.message import EmailMessage
@@ -9,9 +10,12 @@ from pathlib import Path
 from arq import create_pool
 from arq.connections import RedisSettings
 from jinja2 import Environment, FileSystemLoader
+from publicsuffixlist import PublicSuffixList
 
 from ..constants import DECISION_MAIL_DELAY_SECONDS
 from ..models.mail_analysis import MailAnalysis
+from . import detection
+from .keycloak_admin import SETUP_LINK_LIFESPAN
 
 logger = logging.getLogger(__name__)
 
@@ -21,29 +25,60 @@ _templates = Environment(
     autoescape=True,
 )
 
+# known suffixes only, so "rechnung.pdf.htm" or "M. Sandmann" stay as they are
+_psl = PublicSuffixList(accept_unknown=False)
+_HOST = re.compile(
+    r"\b(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}\b", re.IGNORECASE
+)
+_SCHEME = re.compile(r"\bhttp(s?)://", re.IGNORECASE)
+
+# What a triggered check means for someone who only reported the mail. The
+# technical finding is shown where it helps, the auth results would not.
+_REASON_TEXTS = {
+    detection.AUTH_FAILED: (
+        "Absender nicht bestätigt",
+        "Der Server, von dem die Mail angeblich kommt, hat sie nicht als echt bestätigt. Die Absenderadresse ist wahrscheinlich gefälscht.",
+        False,
+    ),
+    detection.LINK_MISMATCH: (
+        "Link führt woanders hin",
+        "Ein Link zeigt eine vertraute Adresse an, öffnet aber eine andere Seite.",
+        True,
+    ),
+    detection.ATTACHMENT_MISMATCH: (
+        "Getarnter Anhang",
+        "Ein Anhang gibt sich als harmloses Dokument aus, ist aber etwas anderes.",
+        True,
+    ),
+    detection.SENDER_MISMATCH: (
+        "Absender passt nicht zusammen",
+        "Antworten oder Rückläufer gehen an eine andere Adresse als die angezeigte.",
+        True,
+    ),
+}
+
+# The mail always tells what an analyst decided, never the automatic verdict
 _TONES = {
     "clean": {
-        "label": "Sauber",
+        "label": "Legitim",
         "color": "#15803d",
         "soft": "#e9f6ee",
-        "headline": "Wir haben nichts Auffälliges gefunden",
-        "advice": "Die Mail sieht unbedenklich aus. Bei Zweifeln melde dich beim Security-Team.",
-    },
-    "suspicious": {
-        "label": "Verdächtig",
-        "color": "#a16207",
-        "soft": "#fbf3df",
-        "headline": "Diese Mail ist verdächtig",
-        "advice": "Klicke keine Links an und öffne keine Anhänge, bis du den Absender auf anderem Weg bestätigt hast.",
+        "headline": "Die Mail ist legitim",
+        "advice": "Das Security-Team hat sich die Mail angesehen und nichts Gefährliches gefunden. Du kannst sie ganz normal behandeln. Bei Zweifeln melde dich beim Security-Team.",
+        "thanks": "Danke fürs Melden. Lieber einmal zu viel als einmal zu wenig.",
     },
     "phishing": {
         "label": "Phishing",
         "color": "#c62828",
         "soft": "#fbeaea",
-        "headline": "Diese Mail ist sehr wahrscheinlich Phishing",
-        "advice": "Antworte nicht, öffne keine Links und keine Anhänge. Lösche die Mail.",
+        "headline": "Die Mail ist Phishing",
+        "advice": "Das Security-Team hat die Mail geprüft und als Phishing bestätigt. Antworte nicht, öffne keine Links und keine Anhänge und lösche die Mail. Hast du schon geklickt oder etwas eingegeben, melde dich sofort beim Security-Team.",
+        "thanks": "Danke fürs Melden. Damit hast du auch andere geschützt.",
     },
 }
+
+# confirmed by hand, none of the rules had fired
+_NO_REASONS = "Unsere automatischen Prüfungen haben hier nicht angeschlagen, das Security-Team hat die Mail selbst als Phishing erkannt."
 
 
 _NO_REPLY_LOCALS = {
@@ -108,16 +143,23 @@ def render_invitation(
 ) -> tuple[str, str, str]:
     """Returns subject, plain text and html of the invitation mail."""
     role_label = _ROLE_LABELS.get(role, role)
-    html = _templates.get_template("invitation.html").render(
+    # the Keycloak link of the second mail, the invitation itself does not expire
+    setup_days = SETUP_LINK_LIFESPAN // (24 * 60 * 60)
+    html = _render(
+        "invitation.html",
         team_name=team_name,
         inviter_name=inviter_name,
         role_label=role_label,
         url=url,
         setup_follows=setup_follows,
+        setup_days=setup_days,
     )
     text = f"{inviter_name} hat dich in das Team {team_name} eingeladen.\n\nRolle: {role_label}\n\n"
     if setup_follows:
-        text += "Du bekommst gleich eine zweite Mail, mit der du dein Konto einrichtest. Danach bist du im Team.\n"
+        text += (
+            "Du bekommst gleich eine zweite Mail, mit der du dein Konto einrichtest. "
+            f"Der Link darin ist {setup_days} Tage gültig. Danach bist du im Team.\n"
+        )
     else:
         text += (
             f"Melde dich mit dieser E-Mail-Adresse an: {url}\nDanach bist du im Team.\n"
@@ -139,64 +181,138 @@ def send_invitation_mail(
     _send(to, subject, text, html)
 
 
+def defang(text: str) -> str:
+    """Mail clients turn domains into links, also the ones of a phishing mail.
+
+    `evil.top` becomes `evil[.]top` and `https://` becomes `hxxps://`, the way
+    security notices write them.
+    """
+
+    def host(match: re.Match) -> str:
+        name = match.group(0)
+        if _psl.privatesuffix(name.lower()) is None:
+            return name
+        return name.replace(".", "[.]")
+
+    return _HOST.sub(host, _SCHEME.sub(r"hxxp\1://", text))
+
+
+def _render(template: str, **context) -> str:
+    # the logo lies next to the frontend, mail clients load it from there
+    app_url = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
+    return _templates.get_template(template).render(app_url=app_url, **context)
+
+
+def _mail_facts(analysis: MailAnalysis) -> dict[str, str]:
+    """Subject and sender of the reported mail, safe to show in a mail."""
+    return {
+        "subject": defang(" ".join((analysis.subject or "").split()))
+        or "(ohne Betreff)",
+        "sender": defang(analysis.sender or ""),
+    }
+
+
+def _subject_line(prefix: str, subject: str) -> str:
+    # the reported subject tells several reports apart in the inbox
+    if len(subject) > 60:
+        subject = subject[:59].rstrip() + "…"
+    return f"{prefix}: {subject}"
+
+
+def _explain(reasons: list[dict[str, str]]) -> list[dict[str, str | None]]:
+    """The triggered checks in words a reporter understands."""
+    explained = []
+
+    for reason in reasons:
+        title, text, show_finding = _REASON_TEXTS.get(
+            reason["name"], (reason["name"], "", True)
+        )
+        explained.append(
+            {
+                "title": title,
+                "text": text,
+                "finding": defang(reason["finding"]) if show_finding else None,
+            }
+        )
+
+    return explained
+
+
 def render_received(analysis: MailAnalysis) -> tuple[str, str, str]:
     """Returns subject, plain text and html of the receipt mail."""
-    html = _templates.get_template("received.html").render(analysis=analysis)
+    mail = _mail_facts(analysis)
+    html = _render("received.html", mail=mail)
     text = (
-        "Wir haben deine Mail erhalten.\n\n"
-        f"Betreff: {analysis.subject}\n"
-        f"Absender: {analysis.sender}\n\n"
-        "Wir prüfen sie umgehend und melden uns mit dem Ergebnis.\n"
+        "Danke für deine Meldung.\n\n"
+        "Das Security-Team schaut sich die Mail an und meldet sich mit dem Ergebnis. "
+        "Bis dahin: keine Links öffnen, keine Anhänge öffnen.\n\n"
+        f"Betreff: {mail['subject']}\n"
+        f"Absender: {mail['sender']}\n"
     )
-    return "Wir haben deine Mail erhalten", text, html
+    return _subject_line("Meldung erhalten", mail["subject"]), text, html
 
 
 def render_failed(analysis: MailAnalysis) -> tuple[str, str, str]:
     """Returns subject, plain text and html of the mail for a failed analysis."""
-    html = _templates.get_template("failed.html").render(analysis=analysis)
+    mail = _mail_facts(analysis)
+    html = _render("failed.html", mail=mail)
     text = (
         "Wir konnten deine Mail nicht prüfen.\n\n"
-        f"Betreff: {analysis.subject}\n"
-        f"Absender: {analysis.sender}\n\n"
         "Bei der Prüfung ist ein Fehler aufgetreten. Melde die Mail bitte in ein "
-        "paar Minuten noch einmal. Bis dahin: keine Links öffnen, keine Anhänge öffnen.\n"
+        "paar Minuten noch einmal. Bis dahin: keine Links öffnen, keine Anhänge öffnen.\n\n"
+        f"Betreff: {mail['subject']}\n"
+        f"Absender: {mail['sender']}\n"
     )
-    return "Wir konnten deine Mail nicht prüfen", text, html
+    return _subject_line("Nicht geprüft", mail["subject"]), text, html
 
 
 def render_result(
     analysis: MailAnalysis,
     reasons: list[dict[str, str]],
-    verdict: str | None = None,
+    verdict: str,
     correction: bool = False,
 ) -> tuple[str, str, str]:
     """Returns subject, plain text and html of the result mail.
 
     `reasons` is a list of `{"name": ..., "finding": ...}`, one per triggered check.
-    `verdict` is what the analyst decided, the automatic one when it is missing.
+    `verdict` is what the analyst decided, `phishing` or `clean`.
     `correction` marks a mail that replaces an earlier one with another verdict.
     """
-    verdict = verdict or analysis.verdict or "suspicious"
     tone = _TONES[verdict]
-    html = _templates.get_template("result.html").render(
-        analysis=analysis,
+    mail = _mail_facts(analysis)
+    explained = _explain(reasons)
+    html = _render(
+        "result.html",
+        mail=mail,
         verdict=verdict,
         tone=tone,
-        reasons=reasons,
+        reasons=explained,
+        no_reasons=_NO_REASONS,
         correction=correction,
     )
+
     lines = []
     if correction:
-        lines += ["Neubewertung: Wir haben unsere Einschätzung geändert.", ""]
-    lines += [f"{tone['headline']} ({tone['label']})", "", tone["advice"], ""]
-    lines += [f"Betreff: {analysis.subject}", f"Absender: {analysis.sender}", ""]
-    if verdict == "phishing":
-        lines.append("Begründung:")
-        lines += [f"- {r['name']}: {r['finding']}" for r in reasons] or [
-            "Keine der Prüfungen hat ausgelöst."
+        lines += [
+            "Neubewertung: Das Security-Team hat seine Einschätzung geändert. "
+            "Diese Nachricht ersetzt die letzte zu dieser Mail.",
+            "",
         ]
-    prefix = "Neubewertung" if correction else "Ergebnis"
-    return f"{prefix}: {tone['label']}", "\n".join(lines) + "\n", html
+    lines += [tone["headline"], "", tone["advice"], ""]
+    lines += [f"Betreff: {mail['subject']}", f"Absender: {mail['sender']}", ""]
+    if verdict == "phishing":
+        lines.append("Was uns aufgefallen ist:")
+        for reason in explained:
+            lines.append(f"- {reason['title']}: {reason['text']}")
+            if reason["finding"]:
+                lines.append(f"  {reason['finding']}")
+        if not explained:
+            lines.append(_NO_REASONS)
+        lines.append("")
+    lines.append(tone["thanks"])
+
+    prefix = f"Neubewertung ({tone['label']})" if correction else tone["label"]
+    return _subject_line(prefix, mail["subject"]), "\n".join(lines) + "\n", html
 
 
 def is_notifiable(address: str) -> bool:
