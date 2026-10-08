@@ -17,6 +17,7 @@ from ..models.mail_analysis import MailAnalysis
 from ..models.mail_attachment import MailAttachment
 from ..models.mail_link import MailLink
 from . import eml_validation
+from .ai_assessment import assess
 from .detection import detect
 from .msg_convert import is_msg, msg_to_eml
 from .notifications import enqueue_analysis_ready, redis_settings
@@ -206,6 +207,9 @@ async def run_analysis(analysis_id: int, db: AsyncSession) -> None:
     attachments = _attachments_of(msg)
     await _check_attachments(attachments)
 
+    await _set_step(analysis, "KI-Einschätzung wird eingeholt", db)
+    ai = await assess(msg)
+
     # Results and the final status together, a failed try leaves nothing behind
     async with db.begin():
         for attachment in attachments:
@@ -217,6 +221,9 @@ async def run_analysis(analysis_id: int, db: AsyncSession) -> None:
         analysis.criteria = detection.criteria
         analysis.confidence_score = detection.score
         analysis.verdict = detection.verdict
+        analysis.ai_verdict = ai["verdict"] if ai else None
+        analysis.ai_confidence = ai["confidence"] if ai else None
+        analysis.ai_model = ai["model"] if ai else None
         analysis.status = "completed"
         analysis.step = None
         analysis.error = None

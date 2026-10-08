@@ -34,6 +34,12 @@ class MailAnalysis(SQLModel, table=True):
     # name, finding and weight of each of the four checks
     criteria: list | None = Field(default=None, sa_column=Column(JSON))
 
+    # JEV's second opinion on the text, never part of score or verdict.
+    # All null when JEV gave no answer
+    ai_verdict: str | None = None
+    ai_confidence: float | None = None
+    ai_model: str | None = None
+
     # What an analyst made of the verdict: phishing or clean. Can be taken back
     decided_verdict: str | None = None
     decided_by: int | None = Field(default=None, foreign_key="users.id")

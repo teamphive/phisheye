@@ -86,7 +86,7 @@ Braucht Docker (zum Beispiel mit Colima), [just](https://github.com/casey/just) 
 ```bash
 git clone https://github.com/teamphive/phisheye.git
 cd phisheye
-cp .env.example .env   # Passwörter setzen, für Anhänge VT_API_KEY eintragen
+cp .env.example .env   # Passwörter setzen, VT_API_KEY für Anhänge, TYPESAFE_API_KEY für die KI
 just dev               # baut und startet alles in Docker
 just seed              # legt Test-Accounts an
 ```
