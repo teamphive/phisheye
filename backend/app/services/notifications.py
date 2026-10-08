@@ -57,23 +57,6 @@ def redis_settings() -> RedisSettings:
     return RedisSettings.from_dsn(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
 
 
-async def enqueue_analysis_ready(analysis_id: int) -> None:
-    """Queues the notification mail. Never fails the analysis itself."""
-    try:
-        pool = await create_pool(redis_settings())
-        try:
-            # fixed job id: arq ignores a second enqueue for the same analysis
-            await pool.enqueue_job(
-                "send_analysis_ready",
-                analysis_id,
-                _job_id=f"analysis-ready-{analysis_id}",
-            )
-        finally:
-            await pool.aclose()
-    except Exception:
-        logger.exception("Could not queue notification for analysis %s", analysis_id)
-
-
 async def enqueue_team_invitation(invitation_id: int) -> None:
     """Queues the invitation mail. Never fails the invitation itself."""
     try:
