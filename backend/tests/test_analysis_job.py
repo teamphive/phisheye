@@ -102,6 +102,42 @@ async def test_job_checks_attachments_and_completes(db, api, storage):
 
 
 @pytest.mark.asyncio
+async def test_job_stores_verdict_criteria_and_links(db, api, storage):
+    stored, _ = storage
+    team_a, _, anna, _, _ = await two_teams(db)
+    analysis_id = await pending_analysis(db, storage, team_a, anna)
+
+    message = EmailMessage()
+    message["From"] = "DHL <rechnung@dhl-versand.top>"
+    message["Reply-To"] = "billing@mail-reply-service.top"
+    message["Authentication-Results"] = "mx.firma.de; spf=fail; dkim=fail"
+    message["Subject"] = "Ihre Rechnung"
+    message.set_content("Bitte bezahlen")
+    message.add_alternative(
+        '<a href="https://dhl-zahlung.top/pay">www.dhl.de</a>', subtype="html"
+    )
+    stored["key"] = message.as_bytes()
+
+    await mail_analysis.run_analysis(analysis_id, db)
+
+    login_as(anna)
+    detail = (await api.get(f"/analyses/{analysis_id}")).json()
+    # 40 authentication + 30 link + 20 reply-to
+    assert detail["score"] == 90
+    assert detail["criteria_total"] == 90
+    assert detail["verdict"] == "phishing"
+    assert [criterion["weight"] for criterion in detail["criteria"]] == [40, 30, 0, 20]
+    assert detail["links"] == [
+        {
+            "text": "www.dhl.de",
+            "target": "https://dhl-zahlung.top/pay",
+            "finding": "Zeigt dhl.de, führt zu dhl-zahlung.top",
+            "tone": "phishing",
+        }
+    ]
+
+
+@pytest.mark.asyncio
 async def test_virus_total_error_does_not_fail_the_analysis(
     db, api, storage, monkeypatch
 ):

@@ -15,7 +15,9 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ..models.mail_analysis import MailAnalysis
 from ..models.mail_attachment import MailAttachment
+from ..models.mail_link import MailLink
 from . import eml_validation
+from .detection import detect
 from .msg_convert import is_msg, msg_to_eml
 from .notifications import enqueue_analysis_ready, redis_settings
 from .object_storage import ObjectStorageError, delete_object, load_eml, store_eml
@@ -197,6 +199,9 @@ async def run_analysis(analysis_id: int, db: AsyncSession) -> None:
 
     msg = _parse(await load_eml(analysis.storage_key))
 
+    await _set_step(analysis, "Kriterien werden geprüft", db)
+    detection = detect(msg)
+
     await _set_step(analysis, "Anhänge werden geprüft", db)
     attachments = _attachments_of(msg)
     await _check_attachments(attachments)
@@ -206,6 +211,12 @@ async def run_analysis(analysis_id: int, db: AsyncSession) -> None:
         for attachment in attachments:
             db.add(MailAttachment(mail_analysis_id=analysis.id, **attachment))
 
+        for link in detection.links:
+            db.add(MailLink(mail_analysis_id=analysis.id, **link))
+
+        analysis.criteria = detection.criteria
+        analysis.confidence_score = detection.score
+        analysis.verdict = detection.verdict
         analysis.status = "completed"
         analysis.step = None
         analysis.error = None

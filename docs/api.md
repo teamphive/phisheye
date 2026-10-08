@@ -49,7 +49,7 @@ Instanz-Rollen: Das **Standard-Team** ist das Instanz-Team. Dort gibt es nur die
 |---|---|---|
 | GET | `/analyses` | Liste für das aktive Team (umgesetzt) |
 | POST | `/analyses` | Upload einer `.eml` oder `.msg` als Feld `file` (multipart), antwortet mit dem Listeneintrag (umgesetzt, die Analyse läuft danach als arq-Job). Eine `.msg` wandelt das Backend vor dem Speichern in eine `.eml` um, gespeichert wird die umgewandelte Mail. Das Backend lehnt ab: andere Endungen (422), Dateien ohne Mail-Header oder mit Binär-Signatur (422), eine kaputte `.msg` (422), mehr als 25 MB (413) |
-| GET | `/analyses/{id}` | Detail (umgesetzt, `criteria` und `links` noch leer, `ai_assessment` fehlt noch) |
+| GET | `/analyses/{id}` | Detail (umgesetzt, `ai_assessment` fehlt noch) |
 | DELETE | `/analyses/{id}` | Weich löschen, nur Admin (umgesetzt) |
 | POST | `/analyses/{id}/decision` | Verdikt bestätigen oder als falsch-positiv melden, Body `verdict`, antwortet mit `{ verdict, by, at }` (umgesetzt). Ist niemand zugewiesen, wird die entscheidende Person zugewiesen (offen, siehe Zuweisung) |
 | DELETE | `/analyses/{id}/decision` | Entscheidung zurücknehmen (umgesetzt), die Zuweisung bleibt |
@@ -220,8 +220,8 @@ Passwort, zweiter Faktor, Backup-Codes und angemeldete Geräte verwaltet Keycloa
 | thresholds | `{ suspicious, phishing }` | Schwellen kommen vom Server, das Frontend rechnet nichts nach |
 | ai_assessment | `{ verdict, confidence, model }` oder null | Einschätzung von JEV zum Text der Mail, siehe [ai-assessment.md](ai-assessment.md). `verdict` ist `phishing` oder `clean`, `confidence` 0 bis 1, `model` die Version, die geantwortet hat. null, wenn JEV nicht geantwortet hat |
 | criteria | Liste aus `name`, `finding`, `weight` | alle vier Prüfungen aus [detection-criteria.md](detection-criteria.md), nicht ausgelöste mit `weight` 0 |
-| criteria_total | number | Summe der Gewichte, bei 100 gekappt |
-| links | Liste aus `text`, `target`, `finding`, `tone` | |
+| criteria_total | number | Summe der Gewichte vor dem Kappen, bis 120. `score` ist dieselbe Summe, bei 100 gekappt |
+| links | Liste aus `text`, `target`, `finding`, `tone` | alle http- und https-Links der Mail, höchstens 100. `tone` ist `phishing`, wenn der Anzeigetext eine andere Domain zeigt, `suspicious` bei einer IP statt Domain, sonst `clean` |
 | attachments | Liste, siehe unten | |
 | raw_headers | text | |
 | decision | `{ verdict, by, at }` oder null | |

@@ -29,7 +29,10 @@ class MailAnalysis(SQLModel, table=True):
     error: dict | None = Field(default=None, sa_column=Column(JSON))
 
     verdict: str | None = None
+    # Risk score of the rules, 0 to 100. Not a confidence, the name is older
     confidence_score: float | None = None
+    # name, finding and weight of each of the four checks
+    criteria: list | None = Field(default=None, sa_column=Column(JSON))
 
     # What an analyst made of the verdict: phishing or clean. Can be taken back
     decided_verdict: str | None = None
