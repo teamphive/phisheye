@@ -48,7 +48,7 @@ Instanz-Rollen: Das **Standard-Team** ist das Instanz-Team. Dort gibt es nur die
 | Methode | Pfad | Zweck |
 |---|---|---|
 | GET | `/analyses` | Liste für das aktive Team (umgesetzt) |
-| POST | `/analyses` | Upload einer `.eml` als Feld `file` (multipart), antwortet mit dem Listeneintrag (umgesetzt, läuft synchron im Request). Das Backend lehnt ab: Endung außer `.eml` (422), Datei ohne Mail-Header oder mit Binär-Signatur (422), mehr als 25 MB (413) |
+| POST | `/analyses` | Upload einer `.eml` oder `.msg` als Feld `file` (multipart), antwortet mit dem Listeneintrag (umgesetzt, läuft synchron im Request). Eine `.msg` wandelt das Backend vor der Analyse in eine `.eml` um, gespeichert wird die umgewandelte Mail. Das Backend lehnt ab: andere Endungen (422), Dateien ohne Mail-Header oder mit Binär-Signatur (422), eine kaputte `.msg` (422), mehr als 25 MB (413) |
 | GET | `/analyses/{id}` | Detail (umgesetzt, `criteria` und `links` noch leer, `ai_assessment` fehlt noch) |
 | DELETE | `/analyses/{id}` | Weich löschen, nur Admin (umgesetzt) |
 | POST | `/analyses/{id}/decision` | Verdikt bestätigen oder als falsch-positiv melden, Body `verdict`, antwortet mit `{ verdict, by, at }` (umgesetzt) |
@@ -111,6 +111,7 @@ Der letzte Admin kann sich weder herabstufen noch entfernen. Das Verlassen des l
 
 Mitarbeiter melden eine verdächtige Mail in Outlook, die Meldung geht an ein gemeinsames phisheye-Postfach. Das Backend holt es per POP3 ab und legt für jede Meldung eine Analyse an.
 
+- Die gemeldete Mail darf als `.eml` (`message/rfc822`) oder als `.msg`-Anhang kommen.
 - Was keine Mail ist, bekommt keine Analyse. Der Abruf verwirft es mit einer Warnung im Log und löscht es aus dem Postfach, sonst käme es bei jedem Lauf wieder.
 
 - Welches Team die Meldung bekommt, entscheidet die Domain der meldenden Adresse, nicht die des ursprünglichen Absenders.

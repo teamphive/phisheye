@@ -385,3 +385,89 @@ async def test_upload_accepts_a_real_mail_in_any_case(db, api, monkeypatch):
 
     assert response.status_code == 200
     assert response.json()["subject"] == "Hallo"
+
+
+@pytest.mark.asyncio
+async def test_upload_takes_a_msg_and_analyses_the_converted_mail(db, api, monkeypatch):
+    from app.services import mail_analysis
+
+    stored = []
+
+    async def store(content):
+        stored.append(content)
+        return "key"
+
+    monkeypatch.setattr(mail_analysis, "store_eml", store)
+    monkeypatch.setattr(mail_analysis, "msg_to_eml", lambda _: VALID_EML)
+    _, _, anna, _, _ = await two_teams(db)
+    login_as(anna)
+
+    response = await api.post(
+        "/analyses",
+        files={"file": ("Mail.msg", b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1x", "x/y")},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["subject"] == "Hallo"
+    # what is stored is the converted mail, the same bytes a .eml would give
+    assert stored == [VALID_EML]
+
+
+@pytest.mark.asyncio
+async def test_upload_rejects_a_broken_msg(db, api):
+    _, _, anna, _, _ = await two_teams(db)
+    login_as(anna)
+
+    response = await api.post(
+        "/analyses",
+        files={"file": ("broken.msg", b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" * 20, "x/y")},
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_nul_bytes_never_reach_the_database(db, api, monkeypatch):
+    from app.services import mail_analysis
+
+    async def store(content):
+        return "key"
+
+    monkeypatch.setattr(mail_analysis, "store_eml", store)
+    monkeypatch.setenv("VT_API_KEY", "key")
+
+    class Client:
+        def __init__(self, key):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *exc):
+            return False
+
+        async def get_object_async(self, path):
+            raise mail_analysis.vt.APIError("NotFoundError", "none")
+
+    monkeypatch.setattr(mail_analysis.vt, "Client", Client)
+    _, _, anna, _, _ = await two_teams(db)
+    login_as(anna)
+    # the NUL sits behind the first 8 KB, where the content check does not look
+    eml = (
+        b"From: anna@example.com\r\nSubject: Rechnung\r\n"
+        b"Date: Mon, 1 Oct 2026 10:00:00 +0000\r\n"
+        b"MIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=b\r\n\r\n"
+        b"--b\r\nContent-Type: text/plain\r\n\r\n" + b"x" * 9000 + b"\r\n"
+        b'--b\r\nContent-Type: image/png; name="a.png"\r\n'
+        b'Content-Disposition: attachment; filename="a.png\x00"\r\n'
+        b"Content-Transfer-Encoding: base64\r\n\r\naGk=\r\n--b--\r\n"
+    )
+
+    response = await api.post(
+        "/analyses", files={"file": ("mail.eml", eml, "message/rfc822")}
+    )
+
+    assert response.status_code == 200
+
+    (attachment,) = (await db.exec(select(MailAttachment))).all()
+    assert attachment.filename == "a.png"

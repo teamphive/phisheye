@@ -3,7 +3,7 @@ from email.message import Message
 from fastapi import HTTPException
 
 MAX_EML_BYTES = 25 * 1024 * 1024
-ALLOWED_EXTENSIONS = (".eml",)
+ALLOWED_EXTENSIONS = (".eml", ".msg")
 
 # first bytes of files that are never a mail: pdf, png, zip, jpeg, gif,
 # windows and linux executables, gzip, rar, 7z
@@ -34,7 +34,7 @@ class InvalidEmlError(HTTPException):
 def check_upload(filename: str | None, size: int) -> None:
     """Checks only an upload can fail: name and size."""
     if not (filename or "").lower().endswith(ALLOWED_EXTENSIONS):
-        raise InvalidEmlError("Only .eml files are supported")
+        raise InvalidEmlError("Only .eml and .msg files are supported")
 
     if size > MAX_EML_BYTES:
         raise HTTPException(status_code=413, detail="File is larger than 25 MB")

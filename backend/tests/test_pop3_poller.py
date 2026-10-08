@@ -1,3 +1,5 @@
+from email.message import EmailMessage
+
 from app.services.pop3_poller import extract_eml, extract_reporter
 
 
@@ -76,3 +78,19 @@ def test_extract_eml_decodes_base64_message_rfc822():
     )
 
     assert extract_eml(outer) == inner
+
+
+def test_extract_eml_takes_a_forwarded_msg_attachment():
+    msg_bytes = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" + b"\x00" * 64
+    outer = EmailMessage()
+    outer["From"] = "reporter@example.com"
+    outer["Subject"] = "Fwd: phishing"
+    outer.set_content("see attachment")
+    outer.add_attachment(
+        msg_bytes,
+        maintype="application",
+        subtype="vnd.ms-outlook",
+        filename="Original.msg",
+    )
+
+    assert extract_eml(outer.as_bytes()) == msg_bytes
