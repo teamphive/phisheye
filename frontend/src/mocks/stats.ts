@@ -1,6 +1,6 @@
 // Placeholder data until GET /stats exists. Everything here is invented.
 
-import { mockAnalyses, type AnalysisListItem } from "@/mocks/analyses"
+import { storedAnalyses, type AnalysisListItem } from "@/mocks/analyses"
 
 /**
  * Finished analyses by their verdict. A decision of an analyst counts over the
@@ -120,7 +120,7 @@ export function mockStats(
     counts.phishing + counts.suspicious + counts.clean + counts.unrated
 
   // the work list comes from the placeholder analyses, so its links open
-  const open = mockAnalyses(teamId)
+  const open = storedAnalyses(teamId)
     .filter((item) => item.status === "completed" && !item.decision)
     .sort((a, b) => b.receivedAt.localeCompare(a.receivedAt))
 

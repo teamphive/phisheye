@@ -36,7 +36,7 @@ import { mockSearch, type SearchHit } from "@/mocks/search"
 export async function fetchAnalyses(teamId: string) {
   if (!apiEnabled) {
     await mockLatency(700)
-    return mockAnalyses(teamId)
+    return mockAnalyses(teamId, sessionUser().name)
   }
 
   return apiFetch<AnalysisListItem[]>("/analyses")
@@ -45,7 +45,7 @@ export async function fetchAnalyses(teamId: string) {
 export async function fetchAnalysis(id: string) {
   if (!apiEnabled) {
     await mockLatency(500)
-    return mockAnalysis(id)
+    return mockAnalysis(id, sessionUser().name)
   }
 
   return apiFetch<AnalysisDetail>(`/analyses/${encodeURIComponent(id)}`)
@@ -104,7 +104,10 @@ export async function fetchEml(id: string) {
   return apiBlob(`/analyses/${encodeURIComponent(id)}/eml`)
 }
 
-/** Confirms the verdict or reports it as a false positive. */
+/**
+ * Confirms the verdict or reports it as a false positive. A free analysis goes
+ * to whoever decides in the same step, someone else's has to be taken on first.
+ */
 export async function decideAnalysis(id: string, verdict: Decision["verdict"]) {
   if (!apiEnabled) {
     await mockLatency()
@@ -169,9 +172,9 @@ export async function deleteAnalysis(id: string) {
 export type CaseAction = "decide" | "revoke" | "claim" | "release"
 
 /**
- * Words for the backend's assignment rules. Only the assigned person decides
- * or takes a decision back: nobody assigned is 409, someone else 403. A 409
- * on handing back means the analysis is decided already.
+ * Words for the backend's assignment rules. Someone else assigned is 403 for
+ * deciding and taking back. Taking back with nobody assigned is 409, and a
+ * 409 on handing back means the analysis is decided already.
  */
 export function caseErrorMessage(action: CaseAction, error: unknown) {
   const conflict = error instanceof ApiError && error.status === 409

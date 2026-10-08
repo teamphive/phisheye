@@ -1,7 +1,11 @@
 // Placeholder search until GET /analyses/search exists. It looks through the
 // invented analyses the same way the API is meant to.
 
-import { mockAnalyses, type AnalysisListItem } from "@/mocks/analyses"
+import {
+  storedAnalyses,
+  type AnalysisListItem,
+  type StoredAnalysis,
+} from "@/mocks/analyses"
 import { mockIndicators } from "@/mocks/analysis-detail"
 
 /** Where the query was found. Decides the group a hit is listed under. */
@@ -22,7 +26,7 @@ export const hashPrefixLength = 8
 export const searchLimit = 20
 
 // One hit per analysis. If several fields match, the most specific one wins.
-function matchOf(item: AnalysisListItem, needle: string) {
+function matchOf(item: StoredAnalysis, needle: string) {
   const { hosts, hashes } = mockIndicators(item.id)
 
   const hash = hashes.find(
@@ -47,7 +51,7 @@ function matchOf(item: AnalysisListItem, needle: string) {
 export function mockSearch(teamId: string, query: string): SearchHit[] {
   const needle = query.trim().toLowerCase()
 
-  return mockAnalyses(teamId)
+  return storedAnalyses(teamId)
     .flatMap((item) => {
       const found = matchOf(item, needle)
       if (!found) return []

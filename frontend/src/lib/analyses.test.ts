@@ -62,6 +62,35 @@ describe("with a backend", () => {
     expect(assignment).toEqual({ handler: "Adrijus Lazdauskas" })
   })
 
+  it("keeps mine and the decision of every list item", async () => {
+    const { fetchAnalyses } = await loadAnalyses()
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify([
+          {
+            id: "a-1",
+            handler: "Anna",
+            mine: true,
+            decision: {
+              verdict: "clean",
+              by: "Anna",
+              at: "2026-10-08T12:00:00",
+            },
+          },
+        ])
+      )
+    )
+
+    const [item] = await fetchAnalyses("itsec")
+
+    expect(item.mine).toBe(true)
+    expect(item.decision).toEqual({
+      verdict: "clean",
+      by: "Anna",
+      at: "2026-10-08T12:00:00Z",
+    })
+  })
+
   it("words the assignment rules the backend answers with", async () => {
     const { caseErrorMessage, decideAnalysis } = await loadAnalyses()
     const answer = (status: number, detail: string) =>
