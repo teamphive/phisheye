@@ -20,7 +20,7 @@ from . import eml_validation
 from .ai_assessment import assess
 from .detection import detect
 from .msg_convert import is_msg, msg_to_eml
-from .notifications import enqueue_analysis_ready, redis_settings
+from .notifications import redis_settings
 from .object_storage import ObjectStorageError, delete_object, load_eml, store_eml
 
 logger = logging.getLogger(__name__)
@@ -89,10 +89,8 @@ async def submit_analysis(
             logger.exception("Failed to remove orphaned EML object %s", storage_key)
         raise
 
+    # the result mail follows when the analysis is done, see analyze_mail
     await enqueue_analysis(analysis.id)
-
-    if reported_by:
-        await enqueue_analysis_ready(analysis.id)
 
     return analysis
 

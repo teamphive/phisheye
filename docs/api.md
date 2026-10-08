@@ -165,9 +165,10 @@ Mitarbeiter melden eine verdächtige Mail in Outlook, die Meldung geht an ein ge
 
 ### Benachrichtigung per Mail
 
-Die meldende Person bekommt per Mail eine Eingangsbestätigung und das Ergebnis (Verdikt und Begründung, ohne Score). Meldende haben keinen Zugang zum Portal, die Mails enthalten deshalb keinen Link.
+Die meldende Person bekommt per Mail das Ergebnis (Verdikt und Begründung, ohne Score). Meldende haben keinen Zugang zum Portal, die Mail enthält deshalb keinen Link.
 
 - Der Versand läuft als arq-Job und höchstens einmal pro Analyse (`notified_at`).
+- Der Job wird erst eingereiht, wenn die Analyse abgeschlossen ist. Eine Eingangsbestätigung gibt es nicht. Scheitert die Analyse nach allen Versuchen, bekommt die Person eine kurze Mail, dass sie die Mail später noch einmal melden soll.
 - Empfänger ist die Adresse aus `reported_by`, sie stammt aus dem `From` der weitergeleiteten Mail. Pro Adresse gehen höchstens 10 Mails pro Stunde raus.
 - Auto-Antworten (`Auto-Submitted`), die eigene Absenderadresse und Systemadressen wie `mailer-daemon` bekommen nichts.
 - Manuelle Uploads lösen keine Mail aus.

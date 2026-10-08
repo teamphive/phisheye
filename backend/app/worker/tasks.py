@@ -109,12 +109,44 @@ async def analyze_mail(ctx, analysis_id: int) -> None:
             if attempt < MAX_ANALYSIS_TRIES:
                 raise Retry(defer=attempt * 30) from exc
 
+            # the last try failed: the reporter hears that as well
+            await _queue_result_mail(ctx, analysis_id, db)
+            return
+
+        await _queue_result_mail(ctx, analysis_id, db)
+
+
+async def _queue_result_mail(ctx, analysis_id: int, db) -> None:
+    """The reporter hears back once the analysis is over, never before."""
+    analysis = await db.get(MailAnalysis, analysis_id)
+
+    if (
+        analysis is None
+        or analysis.status not in ("completed", "failed")
+        or not analysis.reported_by
+    ):
+        return
+
+    try:
+        # fixed job id: arq ignores a second enqueue for the same analysis
+        await ctx["redis"].enqueue_job(
+            "send_analysis_ready",
+            analysis_id,
+            _job_id=f"analysis-ready-{analysis_id}",
+        )
+    except Exception:
+        logger.exception("Could not queue the result mail for analysis %s", analysis_id)
+
 
 async def send_analysis_ready(ctx, analysis_id: int) -> None:
     async for db in get_session():
         analysis = await db.get(MailAnalysis, analysis_id)
 
         if analysis is None or analysis.notified_at is not None:
+            return
+
+        # an unfinished analysis has nothing to report yet
+        if analysis.status not in ("completed", "failed"):
             return
 
         recipient = analysis.reported_by

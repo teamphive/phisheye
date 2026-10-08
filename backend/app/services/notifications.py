@@ -57,23 +57,6 @@ def redis_settings() -> RedisSettings:
     return RedisSettings.from_dsn(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
 
 
-async def enqueue_analysis_ready(analysis_id: int) -> None:
-    """Queues the notification mail. Never fails the analysis itself."""
-    try:
-        pool = await create_pool(redis_settings())
-        try:
-            # fixed job id: arq ignores a second enqueue for the same analysis
-            await pool.enqueue_job(
-                "send_analysis_ready",
-                analysis_id,
-                _job_id=f"analysis-ready-{analysis_id}",
-            )
-        finally:
-            await pool.aclose()
-    except Exception:
-        logger.exception("Could not queue notification for analysis %s", analysis_id)
-
-
 async def enqueue_team_invitation(invitation_id: int) -> None:
     """Queues the invitation mail. Never fails the invitation itself."""
     try:
@@ -145,6 +128,19 @@ def render_received(analysis: MailAnalysis) -> tuple[str, str, str]:
     return "Wir haben deine Mail erhalten", text, html
 
 
+def render_failed(analysis: MailAnalysis) -> tuple[str, str, str]:
+    """Returns subject, plain text and html of the mail for a failed analysis."""
+    html = _templates.get_template("failed.html").render(analysis=analysis)
+    text = (
+        "Wir konnten deine Mail nicht prüfen.\n\n"
+        f"Betreff: {analysis.subject}\n"
+        f"Absender: {analysis.sender}\n\n"
+        "Bei der Prüfung ist ein Fehler aufgetreten. Melde die Mail bitte in ein "
+        "paar Minuten noch einmal. Bis dahin: keine Links öffnen, keine Anhänge öffnen.\n"
+    )
+    return "Wir konnten deine Mail nicht prüfen", text, html
+
+
 def render_result(
     analysis: MailAnalysis, reasons: list[dict[str, str]]
 ) -> tuple[str, str, str]:
@@ -181,10 +177,16 @@ def is_notifiable(address: str) -> bool:
 
 
 def send_analysis_mail(to: str, analysis: MailAnalysis) -> None:
-    """Sends the result mail once a verdict exists, the receipt mail before."""
-    if analysis.verdict in _TONES:
-        # TODO: pass the triggered checks once they are stored
-        subject, text, html = render_result(analysis, [])
+    """Sends the result mail, or the failure mail when the analysis did not finish."""
+    if analysis.status == "failed":
+        subject, text, html = render_failed(analysis)
+    elif analysis.verdict in _TONES:
+        reasons = [
+            {"name": criterion["name"], "finding": criterion["finding"]}
+            for criterion in analysis.criteria or []
+            if criterion.get("weight", 0) > 0
+        ]
+        subject, text, html = render_result(analysis, reasons)
     else:
         subject, text, html = render_received(analysis)
 
