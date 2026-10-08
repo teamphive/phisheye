@@ -6,6 +6,7 @@ from datetime import datetime
 from email import policy
 from email.message import EmailMessage
 from email.parser import BytesParser
+from uuid import uuid4
 
 import vt
 from arq import create_pool
@@ -20,6 +21,7 @@ from . import eml_validation
 from .ai_assessment import assess
 from .bell import notify_analysis_done, notify_analysis_failed
 from .detection import detect
+from .monitoring import count_vt_lookup
 from .msg_convert import is_msg, msg_to_eml
 from .notifications import redis_settings
 from .object_storage import ObjectStorageError, delete_object, load_eml, store_eml
@@ -118,6 +120,24 @@ async def enqueue_analysis(analysis_id: int) -> None:
         logger.exception("Could not queue analysis %s", analysis_id)
 
 
+async def requeue_analysis(analysis_id: int) -> None:
+    """Starts a failed analysis once more, e.g. from the monitoring.
+
+    Not the fixed id of enqueue_analysis: arq keeps the result of the failed
+    job for an hour and refuses a job with the same id until then. Unlike
+    enqueue_analysis this raises when Redis is down, the caller has to say so.
+    """
+    pool = await create_pool(redis_settings())
+    try:
+        await pool.enqueue_job(
+            "analyze_mail",
+            analysis_id,
+            _job_id=f"analysis-{analysis_id}-retry-{uuid4().hex[:8]}",
+        )
+    finally:
+        await pool.aclose()
+
+
 async def _set_step(analysis: MailAnalysis, step: str, db: AsyncSession) -> None:
     # Own commit per step, the detail page polls and shows it
     async with db.begin():
@@ -152,6 +172,9 @@ async def _virus_total(client: vt.Client, sha256: str) -> dict | None:
     A failed lookup also gives None. The attachment then shows as unknown
     instead of failing the whole analysis.
     """
+    # counted before the request, a failed lookup costs quota as well
+    await count_vt_lookup()
+
     try:
         result = await client.get_object_async(f"/files/{sha256}")
     except vt.APIError as exc:

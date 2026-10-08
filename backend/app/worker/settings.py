@@ -25,5 +25,8 @@ class WorkerSettings:
         cron(delete_old_notifications, hour={3}, minute={0}),
     ]
     max_tries = 5
+    # GET /monitoring reads the health key, the default of an hour would show
+    # a stopped worker as running for up to an hour
+    health_check_interval = 60
     max_jobs = WORKER_MAX_JOBS
     redis_settings = redis_settings()

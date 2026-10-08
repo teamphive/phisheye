@@ -203,10 +203,18 @@ Das Frontend fragt `GET /notifications` alle 30 Sekunden neu, solange der Tab si
 
 | Methode | Pfad | Zweck |
 |---|---|---|
-| GET | `/monitoring` | Systemweit über alle Teams, nur für `is_operator` |
-| POST | `/monitoring/jobs/{id}/retry` | Fehlgeschlagenen Job neu einreihen, nur für `is_operator` |
+| GET | `/monitoring` | Systemweit über alle Teams, nur für `is_operator` (umgesetzt) |
+| POST | `/monitoring/jobs/{id}/retry` | Fehlgeschlagenen Job neu einreihen, nur für `is_operator`, antwortet mit 204 (umgesetzt) |
 
 Liefert Warteschlange, Worker, Fehlerrate, Analysen pro Stunde, das VirusTotal-Kontingent, die Dienste-Ampel und die Fehlerliste. Die Fehlerliste enthält keine Mailinhalte. Das Frontend fragt alle 10 Sekunden neu.
+
+Umsetzung:
+
+- Ein Job ist eine Analyse. `jobs`, `hourly` und `failures` zählen die Analysen aller Teams mit `created_at` in den letzten 24 Stunden, gelöschte eingeschlossen, sie haben dieselbe Last erzeugt. `jobs.total` sind die abgeschlossenen und fehlgeschlagenen, laufende zählen noch nicht.
+- `failures`: fehlgeschlagene Analysen, neueste zuerst. `id` ist die Analyse-ID, `error` der Fehlertext aus dem letzten Versuch, gekürzt auf 200 Zeichen. Betreff, Absender und Text fehlen absichtlich.
+- `virus_total.used`: Jede Anfrage an VirusTotal zählt in Redis unter `vt:used:<UTC-Tag>` mit, auch fehlgeschlagene, auch sie kosten Kontingent. `limit` kommt aus `VT_DAILY_LIMIT`, sonst 500 wie beim kostenlosen Key. Antwortet Redis nicht, ist `used` 0 und Redis steht in `services` auf `down`.
+- `services`: API (antwortet also `ok`), PostgreSQL (`SELECT 1`), Redis (`PING`), Worker (der Health-Key von arq, den der Worker jede Minute schreibt), MinIO (`head_bucket`), jede Prüfung höchstens 2 Sekunden. VirusTotal und JEV werden nicht angefragt, das kostet Kontingent oder Geld: ohne Key `degraded`, VirusTotal auch ab 90 % des Tageskontingents.
+- `POST /monitoring/jobs/{id}/retry`: nur für fehlgeschlagene Analysen (sonst 409, unbekannt oder gelöscht 404). Die Analyse geht auf `pending`, Fehler und Startzeit werden geleert, der Job bekommt drei neue Versuche. Er braucht eine eigene Job-ID: arq hebt das Ergebnis des fehlgeschlagenen Jobs eine Stunde auf und nimmt dieselbe ID bis dahin nicht an. Ist die Warteschlange nicht erreichbar, bleibt die Analyse `failed` und die Antwort ist 503.
 
 Die App zeigt nur, was ein Operator jetzt wissen oder tun muss. Verlauf, Infrastruktur und Alarme (VM, Container, Postgres, Redis, MinIO, API-Latenz und 5xx, Job-Dauer, Logs) liegen in Grafana (Prometheus) und werden von dort betreut, die App verlinkt nicht dorthin. Der `/metrics`-Endpunkt für Prometheus läuft nicht über `/api`, damit er nicht öffentlich ist.
 
