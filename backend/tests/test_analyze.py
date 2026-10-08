@@ -247,6 +247,8 @@ async def test_decision_can_be_made_and_taken_back(db, api):
     _, _, _, ben, analysis_b = await two_teams(db)
     login_as(ben)
     url = f"/analyses/{analysis_b.id}"
+    # only whoever has the analysis can decide, so Ben takes it on first
+    await api.post(f"{url}/assignment")
 
     response = await api.post(f"{url}/decision", json={"verdict": "phishing"})
     assert response.status_code == 200
