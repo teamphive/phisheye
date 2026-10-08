@@ -53,8 +53,8 @@ Instanz-Rollen: Das **Standard-Team** ist das Instanz-Team. Dort gibt es nur die
 | DELETE | `/analyses/{id}` | Weich löschen, nur Admin (umgesetzt) |
 | POST | `/analyses/{id}/decision` | Verdikt bestätigen oder als falsch-positiv melden, Body `verdict`, antwortet mit `{ verdict, by, at }` (umgesetzt). Ist niemand zugewiesen, wird die entscheidende Person zugewiesen (offen, siehe Zuweisung) |
 | DELETE | `/analyses/{id}/decision` | Entscheidung zurücknehmen (umgesetzt), die Zuweisung bleibt |
-| POST | `/analyses/{id}/assignment` | Analyse übernehmen, antwortet mit `{ handler }` (offen, siehe Zuweisung) |
-| DELETE | `/analyses/{id}/assignment` | Analyse abgeben, antwortet mit 204 (offen, siehe Zuweisung) |
+| POST | `/analyses/{id}/assignment` | Analyse übernehmen, antwortet mit `{ handler }` (umgesetzt, siehe Zuweisung) |
+| DELETE | `/analyses/{id}/assignment` | Analyse abgeben, antwortet mit 204 (umgesetzt, siehe Zuweisung) |
 | GET | `/analyses/{id}/eml` | Original-`.eml` aus MinIO herunterladen, geht über das Backend (MinIO ist von außen nicht erreichbar). Antwort mit `Content-Disposition: attachment` und `application/octet-stream`, die Datei kann Schadcode enthalten |
 | GET | `/analyses/search?q=` | Suche über Betreff, Absender, Link-Domain und Anhang-Hash, siehe unten (umgesetzt, ohne Link-Hosts) |
 | GET | `/queue` | Wartende Jobs und Worker-Auslastung, für die Fortschrittsanzeige (umgesetzt) |
@@ -67,9 +67,9 @@ Datenmodell:
 
 - Neue Spalte `handled_by` in `mail_analyses`, nullable, Fremdschlüssel auf `users.id`, mit Alembic-Migration.
 - In Liste und Detail wird daraus `handler`: der `name` dieser Person, genau wie in `GET /me`, sonst null. Das Frontend vergleicht `handler` mit dem eigenen `name`, um „Abgeben“ statt „Übernehmen“ zu zeigen. Den festen Wert `"handler": None` in `_list_item` ersetzen. `_list_item` bekommt bisher nur die Analyse, für den Namen braucht die Liste einen Join auf `users` (nicht pro Zeile nachschlagen), das Detail kann ihn wie `_decision` per `db.get` holen.
-- Beim Upload (`POST /analyses`) ist `handled_by` die hochladende Person.
+- Beim Upload (`POST /analyses`) ist `handled_by` die hochladende Person. Nur die Upload-Route gibt `handled_by` an `submit_analysis`, alle anderen Wege starten ohne Zuweisung.
 - Bei Outlook-Meldungen bleibt `handled_by` null. Dort ist `submitted_by` der System-Nutzer, der darf nie zugewiesen sein.
-- Die Migration füllt bestehende Analysen: Uploads (`reported_by` null) bekommen `submitted_by`, danach bekommen entschiedene Analysen ohne Zuweisung `decided_by`. Alle anderen bleiben null.
+- Die Migration füllt bestehende Analysen: Uploads (`reported_by` null) bekommen `submitted_by`, danach bekommen entschiedene Analysen ohne Zuweisung `decided_by`. Alle anderen bleiben null. Meldungen über den Mailgun-Webhook haben ebenfalls kein `reported_by`, deshalb schließt die Migration den System-Nutzer über seine Adresse aus.
 
 `POST /analyses/{id}/assignment`, ohne Body:
 
@@ -296,4 +296,3 @@ Je Treffer:
 - Spam-Testskript, das viele Mails auf einmal hochlädt und prüft, ob Warteschlange und Worker mithalten.
 - Abbrechen einer laufenden Analyse. Ein Endpunkt fehlt, bis dahin zeigt die Detailseite keinen Knopf dafür.
 - Erneut starten einer fehlgeschlagenen Analyse durch Analysten. `POST /monitoring/jobs/{id}/retry` ist nur für Operatoren. Bis es einen Endpunkt für Analysten gibt, zeigt die Detailseite keinen Knopf und schickt Operatoren ins Monitoring.
-- Zuweisung: Übernehmen und Abgeben, alles unter [Zuweisung](#zuweisung). Bis dahin zeigt die Oberfläche mit Backend überall „Niemand“ und der Knopf meldet einen Fehler, ohne Backend läuft er gegen die Platzhalterdaten.

@@ -35,8 +35,9 @@ class DecisionRequest(BaseModel):
     verdict: Literal["phishing", "clean"]
 
 
-# helper to turn analysis into a list item
-def _list_item(analysis: MailAnalysis) -> dict:
+# helper to turn analysis into a list item. handler is the name of the
+# assigned person, the frontend compares it with the name from GET /me
+def _list_item(analysis: MailAnalysis, handler: str | None) -> dict:
     return {
         "id": analysis.id,
         "subject": analysis.subject,
@@ -44,15 +45,16 @@ def _list_item(analysis: MailAnalysis) -> dict:
         "status": _FRONTEND_STATUS.get(analysis.status, analysis.status),
         "verdict": analysis.verdict,
         "score": analysis.confidence_score,
-        # Taking over a report does not exist yet
-        "handler": None,
+        "handler": handler,
         "source": "report" if analysis.reported_by else "upload",
         "reported_by": analysis.reported_by,
         "received_at": analysis.created_at,
     }
 
 
-def _search_hit(analysis: MailAnalysis, needle: str, matching_hash: str | None) -> dict:
+def _search_hit(
+    analysis: MailAnalysis, handler: str | None, needle: str, matching_hash: str | None
+) -> dict:
     """One hit per analysis, the most specific field wins: hash, sender, subject.
 
     Link hosts belong between sender and subject, but links are not stored yet.
@@ -64,7 +66,7 @@ def _search_hit(analysis: MailAnalysis, needle: str, matching_hash: str | None) 
     else:
         field, match = "subject", analysis.subject
 
-    return {**_list_item(analysis), "field": field, "match": match}
+    return {**_list_item(analysis, handler), "field": field, "match": match}
 
 
 def _attachment(attachment: MailAttachment) -> dict:
@@ -114,6 +116,25 @@ async def _decision(analysis: MailAnalysis, db: AsyncSession) -> dict | None:
     }
 
 
+def _with_handler():
+    """Analyses with the name of the assigned person, in one query.
+
+    Looking it up per row would cost one query per analysis. Outer join, so
+    analyses without anyone assigned stay in with null.
+    """
+    return select(MailAnalysis, User.name).outerjoin(
+        User, User.id == MailAnalysis.handled_by
+    )
+
+
+async def _handler_name(analysis: MailAnalysis, db: AsyncSession) -> str | None:
+    if analysis.handled_by is None:
+        return None
+
+    handler = await db.get(User, analysis.handled_by)
+    return handler.name
+
+
 async def _team_analysis(
     analysis_id: int, membership: TeamMembership, db: AsyncSession
 ) -> MailAnalysis:
@@ -139,13 +160,13 @@ async def list_analyses(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.exec(
-        select(MailAnalysis)
+        _with_handler()
         .where(MailAnalysis.team_id == membership.team_id)
         .where(MailAnalysis.deleted_at.is_(None))
         .order_by(MailAnalysis.created_at.desc())
     )
 
-    return [_list_item(analysis) for analysis in result.all()]
+    return [_list_item(analysis, handler) for analysis, handler in result.all()]
 
 
 # Must stay above /analyses/{analysis_id}, otherwise "search" is read as an id
@@ -174,14 +195,15 @@ async def search_analyses(
         conditions.append(MailAnalysis.id.in_(analyses_with_hash))
 
     result = await db.exec(
-        select(MailAnalysis)
+        _with_handler()
         .where(MailAnalysis.team_id == membership.team_id)
         .where(MailAnalysis.deleted_at.is_(None))
         .where(or_(*conditions))
         .order_by(MailAnalysis.created_at.desc())
         .limit(_SEARCH_LIMIT)
     )
-    analyses = result.all()
+    rows = result.all()
+    analyses = [analysis for analysis, _ in rows]
 
     # The full hash for every hit found by its hash, the frontend shows it
     hashes: dict[int, str] = {}
@@ -193,7 +215,10 @@ async def search_analyses(
         )
         hashes = {a.mail_analysis_id: a.sha256 for a in result.all()}
 
-    return [_search_hit(a, needle, hashes.get(a.id)) for a in analyses]
+    return [
+        _search_hit(analysis, handler, needle, hashes.get(analysis.id))
+        for analysis, handler in rows
+    ]
 
 
 @router.post("/analyses")
@@ -216,9 +241,11 @@ async def create_analysis(
         team_id=membership.team_id,
         submitted_by=user.id,
         db=db,
+        # whoever uploads works on it
+        handled_by=user.id,
     )
 
-    return _list_item(analysis)
+    return _list_item(analysis, user.name)
 
 
 @router.get("/analyses/{analysis_id}")
@@ -247,7 +274,7 @@ async def get_analysis(
     running = analysis.status in ("pending", "processing")
 
     return {
-        **_list_item(analysis),
+        **_list_item(analysis, await _handler_name(analysis, db)),
         "thresholds": VERDICT_THRESHOLDS,
         "ai_assessment": _ai_assessment(analysis),
         "criteria": criteria,
@@ -289,6 +316,9 @@ async def decide(
         analysis.decided_verdict = payload.verdict
         analysis.decided_by = user.id
         analysis.decided_at = datetime.utcnow()
+        # whoever decides without anyone assigned takes the analysis on,
+        # an existing assignment stays
+        analysis.handled_by = analysis.handled_by or user.id
         db.add(analysis)
 
     return {
@@ -311,6 +341,58 @@ async def revoke_decision(
         analysis.decided_verdict = None
         analysis.decided_by = None
         analysis.decided_at = None
+        db.add(analysis)
+
+
+def _require_undecided(analysis: MailAnalysis) -> None:
+    # after a decision the assignment is fixed until the decision is taken back
+    if analysis.decided_verdict is not None:
+        raise HTTPException(status_code=409, detail="Analysis is already decided")
+
+
+@router.post("/analyses/{analysis_id}/assignment")
+async def claim_analysis(
+    analysis_id: int,
+    user: User = Depends(get_current_user),
+    membership: TeamMembership = Depends(get_active_membership),
+    db: AsyncSession = Depends(get_db),
+):
+    """Takes the analysis on, also away from someone else.
+
+    The frontend asks before taking one away, the backend does not.
+    """
+    require_role(membership, "admin", "analyst")
+
+    async with db.begin():
+        analysis = await _team_analysis(analysis_id, membership, db)
+        _require_undecided(analysis)
+        analysis.handled_by = user.id
+        db.add(analysis)
+
+    return {"handler": user.name}
+
+
+@router.delete("/analyses/{analysis_id}/assignment", status_code=204)
+async def release_analysis(
+    analysis_id: int,
+    user: User = Depends(get_current_user),
+    membership: TeamMembership = Depends(get_active_membership),
+    db: AsyncSession = Depends(get_db),
+):
+    """Hands one's own analysis back. Nobody has it afterwards."""
+    require_role(membership, "admin", "analyst")
+
+    async with db.begin():
+        analysis = await _team_analysis(analysis_id, membership, db)
+        _require_undecided(analysis)
+
+        # taking it from someone else goes through POST
+        if analysis.handled_by not in (None, user.id):
+            raise HTTPException(
+                status_code=403, detail="Only the assigned person can hand it back"
+            )
+
+        analysis.handled_by = None
         db.add(analysis)
 
 

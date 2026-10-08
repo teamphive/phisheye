@@ -40,6 +40,10 @@ class MailAnalysis(SQLModel, table=True):
     ai_confidence: float | None = None
     ai_model: str | None = None
 
+    # Who works on the analysis, at most one person. The uploader at first,
+    # null for Outlook reports until someone takes them on
+    handled_by: int | None = Field(default=None, foreign_key="users.id")
+
     # What an analyst made of the verdict: phishing or clean. Can be taken back
     decided_verdict: str | None = None
     decided_by: int | None = Field(default=None, foreign_key="users.id")
