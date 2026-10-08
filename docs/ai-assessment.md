@@ -79,6 +79,7 @@ Umgesetzt in `backend/app/services/ai_assessment.py`, im arq-Job als Schritt „
 - Ohne `TYPESAFE_API_KEY` geht keine Anfrage raus, `ai_assessment` bleibt null.
 - Als `body` geht der Klartext-Teil der Mail, nur ohne ihn der HTML-Teil ohne Tags, Skripte und Styles. Leerräume werden zusammengefasst, danach wird auf 20.000 Zeichen gekürzt.
 - Eine Anfrage hat 20 Sekunden. Jeder Fehler des SDK (falscher Key, Rate-Limit, Überlastung, keine Verbindung) gibt null, die Analyse läuft weiter. Geloggt wird nur der Fehlertyp, kein Mailinhalt.
+- Verbrauch: Jede beantwortete Anfrage zählt mit ihren `usage.input_tokens` in Redis mit, `GET /monitoring` zeigt Anfragen, Tokens und Kosten des Tages. Ein Guthaben oder Kontingent lässt sich bei TypeSafe nicht abfragen, das zeigt nur die Konsole.
 - Die Tests schicken nie echte Anfragen: `tests/conftest.py` entfernt den Key für jeden Test, die SDK-Tests laufen gegen einen nachgebauten Server.
 
 Der ursprüngliche Vorschlag:

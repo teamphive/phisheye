@@ -31,6 +31,7 @@ import {
 import { errorMessage, ForbiddenError } from "@/lib/api"
 import {
   formatDecimal,
+  formatDollars,
   formatNumber,
   formatShortDateTime,
   formatTime,
@@ -138,8 +139,8 @@ export function MonitoringPage() {
           title="Monitoring"
           description="Systemweit über alle Teams"
         />
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, index) => (
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, index) => (
             <Skeleton key={index} className="h-[88px] rounded-xl" />
           ))}
         </div>
@@ -148,7 +149,7 @@ export function MonitoringPage() {
     )
   }
 
-  const { queue, workers, jobs, virusTotal } = data
+  const { queue, workers, jobs, virusTotal, jev } = data
   const errorRate = jobs.total === 0 ? null : (jobs.failed / jobs.total) * 100
 
   return (
@@ -169,7 +170,7 @@ export function MonitoringPage() {
         }
       />
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
         <StatTile label="Warteschlange" value={formatNumber(queue.waiting)} />
         <StatTile
           label="Aktive Worker"
@@ -185,6 +186,14 @@ export function MonitoringPage() {
           label="VirusTotal heute"
           value={formatNumber(virusTotal.used)}
           unit={`/ ${formatNumber(virusTotal.limit)}`}
+        />
+        {/* the fifth tile spans both columns on small screens, no half row */}
+        <StatTile
+          className="col-span-2 lg:col-span-1"
+          label="JEV heute"
+          value={formatNumber(jev.requests)}
+          unit="Anfragen"
+          hint={`${formatNumber(jev.inputTokens)} Tokens · ≈ ${formatDollars(jev.costUsd)}`}
         />
       </div>
 
@@ -250,13 +259,18 @@ function StatTile({
   label,
   value,
   unit,
+  hint,
+  className,
 }: {
   label: string
   value: string
   unit?: string
+  /** A small line under the value */
+  hint?: string
+  className?: string
 }) {
   return (
-    <Card>
+    <Card className={className}>
       <CardContent className="flex flex-col gap-1.5">
         <span className="text-sm text-muted-foreground">{label}</span>
         <div className="text-[28px] leading-tight font-semibold tracking-tight">
@@ -267,6 +281,9 @@ function StatTile({
             </span>
           ) : null}
         </div>
+        {hint ? (
+          <span className="text-xs text-muted-foreground">{hint}</span>
+        ) : null}
       </CardContent>
     </Card>
   )

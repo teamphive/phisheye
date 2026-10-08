@@ -13,7 +13,7 @@ Ziel sind 4 Punkte pro Mitglied, bei drei Mitgliedern also 12.
 | 5 | Background-Jobs | 1 | Analyse läuft über arq und Redis, nicht im Request | umgesetzt |
 | 6 | Anbindung an externe APIs | 1 | VirusTotal für Hash-Reputation | umgesetzt |
 | 7 | Zwei-Faktor-Authentifizierung | 1 | TOTP zusätzlich zum Login | umgesetzt (über Keycloak) |
-| 8 | Monitoring-System | 1 | Systemweites Admin-Dashboard mit Queue, Workern, Fehlerrate und VirusTotal-Kontingent | in Arbeit, Technik in Grafana, siehe [Infrastruktur](infrastructure.md) |
+| 8 | Monitoring-System | 1 | Systemweites Admin-Dashboard mit Queue, Workern, Fehlerrate und VirusTotal-Kontingent | umgesetzt, Technik in Grafana, siehe [Infrastruktur](infrastructure.md) |
 | | **Summe** | **12** | | |
 
 ## Pflicht
