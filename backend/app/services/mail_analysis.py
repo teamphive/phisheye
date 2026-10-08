@@ -15,11 +15,19 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ..models.mail_analysis import MailAnalysis
 from ..models.mail_attachment import MailAttachment
+from ..models.mail_link import MailLink
+from . import eml_validation
+from .detection import detect
+from .msg_convert import is_msg, msg_to_eml
 from .notifications import enqueue_analysis_ready, redis_settings
 from .object_storage import ObjectStorageError, delete_object, load_eml, store_eml
-from .outlook_msg import MsgError, is_msg, msg_to_eml
 
 logger = logging.getLogger(__name__)
+
+
+def _db_text(value: str) -> str:
+    """Postgres refuses NUL bytes in text, Outlook files carry them."""
+    return value.replace("\x00", "")
 
 
 # vt returns its own dict wrapper, which the JSON column cannot store
@@ -49,20 +57,13 @@ async def submit_analysis(
     if not content:
         raise HTTPException(status_code=400, detail="Uploaded file is empty")
 
-    # Outlook's own format, from here on everything works with the .eml
+    # an Outlook .msg is turned into the same bytes a .eml has, from here on
+    # the analysis does not know the difference
     if is_msg(content):
-        try:
-            content = msg_to_eml(content)
-        except MsgError as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        content = msg_to_eml(content)
 
     msg = _parse(content)
-
-    # The parser accepts any bytes, a PDF simply becomes a mail without
-    # headers. Every real mail has a From header (RFC 5322)
-    if not str(msg.get("From", "")).strip():
-        raise HTTPException(status_code=422, detail="Die Datei ist keine E-Mail")
-
+    eml_validation.check_eml(content, msg)
     storage_key = await store_eml(content)
 
     try:
@@ -70,12 +71,14 @@ async def submit_analysis(
             analysis = MailAnalysis(
                 team_id=team_id,
                 submitted_by=submitted_by,
-                subject=str(msg.get("Subject", "")),
-                sender=str(msg.get("From", "")),
+                subject=_db_text(str(msg.get("Subject", ""))),
+                sender=_db_text(str(msg.get("From", ""))),
                 status="pending",
                 storage_key=storage_key,
                 reported_by=reported_by,
-                raw_headers="\n".join(f"{key}: {value}" for key, value in msg.items()),
+                raw_headers=_db_text(
+                    "\n".join(f"{key}: {value}" for key, value in msg.items())
+                ),
             )
             db.add(analysis)
     except SQLAlchemyError:
@@ -130,9 +133,9 @@ def _attachments_of(msg: EmailMessage) -> list[dict]:
 
         attachments.append(
             {
-                "filename": part.get_filename() or "unnamed",
+                "filename": _db_text(part.get_filename() or "unnamed"),
                 "sha256": hashlib.sha256(file_bytes).hexdigest(),
-                "mime_type": part.get_content_type(),
+                "mime_type": _db_text(part.get_content_type()),
                 "size": len(file_bytes),
             }
         )
@@ -196,6 +199,9 @@ async def run_analysis(analysis_id: int, db: AsyncSession) -> None:
 
     msg = _parse(await load_eml(analysis.storage_key))
 
+    await _set_step(analysis, "Kriterien werden geprüft", db)
+    detection = detect(msg)
+
     await _set_step(analysis, "Anhänge werden geprüft", db)
     attachments = _attachments_of(msg)
     await _check_attachments(attachments)
@@ -205,6 +211,12 @@ async def run_analysis(analysis_id: int, db: AsyncSession) -> None:
         for attachment in attachments:
             db.add(MailAttachment(mail_analysis_id=analysis.id, **attachment))
 
+        for link in detection.links:
+            db.add(MailLink(mail_analysis_id=analysis.id, **link))
+
+        analysis.criteria = detection.criteria
+        analysis.confidence_score = detection.score
+        analysis.verdict = detection.verdict
         analysis.status = "completed"
         analysis.step = None
         analysis.error = None

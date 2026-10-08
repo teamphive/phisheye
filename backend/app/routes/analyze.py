@@ -3,7 +3,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -11,8 +11,10 @@ from ..constants import VERDICT_THRESHOLDS, WORKER_MAX_JOBS
 from ..database import get_db
 from ..models.mail_analysis import MailAnalysis
 from ..models.mail_attachment import MailAttachment
+from ..models.mail_link import MailLink
 from ..models.team_membership import TeamMembership
 from ..models.user import User
+from ..services import eml_validation
 from ..services.auth import get_current_user
 from ..services.mail_analysis import submit_analysis
 from ..services.teams import get_active_membership, require_role
@@ -21,6 +23,11 @@ router = APIRouter(tags=["analyses"])
 
 # The frontend only knows running, completed and failed
 _FRONTEND_STATUS = {"pending": "running", "processing": "running"}
+
+# Same limits as the frontend's search: hashes only from 8 characters on,
+# shorter is guessing, and at most 20 hits
+_HASH_PREFIX_LENGTH = 8
+_SEARCH_LIMIT = 20
 
 
 # only phishing and clean are accepted by pydantic
@@ -43,6 +50,21 @@ def _list_item(analysis: MailAnalysis) -> dict:
         "reported_by": analysis.reported_by,
         "received_at": analysis.created_at,
     }
+
+
+def _search_hit(analysis: MailAnalysis, needle: str, matching_hash: str | None) -> dict:
+    """One hit per analysis, the most specific field wins: hash, sender, subject.
+
+    Link hosts belong between sender and subject, but links are not stored yet.
+    """
+    if matching_hash:
+        field, match = "hash", matching_hash
+    elif needle in analysis.sender.lower():
+        field, match = "sender", analysis.sender
+    else:
+        field, match = "subject", analysis.subject
+
+    return {**_list_item(analysis), "field": field, "match": match}
 
 
 def _attachment(attachment: MailAttachment) -> dict:
@@ -115,6 +137,54 @@ async def list_analyses(
     return [_list_item(analysis) for analysis in result.all()]
 
 
+# Must stay above /analyses/{analysis_id}, otherwise "search" is read as an id
+@router.get("/analyses/search")
+async def search_analyses(
+    q: str,
+    membership: TeamMembership = Depends(get_active_membership),
+    db: AsyncSession = Depends(get_db),
+):
+    needle = q.strip().lower()
+
+    # The frontend only asks from 2 characters on
+    if len(needle) < 2:
+        return []
+
+    # autoescape: a % or _ in the search text is meant literally, not as wildcard
+    matches_hash = MailAttachment.sha256.startswith(needle, autoescape=True)
+    searches_hashes = len(needle) >= _HASH_PREFIX_LENGTH
+
+    conditions = [
+        func.lower(MailAnalysis.subject).contains(needle, autoescape=True),
+        func.lower(MailAnalysis.sender).contains(needle, autoescape=True),
+    ]
+    if searches_hashes:
+        analyses_with_hash = select(MailAttachment.mail_analysis_id).where(matches_hash)
+        conditions.append(MailAnalysis.id.in_(analyses_with_hash))
+
+    result = await db.exec(
+        select(MailAnalysis)
+        .where(MailAnalysis.team_id == membership.team_id)
+        .where(MailAnalysis.deleted_at.is_(None))
+        .where(or_(*conditions))
+        .order_by(MailAnalysis.created_at.desc())
+        .limit(_SEARCH_LIMIT)
+    )
+    analyses = result.all()
+
+    # The full hash for every hit found by its hash, the frontend shows it
+    hashes: dict[int, str] = {}
+    if searches_hashes and analyses:
+        result = await db.exec(
+            select(MailAttachment)
+            .where(MailAttachment.mail_analysis_id.in_([a.id for a in analyses]))
+            .where(matches_hash)
+        )
+        hashes = {a.mail_analysis_id: a.sha256 for a in result.all()}
+
+    return [_search_hit(a, needle, hashes.get(a.id)) for a in analyses]
+
+
 @router.post("/analyses")
 async def create_analysis(
     file: UploadFile = File(...),
@@ -125,7 +195,9 @@ async def create_analysis(
     # audit may only read
     require_role(membership, "admin", "analyst")
 
-    content = await file.read()
+    # one byte more than the limit is enough to see that it is too large
+    content = await file.read(eml_validation.MAX_EML_BYTES + 1)
+    eml_validation.check_upload(file.filename, len(content))
 
     # Answers at once with status running, the worker analyzes in the background
     analysis = await submit_analysis(
@@ -152,15 +224,32 @@ async def get_analysis(
         .order_by(MailAttachment.id)
     )
     attachments = result.all()
+
+    result = await db.exec(
+        select(MailLink)
+        .where(MailLink.mail_analysis_id == analysis_id)
+        .order_by(MailLink.id)
+    )
+    links = result.all()
+
+    criteria = analysis.criteria or []
     running = analysis.status in ("pending", "processing")
 
     return {
         **_list_item(analysis),
         "thresholds": VERDICT_THRESHOLDS,
-        # The detection does not produce criteria and links yet
-        "criteria": [],
-        "criteria_total": 0,
-        "links": [],
+        "criteria": criteria,
+        # the sum before the cap, the page shows "Summe 120, gekappt auf 100"
+        "criteria_total": sum(criterion["weight"] for criterion in criteria),
+        "links": [
+            {
+                "text": link.text,
+                "target": link.target,
+                "finding": link.finding,
+                "tone": link.tone,
+            }
+            for link in links
+        ],
         "attachments": [_attachment(attachment) for attachment in attachments],
         "raw_headers": analysis.raw_headers or "",
         "decision": await _decision(analysis, db),

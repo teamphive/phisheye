@@ -14,7 +14,7 @@ export type AnalysisListItem = {
   status: AnalysisStatus
   verdict: Verdict | null
   score: number | null
-  /** Null for a report nobody has taken on yet. */
+  /** Null while nobody has taken the analysis on. */
   handler: string | null
   source: AnalysisSource
   /** Address of whoever reported the mail in Outlook, null for uploads. */
@@ -56,7 +56,7 @@ export const analyses: AnalysisListItem[] = [
   },
   {
     id: "a-2026-0127",
-    subject: "Zahlungsaufforderung – dringend, vertraulich",
+    subject: "Zahlungsaufforderung - dringend, vertraulich",
     sender: "geschaeftsfuehrung@hansa-Iogistik.de",
     status: "completed",
     verdict: "phishing",
@@ -104,7 +104,7 @@ export const analyses: AnalysisListItem[] = [
   },
   {
     id: "a-2026-0125",
-    subject: "AW: Angebot Q3 – bitte kurzfristig freigeben",
+    subject: "AW: Angebot Q3 - bitte kurzfristig freigeben",
     sender: "k.wagner@hansa-logistik.de.co",
     status: "completed",
     verdict: "suspicious",
@@ -116,7 +116,7 @@ export const analyses: AnalysisListItem[] = [
   },
   {
     id: "a-2026-0124",
-    subject: "Bewerbung als Fachinformatiker – Unterlagen",
+    subject: "Bewerbung als Fachinformatiker - Unterlagen",
     sender: "j.brandt@gmx.de",
     status: "completed",
     verdict: "suspicious",
@@ -322,6 +322,15 @@ export function mockAnalyses(teamId: string): AnalysisListItem[] {
 export function mockDeleteAnalysis(id: string) {
   for (const [teamId, items] of Object.entries(analysesByTeam)) {
     analysesByTeam[teamId] = items.filter((item) => item.id !== id)
+  }
+}
+
+/** Taking an analysis on or handing it back shows in the list as well. */
+export function mockSetHandler(id: string, handler: string | null) {
+  for (const [teamId, items] of Object.entries(analysesByTeam)) {
+    analysesByTeam[teamId] = items.map((item) =>
+      item.id === id ? { ...item, handler } : item
+    )
   }
 }
 

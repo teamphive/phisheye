@@ -49,8 +49,8 @@ export function AuthGate({ children }: { children: ReactNode }) {
           </h1>
           <p className="max-w-[42ch] text-sm text-muted-foreground">
             Der Anmeldedienst unter{" "}
-            <span className="font-mono text-[12.5px]">{keycloakUrl}</span>{" "}
-            antwortet nicht. Läuft Keycloak?
+            <span className="text-xs">{keycloakUrl}</span> antwortet nicht.
+            Läuft Keycloak?
           </p>
         </div>
 

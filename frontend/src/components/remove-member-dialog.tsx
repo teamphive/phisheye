@@ -50,13 +50,13 @@ export function RemoveMemberDialog({
 
         <div className="flex items-center gap-3 rounded-lg border bg-muted/50 p-3">
           <Avatar className="size-8">
-            <AvatarFallback className="text-[11px]">{initials}</AvatarFallback>
+            <AvatarFallback className="text-xs">{initials}</AvatarFallback>
           </Avatar>
           <div className="min-w-0">
             {name ? (
-              <div className="truncate text-[13.5px] font-semibold">{name}</div>
+              <div className="truncate text-sm font-semibold">{name}</div>
             ) : null}
-            <div className="truncate font-mono text-[11px] text-faint">
+            <div className="truncate text-xs text-muted-foreground">
               {email}
             </div>
           </div>

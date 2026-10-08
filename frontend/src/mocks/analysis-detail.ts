@@ -2,6 +2,7 @@
 
 import {
   findMockAnalysis,
+  mockSetHandler,
   type AnalysisSource,
   type AnalysisStatus,
   type Verdict,
@@ -35,6 +36,11 @@ export type Decision = {
   at: string
 }
 
+/** Who took the analysis on, the same name GET /me hands out. */
+export type Assignment = {
+  handler: string
+}
+
 /** JEV's reading of the mail text, made apart from the rules. */
 export type AiAssessment = {
   verdict: "phishing" | "clean"
@@ -54,7 +60,7 @@ export type AnalysisDetail = {
   thresholds: { suspicious: number; phishing: number }
   /** Null when JEV gave no answer, the verdict then rests on the rules alone. */
   aiAssessment: AiAssessment | null
-  /** Null for a report nobody has taken on yet. */
+  /** Null while nobody has taken the analysis on. */
   handler: string | null
   source: AnalysisSource
   /** Address of whoever reported the mail in Outlook, null for uploads. */
@@ -198,7 +204,7 @@ const failed: AnalysisDetail = {
   startedAt: null,
   error: {
     detail:
-      "Die Anfrage an VirusTotal wurde abgelehnt, weil das Tageskontingent aufgebraucht ist. Es liegt kein Verdikt vor — die Mail wurde nicht bewertet.",
+      "Die Anfrage an VirusTotal wurde abgelehnt, weil das Tageskontingent aufgebraucht ist. Es liegt kein Verdikt vor, die Mail wurde nicht bewertet.",
     step: "Anhänge prüfen",
     attempt: 3,
     maxAttempts: 3,
@@ -310,8 +316,10 @@ export function mockQueue(): Queue {
   }
 }
 
-// Changed in place, so a decision is still there when the page is opened again.
+// Changed in place, so a decision or an assignment is still there when the
+// page is opened again.
 const decisions: Record<string, Decision | null> = {}
+const handlers: Record<string, string | null> = {}
 
 export function mockDecide(
   id: string,
@@ -320,11 +328,26 @@ export function mockDecide(
 ): Decision {
   const decision = { verdict, by, at: new Date().toISOString() }
   decisions[id] = decision
+
+  // Whoever decides without having taken it on gets it assigned
+  if (mockAnalysis(id).handler === null) mockAssign(id, by)
+
   return decision
 }
 
 export function mockRevokeDecision(id: string) {
   decisions[id] = null
+}
+
+export function mockAssign(id: string, handler: string): Assignment {
+  handlers[id] = handler
+  mockSetHandler(id, handler)
+  return { handler }
+}
+
+export function mockRelease(id: string) {
+  handlers[id] = null
+  mockSetHandler(id, null)
 }
 
 /** Stands in for the stored mail: the placeholder's headers and a note. */
@@ -337,7 +360,12 @@ export function mockEml(id: string) {
 
 export function mockAnalysis(id: string): AnalysisDetail {
   const base = baseAnalysis(id)
-  return id in decisions ? { ...base, decision: decisions[id] } : base
+
+  return {
+    ...base,
+    decision: id in decisions ? decisions[id] : base.decision,
+    handler: id in handlers ? handlers[id] : base.handler,
+  }
 }
 
 // JEV's answer to go with the list's verdict. The suspicious mails get an

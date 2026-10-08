@@ -16,25 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Spinner } from "@/components/ui/spinner"
 import { errorMessage } from "@/lib/api"
-import { initialsOf } from "@/lib/format"
-import { cn } from "@/lib/utils"
 import { instanceRoleLabel, roleLabel, type Team } from "@/mocks/session"
-
-/** A dashed outline marks a team the user only sees through the instance role. */
-function TeamMark({ team }: { team: Team }) {
-  return (
-    <span
-      className={cn(
-        "grid size-[22px] shrink-0 place-items-center rounded-md font-mono text-[10px] font-semibold",
-        team.viaInstance
-          ? "border border-dashed border-faint text-muted-foreground"
-          : "bg-accent text-accent-foreground"
-      )}
-    >
-      {initialsOf(team.name)}
-    </span>
-  )
-}
 
 export function TeamSwitcher() {
   const navigate = useNavigate()
@@ -90,20 +72,19 @@ export function TeamSwitcher() {
         onClick={() => choose(team.id)}
         className="gap-3"
       >
-        <TeamMark team={team} />
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[13.5px] font-semibold">
+          <span className="block truncate text-sm font-medium">
             {team.name}
           </span>
-          <span className="block truncate text-[11.5px] text-faint">
-            {team.memberCount} Mitglieder ·{" "}
+          <span className="block truncate text-xs text-muted-foreground">
+            {team.memberCount} Mitglieder,{" "}
             {team.viaInstance
               ? "du bist kein Mitglied"
               : `deine Rolle: ${roleLabel[team.role]}`}
           </span>
         </span>
         {team.id === active.id ? (
-          <CheckIcon className="size-3.5 shrink-0 text-primary" />
+          <CheckIcon className="size-3.5 shrink-0" />
         ) : null}
       </DropdownMenuItem>
     )
@@ -114,9 +95,8 @@ export function TeamSwitcher() {
       <DropdownMenu>
         <DropdownMenuTrigger
           disabled={pendingTeamId !== null}
-          className="flex max-w-[220px] items-center gap-2 rounded-md border border-border bg-card py-1 pr-2 pl-1.5 text-sm font-semibold hover:bg-muted disabled:opacity-70"
+          className="flex max-w-[220px] min-w-0 items-center gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 text-sm font-medium shadow-xs hover:bg-muted disabled:opacity-70 dark:shadow-none"
         >
-          <TeamMark team={active} />
           <span className="truncate">{active.name}</span>
           {pendingTeamId !== null ? (
             <Spinner className="size-3.5 shrink-0 text-faint" />
@@ -127,7 +107,7 @@ export function TeamSwitcher() {
 
         <DropdownMenuContent align="end" className="w-[300px]">
           <DropdownMenuGroup>
-            <DropdownMenuLabel className="font-mono text-[10px] tracking-[0.1em] text-faint uppercase">
+            <DropdownMenuLabel>
               {otherTeams.length > 0 ? "Deine Teams" : "Team wechseln"}
             </DropdownMenuLabel>
             {ownTeams.map(teamItem)}
@@ -137,7 +117,7 @@ export function TeamSwitcher() {
             <>
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
-                <DropdownMenuLabel className="font-mono text-[10px] tracking-[0.1em] text-faint uppercase">
+                <DropdownMenuLabel>
                   {user.instanceRole
                     ? `Weitere Teams · ${instanceRoleLabel[user.instanceRole]}`
                     : "Weitere Teams"}
@@ -150,10 +130,7 @@ export function TeamSwitcher() {
           {permissions.createTeams ? (
             <>
               <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="font-semibold text-primary"
-                onClick={() => setCreateOpen(true)}
-              >
+              <DropdownMenuItem onClick={() => setCreateOpen(true)}>
                 <PlusIcon className="size-4" />
                 Neues Team erstellen
               </DropdownMenuItem>

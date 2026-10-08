@@ -59,7 +59,7 @@ export function Page() {
         <AuthBrand centered />
 
         <div className="text-center">
-          <h1 className="text-[21px] font-semibold tracking-tight">
+          <h1 className="text-xl font-semibold tracking-tight">
             Profil vervollständigen
           </h1>
           <p className="mt-1.5 text-sm text-muted-foreground">

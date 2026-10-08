@@ -141,6 +141,8 @@ export function NotificationsPage() {
         onValueChange={(value) => setFilter((value[0] as Filter) ?? "all")}
         variant="outline"
         size="sm"
+        // scrolls on its own instead of pushing the page wider
+        className="max-w-full overflow-x-auto"
       >
         {filters.map((entry) => (
           <ToggleGroupItem key={entry.value} value={entry.value}>
@@ -220,7 +222,7 @@ export function NotificationsPage() {
                         <ItemTitle>{entry.title}</ItemTitle>
                         <ItemDescription>{entry.detail}</ItemDescription>
                       </ItemContent>
-                      <ItemActions className="font-mono text-[10.5px] text-faint">
+                      <ItemActions className="text-xs text-muted-foreground">
                         {timeLabel(entry.createdAt, group.bucket)}
                       </ItemActions>
                     </Item>

@@ -1,116 +1,107 @@
-# Infrastructure Decisions
+# Infrastruktur
 
-## IaC: OpenTofu
+## Entscheidungen
 
-Community-Fork von Terraform, Syntax identisch.
+| Thema | Entscheidung | Grund |
+| --- | --- | --- |
+| IaC | OpenTofu | Community-Fork von Terraform, gleiche Syntax |
+| State | S3 + DynamoDB | GitHub hat kein State-Backend. Bootstrap einmalig mit lokalem State, die State-Datei kommt nicht ins Git |
+| Hosting | Homelab statt AWS | Proxmox-VM `neuserphis1c` mit Docker Compose. AWS nur noch fürs Budget |
+| Zugriff für Kollegen und CI | Tailscale statt offenem SSH | Kein Port am Router, GitHub Actions klinkt sich per `tailscale/github-action` ins Tailnet |
+| Reverse Proxy | Nginx Proxy Manager im Homelab | Läuft schon, TLS über Let's Encrypt. Am Router nur 80 und 443 offen |
+| Deployment | GitHub Actions + SSH + Compose | Bei Merge in `main`: Images bauen, nach GHCR, per SSH `docker compose pull && up -d` |
+| Registry | GHCR statt ECR | Team nutzt GitHub, kostenlos |
+| DNS | Manuell beim bestehenden Provider | Domain gab es schon, Eintrag zeigt auf die Homelab-IP |
+| KI | JEV statt AWS Bedrock | Feste Antwort mit Konfidenz, kein Freitext. Siehe [ai-assessment.md](ai-assessment.md) |
+| Budget | $50 im Monat | Warnung bei 50, 80 und 100 % per Mail |
 
-## State: S3 + DynamoDB
+JEV: Der Key liegt als `TYPESAFE_API_KEY` in der `.env` auf dem Server. Der IAM-User für Bedrock ist aus `infra/main` entfernt und verschwindet beim nächsten `tofu apply`. Über AWS laufen nur noch State-Bucket, Lock-Tabelle und Budget.
 
-GitHub hat kein natives State-Backend. Bootstrap (Bucket + Lock-Tabelle) läuft einmalig mit lokalem State, Code geht ins Git, die State-Datei selbst nicht.
+## Monitoring
 
-## Kurswechsel: Homelab statt AWS-Compute
+Grafana für Technik, die App für KPIs.
 
-Ursprünglich war die App komplett auf AWS geplant (ECS/Fargate, RDS, ElastiCache, S3+CloudFront). Entschieden, stattdessen alles im eigenen Homelab zu hosten (Proxmox-VM `neuserphis1c`, Docker Compose mit Backend, Frontend, Postgres, Redis, arq-Worker). AWS wird nur noch für die Kostenüberwachung (Budget) genutzt.
+- **App** (`GET /monitoring`): Queue, Worker, Fehlerrate, Analysen pro Stunde, VirusTotal-Kontingent, Dienste-Ampel, Fehlerliste mit Retry.
+- **Grafana**: Verlauf, Infrastruktur, Alarme.
+- Der Stack (Prometheus, Grafana, Loki, Blackbox, ntfy) liegt im Repo `monitoring-stack` auf eigenem Host.
+- Er holt von der VM: `node_exporter`, cAdvisor, Redis (mit Länge der arq-Queue), Postgres und Backend-Metriken. Alloy schickt die Logs an Loki.
+- Backend-Metriken laufen über Port 9101, nicht unter `/api/metrics`.
+- Einrichtung der Exporter: [deployment/monitoring](../deployment/monitoring/README.md).
 
-## Zugriff Kollegen/CI: Tailscale statt offenem SSH
+## Keycloak
 
-Kein offener Port am Router nötig, VM ist im Internet nicht als SSH-Ziel sichtbar. GitHub Actions nutzt die offizielle `tailscale/github-action`, um sich fürs Deployment temporär ins Tailnet einzuklinken.
-
-## Reverse Proxy: Nginx Proxy Manager im Homelab statt AWS
-
-Kein Umweg über AWS nötig, NPM läuft bereits im Homelab, terminiert TLS (Let's Encrypt) und routet zum phisheye-Docker-Compose-Stack. Nur Port 80/443 werden am Router freigegeben, SSH bleibt zu.
-
-## Auto-Deployment: GitHub Actions + SSH + Docker Compose
-
-Bei Merge in main: Images bauen, zu GHCR pushen, per SSH auf die VM verbinden, `docker compose pull && up -d`.
-
-## Monitoring: Grafana für Technik, die App für KPIs
-
-Was ein Operator jetzt wissen oder tun muss, zeigt die App (`GET /monitoring`): Warteschlange, Worker, Fehlerrate, Analysen pro Stunde, VirusTotal-Kontingent, Dienste-Ampel und die Fehlerliste mit Retry. Verlauf, Infrastruktur und Alarme liegen in Grafana.
-
-Der Stack (Prometheus, Grafana, Loki, Blackbox, ntfy) läuft im Repo `monitoring-stack` auf einem eigenen Host. Er holt die Werte von der VM ab: `node_exporter`, cAdvisor, Redis (mit Länge der arq-Queue), Postgres und die API-Metriken des Backends. Die Logs schickt Alloy an Loki. Die Exporter und ihre Einrichtung stehen in [deployment/monitoring](../deployment/monitoring/README.md).
-
-Die Metriken des Backends laufen über einen eigenen Port (9101), nicht unter der App-URL. Unter `/api/metrics` gibt es nichts.
-
-## Registry: GHCR statt ECR
-
-Team nutzt eh GitHub, kostenlos, kein zusätzlicher AWS-Service nötig.
-
-## Keycloak-Realm: Vorlage mit Marken
+### Realm-Vorlage
 
 `docker/keycloak/realm-export.json` ist eine Vorlage. Beim Start ersetzt `docker/keycloak/entrypoint.sh` die Marken aus der Umgebung des Containers:
 
 | Marke | Variable | Zweck |
 | --- | --- | --- |
-| `__FRONTEND_URL__` | `FRONTEND_URL` | öffentliche Adresse des Frontends, erlaubtes Ziel nach Login und Logout |
-| `__SMTP_HOST__`, `__SMTP_PORT__` | `SMTP_HOST`, `SMTP_PORT` | Mailserver für Keycloak-Mails |
+| `__FRONTEND_URL__` | `FRONTEND_URL` | Frontend-Adresse, erlaubtes Ziel nach Login und Logout |
+| `__SMTP_HOST__`, `__SMTP_PORT__` | `SMTP_HOST`, `SMTP_PORT` | Mailserver |
 | `__SMTP_USERNAME__`, `__SMTP_PASSWORD__` | `SMTP_USERNAME`, `SMTP_PASSWORD` | Zugang und Absender |
 
-Keycloak löst Platzhalter der Form `${env.SMTP_USERNAME}` im Block `smtpServer` nicht auf und startet dann nicht. Deshalb gibt es die eigenen Marken.
+Eigene Marken, weil Keycloak `${env.SMTP_USERNAME}` im Block `smtpServer` nicht auflöst und nicht startet.
 
 - `FRONTEND_URL` mit Schema, ohne Slash am Ende: `https://phisheye.neumann-it.org`.
-- Nach einem Neuexport aus der Admin-Console die Werte wieder durch die Marken ersetzen.
-- Der Import läuft nur beim ersten Start mit leerem Volume. Bei einem bestehenden Realm die Werte in der Admin-Console nachziehen oder das Volume `keycloak-data` neu anlegen.
+- Nach einem Neuexport aus der Admin-Console die Werte wieder durch Marken ersetzen.
+- Der Import läuft nur beim ersten Start mit leerem Volume. Bei bestehendem Realm in der Admin-Console nachziehen oder das Volume `keycloak-data` neu anlegen.
 
-## Keycloak öffentlich unter /auth statt eigener Subdomain
+### Öffentlich unter `/auth`
 
-Der Nginx Proxy Manager gibt nur das Frontend frei, eine Domain reicht. Keycloak läuft mit `KC_HTTP_RELATIVE_PATH=/auth`, der Frontend-nginx reicht `/auth/` unverändert an den Keycloak-Container weiter (`frontend/nginx.conf`). Keycloak selbst ist so nie direkt aus dem Internet erreichbar, nur über diese Route.
+Eine Domain reicht, der Nginx Proxy Manager gibt nur das Frontend frei.
 
-Keycloak startet im Produktionsmodus (`start --optimized`). Pfad `/auth` und Datenbank (H2-Datei im Volume `keycloak-data`) sind Build-Optionen und stecken im Image (Stage `keycloak` in `frontend/Dockerfile`). Eine Änderung daran wirkt erst nach einem neuen Build des Images, ein anderer Wert in `docker-compose.yml` wird ignoriert.
+- Keycloak läuft mit `KC_HTTP_RELATIVE_PATH=/auth`. Der Frontend-nginx reicht `/auth/` weiter (`frontend/nginx.conf`).
+- Keycloak ist nie direkt aus dem Internet erreichbar.
+- Produktionsmodus (`start --optimized`). Pfad `/auth` und Datenbank (H2-Datei im Volume `keycloak-data`) sind Build-Optionen und stecken im Image (Stage `keycloak` in `frontend/Dockerfile`). Änderungen wirken erst nach neuem Build, Werte in `docker-compose.yml` werden ignoriert.
+- `KEYCLOAK_URL` und `KEYCLOAK_PUBLIC_URL` bleiben pfadlos. Das Backend hängt `/auth` selbst an (`backend/app/services/auth.py`), Compose nur für `KC_HOSTNAME` und den Frontend-Build.
+- Admin-Console: `https://phisheye.neumann-it.org/auth/admin/`, bewusst öffentlich. Schutz über starkes Passwort und 2FA, nicht über Netzwerksperren.
+- Port `8080` ist nur als SSH-Tunnel-Fallback an `127.0.0.1` gebunden.
 
-Folge: `KEYCLOAK_URL` und `KEYCLOAK_PUBLIC_URL` bleiben überall pfadlos (lokal und im Container). Das Backend hängt `/auth` selbst an (`backend/app/services/auth.py`). Compose ergänzt es nur für `KC_HOSTNAME` und den Frontend-Build.
+### Konten für Eingeladene
 
-Die Admin-Console läuft unter `https://phisheye.neumann-it.org/auth/admin/`, öffentlich erreichbar, bewusst so entschieden. Absicherung über starkes Passwort und 2FA am Admin-Konto, nicht über Netzwerksperren. Port `8080` bleibt nur noch für einen SSH-Tunnel als Fallback an `127.0.0.1` gebunden, kein regulärer Zugangsweg.
+Das Backend legt für Eingeladene ein Konto ohne Passwort an. Keycloak mailt den Link zum Setzen.
 
-## Konten für Eingeladene
-
-Das Backend legt für eingeladene Personen ein Konto in Keycloak an, ohne Passwort. Keycloak mailt einen Link zum Setzen. Dafür nutzt das Backend den Client `phisheye-backend-admin` (Service-Account mit `view-users`, `query-users` und `manage-users`). ID und Secret stehen in der `.env`.
-
-- Neue Realms bekommen den Client beim ersten Import.
-- Bei einem bestehenden Realm den Client einmal von Hand anlegen: Clients, Create, Client ID `phisheye-backend-admin`, Client authentication an, Service accounts roles an. Das Secret unter Credentials in die `.env` kopieren. Unter Service accounts roles die drei Rollen aus `realm-management` zuweisen.
-- Ohne Secret geht nur die Einladungsmail raus, das Konto muss dann schon existieren.
-- Keycloak mailt über den SMTP-Server aus dem Realm (`SMTP_*`).
-
-Die Mails von Keycloak (Konto einrichten, Passwort zurücksetzen, E-Mail bestätigen) haben ein eigenes Design. Es liegt als Email-Theme in `frontend/email-theme/` und steckt im Keycloak-Image. Neue Realms nutzen es über die Vorlage. In einem bestehenden Realm einmal unter Realm settings, Themes, Email theme auf `phisheye-email` stellen. `just seed` macht das lokal.
+- Client: `phisheye-backend-admin` (Service-Account mit `view-users`, `query-users`, `manage-users`). ID und Secret stehen in der `.env`.
+- Neue Realms bekommen den Client beim Import.
+- Bestehender Realm, einmal von Hand: Clients, Create, Client ID `phisheye-backend-admin`, Client authentication an, Service accounts roles an. Secret unter Credentials in die `.env`. Unter Service accounts roles die drei Rollen aus `realm-management` zuweisen.
+- Ohne Secret geht nur die Einladungsmail raus, das Konto muss dann existieren.
+- Mails laufen über den SMTP-Server aus dem Realm (`SMTP_*`).
+- Mail-Design: Email-Theme `phisheye-email` in `frontend/email-theme/`, steckt im Image. Neue Realms nutzen es über die Vorlage. Bestehender Realm: Realm settings, Themes, Email theme. `just seed` setzt es lokal.
 
 ## Standard-Team und Instanz-Admin
 
-Das Standard-Team gibt es immer, der Name ist fest (`Standard-Team`), es lässt sich nicht umbenennen oder löschen. Es nimmt die Meldungen von Domains auf, die kein Team eingetragen hat. Dort gibt es nur Admin und Auditor. Beide sind **Instanz-Rollen**: Sie sehen alle Teams, der Admin darf überall ändern und Teams erstellen, der Auditor liest nur. Der Instanz-Admin ist automatisch Operator und sieht das Monitoring.
+- Das Standard-Team gibt es immer. Name fest (`Standard-Team`), nicht umbenennbar, nicht löschbar.
+- Es nimmt Meldungen von Domains auf, die kein Team eingetragen hat.
+- Rollen dort: nur Admin und Auditor. Beide sind **Instanz-Rollen** und sehen alle Teams.
+- Admin darf überall ändern und Teams erstellen, Auditor liest nur.
+- Der Instanz-Admin ist automatisch Operator und sieht das Monitoring.
 
-Datenschutz: Beide sehen die Mails aller Teams. Die Rollen deshalb auf wenige Personen begrenzen. Das Backend protokolliert, wenn ein Instanz-Mitglied ein fremdes Team betritt. Im Abschlussbericht erwähnen.
+Datenschutz: Beide Rollen sehen die Mails aller Teams. Auf wenige Personen begrenzen. Das Backend protokolliert, wenn ein Instanz-Mitglied ein fremdes Team betritt. Im Abschlussbericht erwähnen.
 
-Der erste Instanz-Admin kommt auf dem Server so ins System:
+Erster Instanz-Admin auf dem Server:
 
-1. In der `.env` die eigene Adresse setzen: `PHISHEYE_ADMIN_EMAIL=<deine Adresse>`.
+1. In der `.env`: `PHISHEYE_ADMIN_EMAIL=<deine Adresse>`.
 2. Einmal ausführen: `docker compose --profile app exec backend python -m scripts.bootstrap_admin`. Das Skript legt das Konto in Keycloak an und schickt den Link zum Passwort-Setzen.
-3. Nach der Anmeldung ist die Adresse Admin im Standard-Team. Das gilt nur bei bestätigter E-Mail.
+3. Nach der Anmeldung ist die Adresse Admin im Standard-Team (nur bei bestätigter E-Mail).
 
 Weitere Instanz-Admins und -Auditoren lädt der erste Admin im Standard-Team ein. Lokal legt `just seed` beide an.
 
-## Eine `.env` für alles
+## Konfiguration
 
-Backend, Worker, Migration und Docker Compose selbst lesen alle dieselbe `.env` im Root. Vorher gab es zusätzlich `backend/.env`, mit teils denselben Variablen. Weichten die Werte voneinander ab, zum Beispiel `POSTGRES_PASSWORD`, schlug die Anmeldung an Postgres fehl, ohne dass die Ursache in der Compose-Konfiguration selbst zu sehen war. Lokal ohne Docker (`just dev`) findet `python-dotenv` die Root-`.env` automatisch, sie sucht beim Start von `backend/app/database.py` aufwärts nach der nächsten `.env`.
+### Eine `.env` für alles
 
-## Adressen lokal und auf dem Server
+- Backend, Worker, Migration und Compose lesen dieselbe `.env` im Root.
+- Eine zweite `backend/.env` gibt es nicht mehr. Abweichende Werte (zum Beispiel `POSTGRES_PASSWORD`) ließen die Anmeldung an Postgres scheitern, ohne dass man die Ursache sah.
+- Ohne Docker (`just dev`) sucht `python-dotenv` ab `backend/app/database.py` aufwärts die nächste `.env`.
 
-Die Standardwerte laufen lokal auf dem Mac ohne eigene `.env`-Einträge. Auf dem Server gehören diese Werte in die `.env`:
+### Adressen lokal und auf dem Server
+
+Lokal laufen die Standardwerte ohne Einträge. Auf dem Server gehören diese Werte in die `.env`:
 
 | Variable | Lokal (Standard) | Server | Wirkung |
 | --- | --- | --- | --- |
-| `KEYCLOAK_PUBLIC_URL` | `http://localhost:8080` | `https://phisheye.neumann-it.org` | Adresse von Keycloak im Browser, ohne `/auth` und ohne Slash am Ende. Keycloak trägt sie als Aussteller in jedes Token ein (`KC_HOSTNAME`), das Backend prüft sie, das Frontend meldet sich dort an. |
-| `FRONTEND_URL` | `http://localhost:5173` | `https://phisheye.neumann-it.org` | erlaubtes Ziel nach Login und Logout, gilt nur beim ersten Import des Realms |
-| `FRONTEND_PORT` | `5173` | Port, auf den der Nginx Proxy Manager zeigt | veröffentlichter Port des Frontends |
+| `KEYCLOAK_PUBLIC_URL` | `http://localhost:8080` | `https://phisheye.neumann-it.org` | Keycloak-Adresse im Browser, ohne `/auth` und Slash am Ende. Steht als Aussteller in jedem Token (`KC_HOSTNAME`), das Backend prüft sie |
+| `FRONTEND_URL` | `http://localhost:5173` | `https://phisheye.neumann-it.org` | erlaubtes Ziel nach Login und Logout, gilt nur beim ersten Import |
+| `FRONTEND_PORT` | `5173` | Port, auf den der Nginx Proxy Manager zeigt | veröffentlichter Frontend-Port |
 
-Das Frontend liest `KEYCLOAK_PUBLIC_URL` beim Build. Ändert sich der Wert, muss es neu gebaut werden (`docker compose --profile app up -d --build`).
-
-## DNS: manuell beim bestehenden Provider
-
-Domain existiert bereits extern, Eintrag zeigt auf die Homelab-IP.
-
-## KI: JEV statt AWS Bedrock
-
-Geplant war ein Sprachmodell über AWS Bedrock mit eigenem IAM-User. Stattdessen bewertet [JEV](https://docs.typesafe.ai/introduction) von TypeSafe den Text der Mail. JEV liefert auf die Frage, ob die Mail Phishing ist, eine feste Antwort mit Konfidenz, ein Freitext muss nicht ausgewertet werden. Der Key liegt als `TYPESAFE_API_KEY` in der `.env` auf dem Server, Details in [ai-assessment.md](ai-assessment.md). Der IAM-User für Bedrock ist aus `infra/main` entfernt, in AWS verschwindet er beim nächsten `tofu apply`.
-
-## Budget-Überwachung: monatliches Limit mit gestaffelten Alerts
-
-$50/Monat, Warnungen bei 50/80/100% per E-Mail. Seit Bedrock weggefallen ist, laufen über AWS nur noch der State-Bucket und die Lock-Tabelle, das Budget bleibt als Absicherung.
+Das Frontend liest `KEYCLOAK_PUBLIC_URL` beim Build. Bei Änderung neu bauen: `docker compose --profile app up -d --build`.

@@ -1,38 +1,81 @@
 import { Link } from "react-router"
+import { ChevronsUpDownIcon, LogOutIcon, SettingsIcon } from "lucide-react"
 
 import { NotificationsMenu } from "@/components/notifications-menu"
 import { SearchCommand } from "@/components/search-command"
 import { useSession } from "@/components/session-provider"
 import { TeamSwitcher } from "@/components/team-switcher"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { teamRoleLabel } from "@/lib/instance"
+import { authEnabled, logout } from "@/lib/keycloak"
 
 export function AppTopbar() {
   const { user, activeTeam } = useSession()
 
   return (
-    <header className="sticky top-0 z-40 flex items-center gap-4 border-b border-border bg-background/85 px-7 py-2.5 backdrop-blur">
+    <header className="sticky top-0 z-40 flex items-center gap-3 border-b border-border bg-background/85 px-7 py-2.5 backdrop-blur">
       <SearchCommand />
       <div className="flex-1" />
       <TeamSwitcher />
       <NotificationsMenu />
 
-      <Link
-        to="/einstellungen"
-        className="ml-1 flex items-center gap-2.5 rounded-md border-l border-border py-1 pr-2 pl-2.5 hover:bg-muted"
-      >
-        <Avatar className="size-[30px]">
-          <AvatarFallback className="bg-primary text-[11.5px] font-semibold text-primary-foreground">
-            {user.initials}
-          </AvatarFallback>
-        </Avatar>
-        <span className="leading-tight">
-          <span className="block text-[13px] font-semibold">{user.name}</span>
-          <span className="block font-mono text-[10px] text-faint">
-            {teamRoleLabel(activeTeam)}
+      <DropdownMenu>
+        <DropdownMenuTrigger className="flex items-center gap-2 rounded-md py-1 pr-1.5 pl-1 hover:bg-muted">
+          <Avatar className="size-7">
+            <AvatarFallback className="bg-muted text-xs font-medium text-foreground">
+              {user.initials}
+            </AvatarFallback>
+          </Avatar>
+          {/* Only the initials while the bar is short of room */}
+          <span className="text-sm leading-tight font-medium max-lg:hidden">
+            {user.name}
           </span>
-        </span>
-      </Link>
+          <ChevronsUpDownIcon className="size-3.5 text-muted-foreground" />
+        </DropdownMenuTrigger>
+
+        <DropdownMenuContent align="end" className="w-64">
+          <DropdownMenuGroup>
+            <DropdownMenuLabel className="flex items-center gap-3 py-2">
+              <Avatar className="size-9">
+                <AvatarFallback className="bg-muted text-sm font-medium text-foreground">
+                  {user.initials}
+                </AvatarFallback>
+              </Avatar>
+              <span className="min-w-0 leading-tight">
+                <span className="block truncate text-sm font-medium text-foreground">
+                  {user.name}
+                </span>
+                <span className="block truncate text-xs text-muted-foreground">
+                  {user.email}
+                </span>
+                <span className="block text-xs text-muted-foreground">
+                  {teamRoleLabel(activeTeam)} im Team {activeTeam.name}
+                </span>
+              </span>
+            </DropdownMenuLabel>
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem render={<Link to="/einstellungen" />}>
+            <SettingsIcon />
+            Einstellungen
+          </DropdownMenuItem>
+          {authEnabled ? (
+            <DropdownMenuItem onClick={() => logout()}>
+              <LogOutIcon />
+              Abmelden
+            </DropdownMenuItem>
+          ) : null}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </header>
   )
 }

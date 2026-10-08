@@ -7,12 +7,15 @@ import {
 } from "@/mocks/analyses"
 import {
   mockAnalysis,
+  mockAssign,
   mockDecide,
   mockEml,
   mockQueue,
+  mockRelease,
   mockRevokeDecision,
   runningAnalysisId,
   type AnalysisDetail,
+  type Assignment,
   type Decision,
   type Queue,
 } from "@/mocks/analysis-detail"
@@ -114,6 +117,31 @@ export async function revokeDecision(id: string) {
   }
 
   await apiFetch<void>(`/analyses/${encodeURIComponent(id)}/decision`, {
+    method: "DELETE",
+  })
+}
+
+/** Takes the analysis on, also away from someone else who had it. */
+export async function claimAnalysis(id: string) {
+  if (!apiEnabled) {
+    await mockLatency()
+    return mockAssign(id, sessionUser().name)
+  }
+
+  return apiFetch<Assignment>(
+    `/analyses/${encodeURIComponent(id)}/assignment`,
+    { method: "POST" }
+  )
+}
+
+/** Hands one's own analysis back, nobody has it afterwards. */
+export async function releaseAnalysis(id: string) {
+  if (!apiEnabled) {
+    await mockLatency()
+    return mockRelease(id)
+  }
+
+  await apiFetch<void>(`/analyses/${encodeURIComponent(id)}/assignment`, {
     method: "DELETE",
   })
 }

@@ -249,3 +249,26 @@ async def test_poller_goes_on_after_a_failed_mail(db, monkeypatch):
     assert calls[2][0] != team_id
     # the failed mail stays in the mailbox for the next run
     assert deleted == [{"2", "3"}]
+
+
+@pytest.mark.asyncio
+async def test_poller_drops_a_mail_that_is_no_mail(db, monkeypatch):
+    from app.services.eml_validation import InvalidEmlError
+    from app.worker import tasks
+
+    async def analyze(**kwargs):
+        raise InvalidEmlError("The file is not a mail")
+
+    async def session():
+        yield db
+
+    deleted = []
+    monkeypatch.setattr(tasks, "fetch_new_mails", lambda: [("1", b"junk")])
+    monkeypatch.setattr(tasks, "submit_analysis", analyze)
+    monkeypatch.setattr(tasks, "delete_mails", deleted.append)
+    monkeypatch.setattr(tasks, "get_session", session)
+
+    await tasks._poll_report_mailbox()
+
+    # it would fail on every run, so it leaves the mailbox
+    assert deleted == [{"1"}]

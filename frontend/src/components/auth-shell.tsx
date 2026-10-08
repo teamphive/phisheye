@@ -1,15 +1,14 @@
 import type { ReactNode } from "react"
 
 import { BrandMark } from "@/components/brand-mark"
-import { Badge } from "@/components/ui/badge"
 
 export function AuthBrand({ centered = false }: { centered?: boolean }) {
   return (
     <div
       className={`flex items-center gap-2.5 ${centered ? "justify-center" : ""}`}
     >
-      <BrandMark className="text-primary size-7" />
-      <span className="text-[19px] font-bold tracking-tight">phisheye</span>
+      <BrandMark className="size-7 text-primary" />
+      <span className="text-base font-semibold tracking-tight">phisheye</span>
     </div>
   )
 }
@@ -20,24 +19,18 @@ export function LoginAside() {
     <>
       <AuthBrand />
 
-      <div className="flex flex-col gap-5">
-        <p className="max-w-[26ch] text-[19px] leading-snug font-medium tracking-tight">
-          Gemeldete Mails an einem Ort prüfen, bewerten und dokumentieren.
+      <div className="flex flex-col gap-3">
+        <p className="max-w-[24ch] text-2xl font-semibold tracking-tight text-balance">
+          Verdächtige Mails prüfen, bewerten und dokumentieren.
         </p>
-        <div className="flex gap-2">
-          <Badge variant="phishing">Phishing</Badge>
-          <Badge variant="suspicious">Verdächtig</Badge>
-          <Badge variant="clean">Sauber</Badge>
-        </div>
-        <p className="text-muted-foreground max-w-[34ch] text-sm">
-          Header, Authentifizierung, Links und Anhänge werden nachvollziehbar
-          bewertet — mit Begründung je Kriterium.
+        <p className="max-w-[42ch] text-sm text-muted-foreground">
+          Jede Bewertung kommt mit einer Begründung je Kriterium. Das ganze Team
+          arbeitet in derselben Historie.
         </p>
       </div>
 
-      <p className="text-faint font-mono text-[11px]">
-        Interne Anwendung der Hansa Logistik GmbH
-      </p>
+      {/* keeps the claim in the middle of the column */}
+      <div />
     </>
   )
 }
@@ -51,7 +44,7 @@ type AuthSplitProps = {
 export function AuthSplit({ aside, children }: AuthSplitProps) {
   return (
     <div className="grid min-h-svh grid-cols-1 lg:grid-cols-2">
-      <aside className="bg-muted border-border hidden flex-col justify-between border-r p-12 lg:flex">
+      <aside className="hidden flex-col justify-between border-r border-border bg-muted p-12 lg:flex">
         {aside}
       </aside>
       <div className="grid place-items-center px-10 py-12">

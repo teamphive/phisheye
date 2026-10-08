@@ -22,22 +22,22 @@ _templates = Environment(
 _TONES = {
     "clean": {
         "label": "Sauber",
-        "color": "#0e8f63",
-        "soft": "#dcf3e9",
+        "color": "#15803d",
+        "soft": "#e9f6ee",
         "headline": "Wir haben nichts Auffälliges gefunden",
         "advice": "Die Mail sieht unbedenklich aus. Bei Zweifeln melde dich beim Security-Team.",
     },
     "suspicious": {
         "label": "Verdächtig",
-        "color": "#b06a00",
-        "soft": "#fbeeda",
+        "color": "#a16207",
+        "soft": "#fbf3df",
         "headline": "Diese Mail ist verdächtig",
         "advice": "Klicke keine Links an und öffne keine Anhänge, bis du den Absender auf anderem Weg bestätigt hast.",
     },
     "phishing": {
         "label": "Phishing",
-        "color": "#c42e3b",
-        "soft": "#fbe4e6",
+        "color": "#c62828",
+        "soft": "#fbeaea",
         "headline": "Diese Mail ist sehr wahrscheinlich Phishing",
         "advice": "Antworte nicht, öffne keine Links und keine Anhänge. Lösche die Mail.",
     },

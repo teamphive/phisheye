@@ -41,7 +41,7 @@ export function Page() {
     <PageShell title="Anmelden">
       <AuthSplit aside={<LoginAside />}>
         <div>
-          <h1 className="text-[22px] font-semibold tracking-tight">Anmelden</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Anmelden</h1>
           <p className="mt-1.5 text-sm text-muted-foreground">
             Mit deinem Firmenkonto
           </p>

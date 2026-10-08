@@ -16,10 +16,10 @@ import {
 } from "@/components/ui/item"
 import { Spinner } from "@/components/ui/spinner"
 import { createAnalysis } from "@/lib/analyses"
-import { errorMessage } from "@/lib/api"
+import { ApiError, errorMessage } from "@/lib/api"
 import { formatFileSize } from "@/lib/format"
 
-// The backend parses MIME only, Outlook's .msg is a different format
+// The backend turns Outlook's .msg into an .eml before the analysis
 const acceptedTypes = [".eml", ".msg"]
 const maxBytes = 25 * 1024 * 1024
 
@@ -40,6 +40,19 @@ function rejectionReason(files: FileList) {
   }
 
   return null
+}
+
+// The backend explains in English, and FastAPI's own 422 carries a list
+function uploadErrorMessage(error: unknown) {
+  if (error instanceof ApiError && error.status === 422) {
+    return "Die Datei ist keine lesbare Mail. Erwartet wird eine .eml oder eine .msg aus Outlook."
+  }
+
+  if (error instanceof ApiError && error.status === 413) {
+    return "Die Datei ist größer als 25 MB."
+  }
+
+  return errorMessage(error)
 }
 
 export function AnalysisNewPage() {
@@ -75,7 +88,7 @@ export function AnalysisNewPage() {
       const analysis = await createAnalysis(file)
       navigate(`/analysen/${analysis.id}`)
     } catch (uploadError) {
-      setError(errorMessage(uploadError))
+      setError(uploadErrorMessage(uploadError))
       setUploading(false)
     }
   }
@@ -93,7 +106,7 @@ export function AnalysisNewPage() {
     <div className="mx-auto flex max-w-[820px] flex-col gap-4">
       <PageHeader
         title="Neue Analyse"
-        description="Verdächtige Mail als Datei hochladen — sie wird im Team geteilt."
+        description="Verdächtige Mail als Datei hochladen. Sie wird im Team geteilt."
       />
 
       <Card>
@@ -150,7 +163,7 @@ export function AnalysisNewPage() {
                 className="size-[34px] text-faint"
                 strokeWidth={1.6}
               />
-              <h3 className="mt-3 text-[15px] font-semibold">
+              <h3 className="mt-3 text-base font-semibold">
                 Mail hier ablegen
               </h3>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -163,7 +176,7 @@ export function AnalysisNewPage() {
                   Datei auswählen
                 </button>
               </p>
-              <p className="mt-1.5 font-mono text-[11px] text-faint">
+              <p className="mt-1.5 text-xs text-muted-foreground">
                 .eml oder .msg · eine Datei · max. 25 MB
               </p>
             </div>
@@ -176,7 +189,7 @@ export function AnalysisNewPage() {
           ) : null}
         </CardContent>
         <CardFooter className="justify-between gap-4">
-          <span className="text-[11.5px] text-faint">
+          <span className="text-xs text-faint">
             Anhang-Hashes werden automatisch bei VirusTotal geprüft. Die Analyse
             läuft im Hintergrund, du wirst benachrichtigt.
           </span>

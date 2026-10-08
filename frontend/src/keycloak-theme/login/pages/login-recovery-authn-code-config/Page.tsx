@@ -96,7 +96,7 @@ export function Page() {
     <PageShell title="Backup-Codes">
       <AuthCard width={560}>
         <div>
-          <h1 className="text-[22px] font-semibold tracking-tight">
+          <h1 className="text-2xl font-semibold tracking-tight">
             {isAppInitiatedAction
               ? "Neue Backup-Codes"
               : "Backup-Codes sichern"}

@@ -122,7 +122,7 @@ function Dashboard({ teamId, period }: { teamId: string; period: Period }) {
       <Card className="mx-auto mt-[4vh] max-w-[52ch]">
         <CardContent className="flex flex-col items-center gap-3 text-center">
           <TriangleAlertIcon className="size-6 text-phishing" />
-          <div className="text-[15px] font-semibold">
+          <div className="text-base font-semibold">
             Übersicht konnte nicht geladen werden
           </div>
           <p className="text-sm text-muted-foreground">{errorMessage(error)}</p>
@@ -233,7 +233,7 @@ function DashboardSkeleton() {
 
 function TileLabel({ tone, children }: { tone: string; children: string }) {
   return (
-    <span className="flex items-center gap-1.5 font-mono text-[10.5px] tracking-[0.12em] text-faint uppercase">
+    <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
       <span className={`size-2 rounded-full ${tone}`} />
       {children}
     </span>
@@ -257,13 +257,13 @@ function CountTile({
     <Card>
       <CardContent className="flex flex-col gap-1.5">
         <TileLabel tone={tone}>{label}</TileLabel>
-        <div className="text-[28px] leading-tight font-semibold tracking-tight">
+        <div className="text-2xl font-semibold tracking-tight tabular-nums">
           {formatNumber(value)}
         </div>
         {/* no red or green: more phishing is not the team's fault */}
         <span className="text-xs text-muted-foreground">
-          <span className="font-mono">{formatDelta(value - previous)}</span> zu
-          den {days} Tagen davor
+          <span className="">{formatDelta(value - previous)}</span> zu den{" "}
+          {days} Tagen davor
         </span>
       </CardContent>
     </Card>
@@ -272,10 +272,10 @@ function CountTile({
 
 function OpenTile({ total }: { total: number }) {
   return (
-    <Card className="border-primary/40">
+    <Card>
       <CardContent className="flex flex-col gap-1.5">
         <TileLabel tone="bg-primary">Zu prüfen</TileLabel>
-        <div className="text-[28px] leading-tight font-semibold tracking-tight">
+        <div className="text-2xl font-semibold tracking-tight tabular-nums">
           {formatNumber(total)}
         </div>
         <span className="text-xs text-muted-foreground">
@@ -319,16 +319,16 @@ function OpenCard({ items, total }: { items: OpenItem[]; total: number }) {
               className="flex items-center gap-3 border-b px-(--card-spacing) py-2.5 last:border-b-0 hover:bg-muted/50"
             >
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[13px] font-medium">
+                <span className="block truncate text-sm font-medium">
                   {item.subject}
                 </span>
-                <span className="block truncate font-mono text-[11px] text-faint">
+                <span className="block truncate text-xs text-muted-foreground">
                   {item.sender}
                 </span>
               </span>
               <span className="flex shrink-0 flex-col items-end gap-1">
                 <VerdictBadge status={item.status} verdict={item.verdict} />
-                <span className="font-mono text-[10.5px] text-faint">
+                <span className="text-xs text-muted-foreground">
                   {formatRelativeTime(item.receivedAt)}
                 </span>
               </span>
@@ -358,7 +358,7 @@ function MetricCard({
         <CardDescription className="text-xs">{description}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-1">
-        <div className="text-[28px] leading-tight font-semibold tracking-tight">
+        <div className="text-2xl font-semibold tracking-tight tabular-nums">
           {value ?? "—"}
         </div>
         <span className="text-xs text-muted-foreground">
@@ -398,16 +398,12 @@ function SourcesCard({ sources }: { sources: Stats["sources"] }) {
               <span className="flex items-center gap-1.5">
                 <span className="size-2 rounded-full bg-chart-1" />
                 Outlook-Meldung
-                <b className="font-mono font-semibold">
-                  {formatNumber(sources.report)}
-                </b>
+                <b className="font-medium">{formatNumber(sources.report)}</b>
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="size-2 rounded-full bg-secondary ring-1 ring-border" />
                 Upload
-                <b className="font-mono font-semibold">
-                  {formatNumber(sources.upload)}
-                </b>
+                <b className="font-medium">{formatNumber(sources.upload)}</b>
               </span>
             </div>
           </>
@@ -437,12 +433,8 @@ function DomainsCard({ domains }: { domains: DomainCount[] }) {
           domains.map((entry) => (
             <div key={entry.domain} className="flex flex-col gap-1">
               <div className="flex items-center justify-between gap-3 text-xs">
-                <span className="min-w-0 truncate font-mono">
-                  {entry.domain}
-                </span>
-                <span className="font-mono font-semibold tabular-nums">
-                  {entry.count}
-                </span>
+                <span className="min-w-0 truncate">{entry.domain}</span>
+                <span className="font-medium tabular-nums">{entry.count}</span>
               </div>
               <div className="h-1 overflow-hidden rounded-full bg-secondary">
                 <div

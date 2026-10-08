@@ -49,7 +49,7 @@ function HitLabel({ hit }: { hit: SearchHit }) {
     return (
       <>
         <span className="block truncate">{hit.subject}</span>
-        <span className="block truncate font-mono text-[11px] text-faint">
+        <span className="block truncate text-xs text-muted-foreground">
           {hit.sender}
         </span>
       </>
@@ -58,7 +58,7 @@ function HitLabel({ hit }: { hit: SearchHit }) {
 
   return (
     <>
-      <span className="block truncate font-mono text-[13px]" title={hit.match}>
+      <span className="block truncate text-sm" title={hit.match}>
         {hit.field === "hash" ? shortenHash(hit.match) : hit.match}
       </span>
       <span className="block truncate text-xs text-muted-foreground">
@@ -141,13 +141,13 @@ export function SearchCommand() {
       <button
         type="button"
         onClick={() => changeOpen(true)}
-        className="flex h-[34px] w-full max-w-[460px] items-center gap-2.5 rounded-md border border-border bg-card px-3 text-sm text-faint hover:border-input"
+        className="flex h-[34px] w-full max-w-[460px] min-w-0 items-center gap-2.5 rounded-md border border-border bg-card px-3 text-sm text-faint hover:border-input"
       >
         <SearchIcon className="size-4 shrink-0" />
         <span className="flex-1 truncate text-left">
           Absender, Domain, Hash oder Betreff suchen
         </span>
-        <Kbd>⌘K</Kbd>
+        <Kbd className="max-md:hidden">⌘K</Kbd>
       </button>
 
       <CommandDialog

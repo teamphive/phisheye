@@ -64,7 +64,7 @@ flowchart LR
   class e403,e404,fehler fehlerhaft
 ```
 
-Gestrichelte Pfeile führen zu Sonderfällen, nicht zu regulären Seiten. Overlays haben keine eigene Adresse und stehen nicht im Diagramm: Suchfenster, Glocken-Menü, Team-Umschalter sowie die Dialoge für Einladen, Team erstellen, Mitglied entfernen, Domain entfernen, Team verlassen und löschen, Analyse löschen und aktive Sitzungen. Passwort, 2FA und Backup-Codes ändert man auf den Seiten von Keycloak.
+Gestrichelte Pfeile führen zu Sonderfällen, nicht zu regulären Seiten. Overlays haben keine eigene Adresse und stehen nicht im Diagramm: Suchfenster, Glocken-Menü, Team-Umschalter sowie die Dialoge für Einladen, Team erstellen, Mitglied entfernen, Domain entfernen, Team verlassen und löschen, Analyse übernehmen, Analyse löschen und aktive Sitzungen. Passwort, 2FA und Backup-Codes ändert man auf den Seiten von Keycloak.
 
 ## Angemeldet
 
@@ -115,6 +115,7 @@ Die Rolle gilt pro Team, nicht pro Nutzer. Dieselbe Person kann in einem Team Ad
 |-------|:-------:|:-----:|:-----:|
 | Analysen des Teams sehen und durchsuchen | ✓ | ✓ | ✓ |
 | Mails hochladen und analysieren | ✓ | ✓ | — |
+| Analysen übernehmen und abgeben | ✓ | ✓ | — |
 | Verdikt bestätigen oder als falsch-positiv melden | ✓ | ✓ | — |
 | Analysen löschen | — | ✓ | — |
 | Mitglieder einladen, Rollen ändern, entfernen | — | ✓ | — |
@@ -142,7 +143,7 @@ Durchgesetzt wird all das im Backend. Die Oberfläche blendet nur aus.
 
 ## Overlays
 
-Keine eigene Adresse, kein Router-Eintrag: Suchfenster (`Cmd/Strg + K`), Glocken-Menü, Team-Umschalter sowie die Dialoge für Mitglied einladen, Team erstellen, Mitglied entfernen, Domain entfernen, Team verlassen, Team löschen, Analyse löschen und aktive Sitzungen. Passwort, 2FA und Backup-Codes ändert man auf den Seiten von Keycloak.
+Keine eigene Adresse, kein Router-Eintrag: Suchfenster (`Cmd/Strg + K`), Glocken-Menü, Team-Umschalter sowie die Dialoge für Mitglied einladen, Team erstellen, Mitglied entfernen, Domain entfernen, Team verlassen, Team löschen, Analyse übernehmen, Analyse löschen und aktive Sitzungen. Passwort, 2FA und Backup-Codes ändert man auf den Seiten von Keycloak.
 
 ## Zustände
 
@@ -169,7 +170,8 @@ Keine eigene Adresse, kein Router-Eintrag: Suchfenster (`Cmd/Strg + K`), Glocken
 - Gemeldete Mails landen über die Domain der meldenden Adresse im Team. Eine Domain gehört höchstens einem Team, Subdomains zählen mit, ein Nachweis des Domainbesitzes ist nicht vorgesehen. Die Liste sehen alle Rollen, ändern dürfen sie nur Admins.
 - Das Monitoring zeigt systemweite Werte über alle Teams hinweg. Der Endpunkt ist deshalb nicht unter einem Team eingehängt, sondern `GET /monitoring`, und die Fehlerliste enthält keine Mailinhalte.
 - **Der Team-Kontext kommt aus der Sitzung, nicht aus dem Pfad.** Die Endpunkte heißen `/analyses`, nicht `/teams/{id}/analyses`. Der Umschalter ändert den serverseitigen Kontext, nicht die Adresse.
-- **Hochgeladen werden `.eml`- und `.msg`-Dateien.** Outlooks `.msg` ist ein Binärformat, das Backend wandelt es beim Upload in eine `.eml` um. Ein nie verschickter Entwurf ohne Absender wird abgelehnt.
+- **Hochgeladen werden `.eml`- und `.msg`-Dateien.** Eine `.msg` aus Outlook wandelt das Backend vor der Analyse in eine `.eml` um, heruntergeladen wird immer die `.eml`.
+- **Eine Analyse ist höchstens einer Person zugewiesen.** In der Karte „Fall“ steht unter „Zugewiesen“ niemand oder ein Name, mit „Übernehmen“ oder bei der eigenen „Abgeben“. Wer einer anderen Person eine Analyse abnimmt, bestätigt das in einem Dialog. Wer entscheidet, ohne übernommen zu haben, wird zugewiesen. Nach der Entscheidung kommt die Zeile „Bearbeitet von“ mit Name und Zeitpunkt dazu, und die Zuweisung lässt sich erst nach dem Zurücknehmen wieder ändern.
 - **Löschen ist immer weich.** Teams und Analysen werden als gelöscht markiert und erst nach 10 Tagen endgültig entfernt. Dafür braucht es einen Aufräum-Job.
 - **Zeiten liefert die API als ISO 8601 in UTC.** Das Frontend formatiert in die Zeitzone des Browsers.
 - **Fehler kommen als einheitliches Objekt**, nicht als FastAPIs Standard-`detail`.
