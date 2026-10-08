@@ -15,6 +15,7 @@ from ..models.team import Team
 from ..models.team_invitation import TeamInvitation
 from ..models.user import User
 from ..services.bell import delete_old
+from ..services.cleanup import purge_deleted_analyses
 from ..services.domains import team_for_address
 from ..services.eml_validation import InvalidEmlError
 from ..services.invitations import deliver_invitation
@@ -219,6 +220,14 @@ async def send_failure_mail(ctx, analysis_id: int) -> None:
 
         analysis.notified_at = datetime.utcnow()
         await db.commit()
+
+
+async def purge_deleted(ctx) -> None:
+    async for db in get_session():
+        purged = await purge_deleted_analyses(db)
+
+    if purged:
+        logger.info("Deleted %s analyses for good, 10 days after deleting", purged)
 
 
 async def delete_old_notifications(ctx) -> None:

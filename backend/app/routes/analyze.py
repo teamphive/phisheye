@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Literal
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import func, or_, update
 from sqlalchemy.orm import aliased
@@ -19,6 +19,7 @@ from ..services import eml_validation
 from ..services.auth import get_current_user
 from ..services.mail_analysis import submit_analysis
 from ..services.notifications import enqueue_decision_mail
+from ..services.object_storage import ObjectStorageError, load_eml
 from ..services.teams import get_active_membership, require_role
 
 router = APIRouter(tags=["analyses"])
@@ -333,6 +334,40 @@ async def get_analysis(
         "error": analysis.error if analysis.status == "failed" else None,
         "storage_key": analysis.storage_key,
     }
+
+
+@router.get("/analyses/{analysis_id}/eml")
+async def download_eml(
+    analysis_id: int,
+    # every role of the team, audit included, may read the original
+    membership: TeamMembership = Depends(get_active_membership),
+    db: AsyncSession = Depends(get_db),
+):
+    """The original mail as stored in MinIO, for an analyst to open by hand.
+
+    MinIO is not reachable from outside, so the file goes through here.
+    """
+    analysis = await _team_analysis(analysis_id, membership, db)
+
+    if not analysis.storage_key:
+        raise HTTPException(status_code=404, detail="No stored mail for this analysis")
+
+    try:
+        content = await load_eml(analysis.storage_key)
+    except ObjectStorageError as exc:
+        raise HTTPException(status_code=503, detail="Mail storage unavailable") from exc
+
+    return Response(
+        content,
+        # The file can contain malware: octet-stream and attachment make the
+        # browser save it instead of showing or running it, nosniff keeps it
+        # from guessing another type
+        media_type="application/octet-stream",
+        headers={
+            "Content-Disposition": f'attachment; filename="phisheye-{analysis.id}.eml"',
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
 
 
 @router.post("/analyses/{analysis_id}/decision")
