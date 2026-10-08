@@ -67,7 +67,10 @@ jobs:
           git merge --ff-only "$1"
           echo "Deploying $(git log -1 --format='%h %s')"
 
-          docker compose --profile app up -d --build --force-recreate
+          # compose recreates what changed. A forced recreate would restart
+          # postgres, redis and keycloak on every deploy and leave a moment
+          # without the service names.
+          docker compose --profile app up -d --build
           EOF
 
       # through the public domain, so DNS, proxy and TLS are checked as well
