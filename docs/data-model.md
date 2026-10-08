@@ -85,6 +85,22 @@ Outlook-Meldungen landen im Team, das die Domain des Absenders eingetragen hat. 
 | created_at | timestamp | |
 | deleted_at | timestamp, nullable | weich gelöscht, harte Löschung nach 10 Tagen |
 
+## notifications
+
+Einträge der Glocke, je Person. Werden nach 14 Tagen gelöscht.
+
+| Spalte | Typ | Beschreibung |
+| --- | --- | --- |
+| id | PK | |
+| user_id | FK -> users, Index | wer den Eintrag sieht |
+| kind | string (analysis, team) | danach filtert die Seite |
+| tone | string (phishing, suspicious, clean, info) | Farbe des Punkts |
+| title | string | |
+| detail | string | |
+| target | string | Pfad in der App, z. B. `/analysen/42` |
+| read_at | timestamp, nullable | null bis gelesen |
+| created_at | timestamp, Index | |
+
 ## mail_attachments
 
 | Spalte | Typ | Beschreibung |
@@ -142,6 +158,7 @@ erDiagram
   USERS ||--o{ MAIL_ANALYSES : submits
   USERS |o--o{ MAIL_ANALYSES : handles
   MAIL_ANALYSES ||--o{ MAIL_ATTACHMENTS : has
+  USERS ||--o{ NOTIFICATIONS : sees
 
   USERS {
     int id PK

@@ -18,6 +18,7 @@ from ..models.mail_attachment import MailAttachment
 from ..models.mail_link import MailLink
 from . import eml_validation
 from .ai_assessment import assess
+from .bell import notify_analysis_done, notify_analysis_failed
 from .detection import detect
 from .msg_convert import is_msg, msg_to_eml
 from .notifications import redis_settings
@@ -230,6 +231,8 @@ async def run_analysis(analysis_id: int, db: AsyncSession) -> None:
         analysis.error = None
         analysis.completed_at = datetime.utcnow()
         db.add(analysis)
+        # in the same commit, the bell never rings for a result that is not saved
+        await notify_analysis_done(analysis, db)
 
 
 async def record_failure(
@@ -258,3 +261,7 @@ async def record_failure(
         }
         analysis.status = "failed" if attempt >= max_attempts else "pending"
         db.add(analysis)
+
+        # only the last try, the ones before can still succeed
+        if analysis.status == "failed":
+            await notify_analysis_failed(analysis, db)

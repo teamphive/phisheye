@@ -4,6 +4,7 @@ from ..constants import WORKER_MAX_JOBS
 from ..services.notifications import redis_settings
 from .tasks import (
     analyze_mail,
+    delete_old_notifications,
     poll_report_mailbox,
     send_analysis_ready,
     send_team_invitation,
@@ -14,6 +15,8 @@ class WorkerSettings:
     functions = [analyze_mail, send_analysis_ready, send_team_invitation]
     cron_jobs = [
         cron(poll_report_mailbox, second={0, 30}),
+        # at night, once a day is enough for a 14 day limit
+        cron(delete_old_notifications, hour={3}, minute={0}),
     ]
     max_tries = 5
     max_jobs = WORKER_MAX_JOBS
