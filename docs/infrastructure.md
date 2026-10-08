@@ -22,10 +22,12 @@ JEV: Der Key liegt als `TYPESAFE_API_KEY` in der `.env` auf dem Server. Der IAM-
 `.github/workflows/deploy.yml` läuft bei jedem Push auf `main`, außer nur Doku hat sich geändert, und lässt sich unter Actions von Hand starten. Es meldet sich per SSH als `deploy` auf der VM an und führt dort aus:
 
 1. `git fetch` und `git merge --ff-only` auf genau den Commit des Laufs. Liegen auf der VM eigene Änderungen, bricht der Deploy ab.
-2. `docker compose --profile app up -d --build --force-recreate`
+2. `docker compose --profile app up -d --build`. Compose erneuert nur, was sich geändert hat. Postgres, Redis, MinIO und Keycloak laufen beim Deploy weiter.
 3. Danach fragt der Runner bis zu 30-mal im Abstand von 5 Sekunden `https://phisheye.neumann-it.org/api/health` ab, über die öffentliche Domain, damit DNS, Proxy und TLS mitgeprüft sind. Bleibt die Antwort aus, schlägt der Lauf fehl und zeigt Containerstatus und die letzten Backend-Logs.
 
 Es läuft immer nur ein Deploy gleichzeitig, ein neuer Push wartet.
+
+Alle Dienste in `docker-compose.yml` haben `dns_search: ["."]`. Die VM hat die Suchdomäne `neumann-it.org`, und für `*.neumann-it.org` gibt es einen Platzhalter-Eintrag auf `192.168.178.16`. Fehlt ein Dienst kurz (Neustart), würde `redis` sonst zu `redis.neumann-it.org` und führte auf einen fremden Rechner. Das löste den Alarm "Egress zu internem Dienst-Port" im Monitoring aus.
 
 Einrichtung im Repo unter Settings, Environments, `production` (Deployment branches: nur `main`):
 
