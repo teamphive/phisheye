@@ -25,7 +25,7 @@ Stand: Modelle in `backend/app/models`. Geplantes steht unten unter "Geplant".
 | name | string | |
 | inbound_alias | string, unique, nullable | Adresse für Outlook-Meldungen |
 | created_at | timestamp | |
-| deleted_at | timestamp, nullable | weich gelöscht, harte Löschung nach 10 Tagen |
+| deleted_at | timestamp, nullable | weich gelöscht. Teams werden nie endgültig entfernt |
 
 ## team_memberships (many-to-many User <-> Team)
 
@@ -78,14 +78,22 @@ Outlook-Meldungen landen im Team, das die Domain des Absenders eingetragen hat. 
 | notified_verdict | string, nullable | Entscheidung, die die meldende Person zuletzt gehört hat. Weicht `decided_verdict` davon ab, geht eine Korrektur raus |
 | raw_headers | text, nullable | |
 | status | string (pending, processing, completed, failed) | |
+| step | string, nullable | aktueller Schritt des Jobs, nur solange er läuft |
+| started_at | timestamp, nullable | Beginn des ersten Versuchs |
+| completed_at | timestamp, nullable | Ende der Analyse |
+| error | JSON, nullable | `detail`, `step`, `attempt`, `max_attempts`, `at` des letzten fehlgeschlagenen Versuchs |
 | verdict | string (phishing, clean, suspicious), nullable | bis die Analyse fertig ist |
-| confidence_score | float, nullable | |
+| confidence_score | float, nullable | Risiko-Score der Regeln, 0 bis 100. Kein Konfidenzwert, der Name ist älter |
+| criteria | JSON, nullable | `name`, `finding`, `weight` der vier Prüfungen, siehe [detection-criteria.md](detection-criteria.md) |
+| ai_verdict | string (phishing, clean), nullable | KI-Einschätzung von JEV, ändert Score und Verdikt nicht, siehe [ai-assessment.md](ai-assessment.md) |
+| ai_confidence | float, nullable | 0 bis 1 |
+| ai_model | string, nullable | Version, die geantwortet hat |
 | handled_by | FK -> users, nullable | zugewiesene Person: beim Upload die hochladende, bei Meldungen null bis zur Übernahme. Nie der Systemnutzer |
 | decided_verdict | string (phishing, clean), nullable | vom Analysten bestätigt oder als falsch-positiv gemeldet |
 | decided_by | FK -> users, nullable | |
 | decided_at | timestamp, nullable | zurücknehmbar, dann wieder null |
 | created_at | timestamp | |
-| deleted_at | timestamp, nullable | weich gelöscht, harte Löschung nach 10 Tagen |
+| deleted_at | timestamp, nullable | weich gelöscht. Nach 10 Tagen entfernt ein nächtlicher Job die Analyse endgültig, samt Anhängen, Links, Einträgen der Glocke und `.eml` in MinIO |
 
 ## notifications
 
@@ -116,10 +124,23 @@ Einträge der Glocke, je Person. Werden nach 14 Tagen gelöscht.
 | vt_results | JSON, nullable | VirusTotal-Antwort zum Hash |
 | created_at | timestamp | |
 
+## mail_links
+
+Alle http- und https-Links einer Mail, höchstens 100, aus der Erkennung.
+
+| Spalte | Typ | Beschreibung |
+| --- | --- | --- |
+| id | PK | |
+| mail_analysis_id | FK -> mail_analyses | |
+| text | text | was man im Text sieht |
+| target | text | wohin der Link wirklich führt |
+| host | string | Domain oder IP des Ziels |
+| finding | string | Befund, z. B. „IP statt Domain“ |
+| tone | string (phishing, suspicious, clean) | Farbe in der Linkliste |
+| created_at | timestamp | |
+
 ## Geplant
 
-- `completed_at` an `mail_analyses`: Zeitpunkt, an dem die Analyse fertig ist.
-- `ai_verdict`, `ai_confidence`, `ai_model` an `mail_analyses`: KI-Einschätzung, siehe [ai-assessment.md](ai-assessment.md).
 - `vt_results` als eigene Tabelle statt JSON am Anhang (auch für URL- und Domain-Checks ohne Anhang):
 
   | Spalte | Typ | Beschreibung |
@@ -132,17 +153,6 @@ Einträge der Glocke, je Person. Werden nach 14 Tagen gelöscht.
   | vt_verdict | string | |
   | vt_raw_response | JSON | |
   | checked_at | timestamp | |
-
-- `notifications` für die Glocke im Header:
-
-  | Spalte | Typ | Beschreibung |
-  | --- | --- | --- |
-  | id | PK | |
-  | user_id | FK -> users | |
-  | mail_analysis_id | FK -> mail_analyses, nullable | |
-  | message | string | |
-  | read | bool | |
-  | created_at | timestamp | |
 
 ## Entity-Relationship-Modell
 
@@ -160,6 +170,7 @@ erDiagram
   USERS ||--o{ MAIL_ANALYSES : submits
   USERS |o--o{ MAIL_ANALYSES : handles
   MAIL_ANALYSES ||--o{ MAIL_ATTACHMENTS : has
+  MAIL_ANALYSES ||--o{ MAIL_LINKS : has
   USERS ||--o{ NOTIFICATIONS : sees
 
   USERS {
@@ -210,8 +221,16 @@ erDiagram
     string storage_key
     text raw_headers
     string status
+    string step
+    timestamp started_at
+    timestamp completed_at
+    json error
     string verdict
     float confidence_score
+    json criteria
+    string ai_verdict
+    float ai_confidence
+    string ai_model
     int handled_by FK
     string decided_verdict
     int decided_by FK
@@ -227,6 +246,16 @@ erDiagram
     string mime_type
     int size
     json vt_results
+    timestamp created_at
+  }
+  MAIL_LINKS {
+    int id PK
+    int mail_analysis_id FK
+    text text
+    text target
+    string host
+    string finding
+    string tone
     timestamp created_at
   }
 ```

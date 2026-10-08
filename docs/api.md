@@ -8,7 +8,7 @@ Was das Frontend braucht. Die Feldnamen stammen aus den Typen in `frontend/src/m
 - Zeiten als ISO 8601 in UTC.
 - Feldnamen in snake_case. Das Frontend wandelt sie beim Empfang zentral in camelCase um.
 - Fehler kommen als FastAPI-Objekt `{ "detail": "..." }`, das Frontend liest `detail` (oder `message`).
-- Löschen ist weich (`deleted_at`, sofort unsichtbar). Nach 10 Tagen entfernt ein Cron-Job alles endgültig, samt `.eml` in MinIO. Der Job fehlt noch.
+- Löschen ist weich (`deleted_at`, sofort unsichtbar). Analysen entfernt ein Cron-Job nach 10 Tagen endgültig, nachts um 3:30, samt Anhängen, Links, Einträgen der Glocke und `.eml` in MinIO. Scheitert MinIO, bleibt die Analyse bis zur nächsten Nacht. Teams werden nie endgültig entfernt.
 
 ## Anmeldung
 
@@ -55,7 +55,7 @@ Instanz-Rollen: Das **Standard-Team** ist das Instanz-Team. Dort gibt es nur die
 | DELETE | `/analyses/{id}/decision` | Entscheidung zurücknehmen (umgesetzt), die Zuweisung bleibt. Gleiche Regel wie beim Entscheiden: nur die zugewiesene Person (409 und 403). Ein noch wartender Mail-Job tut danach nichts |
 | POST | `/analyses/{id}/assignment` | Analyse übernehmen, antwortet mit `{ handler }` (umgesetzt, siehe Zuweisung) |
 | DELETE | `/analyses/{id}/assignment` | Analyse abgeben, antwortet mit 204 (umgesetzt, siehe Zuweisung) |
-| GET | `/analyses/{id}/eml` | Original-`.eml` aus MinIO herunterladen, geht über das Backend (MinIO ist von außen nicht erreichbar). Antwort mit `Content-Disposition: attachment` und `application/octet-stream`, die Datei kann Schadcode enthalten |
+| GET | `/analyses/{id}/eml` | Original-`.eml` aus MinIO herunterladen, geht über das Backend (MinIO ist von außen nicht erreichbar). Antwort mit `Content-Disposition: attachment` und `application/octet-stream`, dazu `X-Content-Type-Options: nosniff`, die Datei kann Schadcode enthalten. Jede Rolle des Teams. 404 für fremde, gelöschte oder Analysen ohne gespeicherte Datei, 503 wenn MinIO nicht antwortet (umgesetzt) |
 | GET | `/analyses/search?q=` | Suche über Betreff, Absender, Link-Domain und Anhang-Hash, siehe unten (umgesetzt, ohne Link-Hosts) |
 | GET | `/queue` | Wartende Jobs und Worker-Auslastung, für die Fortschrittsanzeige (umgesetzt) |
 
@@ -323,7 +323,6 @@ Je Treffer:
 
 ## Offen
 
-- Cron-Job für die harte Löschung: täglich alles mit `deleted_at` älter als 10 Tage endgültig entfernen (Datenbank, Anhänge, `.eml` in MinIO).
 - Spam-Testskript, das viele Mails auf einmal hochlädt und prüft, ob Warteschlange und Worker mithalten.
 - Abbrechen einer laufenden Analyse. Ein Endpunkt fehlt, bis dahin zeigt die Detailseite keinen Knopf dafür.
 - Erneut starten einer fehlgeschlagenen Analyse durch Analysten. `POST /monitoring/jobs/{id}/retry` ist nur für Operatoren. Bis es einen Endpunkt für Analysten gibt, zeigt die Detailseite keinen Knopf und schickt Operatoren ins Monitoring.

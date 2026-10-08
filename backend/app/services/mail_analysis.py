@@ -245,7 +245,9 @@ async def run_analysis(analysis_id: int, db: AsyncSession) -> None:
             db.add(MailAttachment(mail_analysis_id=analysis.id, **attachment))
 
         for link in detection.links:
-            db.add(MailLink(mail_analysis_id=analysis.id, **link))
+            # text and target come straight from the mail's HTML
+            clean = {key: _db_text(value) for key, value in link.items()}
+            db.add(MailLink(mail_analysis_id=analysis.id, **clean))
 
         analysis.criteria = detection.criteria
         analysis.confidence_score = detection.score

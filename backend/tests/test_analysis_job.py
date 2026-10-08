@@ -138,6 +138,31 @@ async def test_job_stores_verdict_criteria_and_links(db, api, storage):
 
 
 @pytest.mark.asyncio
+async def test_nul_bytes_in_links_never_reach_the_database(db, storage):
+    from sqlmodel import select
+
+    from app.models.mail_link import MailLink
+
+    stored, _ = storage
+    team_a, _, anna, _, _ = await two_teams(db)
+    analysis_id = await pending_analysis(db, storage, team_a, anna)
+
+    message = EmailMessage()
+    message["From"] = "a@b.de"
+    message.set_content("Text")
+    message.add_alternative(
+        '<a href="https://evil.top/x\x00y">www.bank\x00.de</a>', subtype="html"
+    )
+    stored["key"] = message.as_bytes()
+
+    await mail_analysis.run_analysis(analysis_id, db)
+
+    # Postgres refuses NUL in text, the job would fail on every try
+    (link,) = (await db.exec(select(MailLink))).all()
+    assert "\x00" not in link.text + link.target + link.host + link.finding
+
+
+@pytest.mark.asyncio
 async def test_virus_total_error_does_not_fail_the_analysis(
     db, api, storage, monkeypatch
 ):
