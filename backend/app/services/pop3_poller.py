@@ -1,9 +1,14 @@
 import base64
+import logging
 import os
 import poplib
 from email import policy
 from email.parser import BytesParser
 from email.utils import parseaddr
+
+from .outlook_msg import MsgError, is_msg, msg_to_eml
+
+logger = logging.getLogger(__name__)
 
 
 def _connect() -> poplib.POP3_SSL:
@@ -89,6 +94,17 @@ def extract_eml(raw_mail: bytes) -> bytes:
 
             if content:
                 return content
+
+        # Outlook may attach it in its own format
+        elif (part.get_filename() or "").lower().endswith(".msg"):
+            content = part.get_payload(decode=True)
+
+            if content and is_msg(content):
+                try:
+                    return msg_to_eml(content)
+                except MsgError:
+                    # unreadable, the report itself is analyzed instead
+                    logger.warning("Attached .msg could not be read")
 
     return raw_mail
 

@@ -17,6 +17,7 @@ from ..models.mail_analysis import MailAnalysis
 from ..models.mail_attachment import MailAttachment
 from .notifications import enqueue_analysis_ready, redis_settings
 from .object_storage import ObjectStorageError, delete_object, load_eml, store_eml
+from .outlook_msg import MsgError, is_msg, msg_to_eml
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +49,20 @@ async def submit_analysis(
     if not content:
         raise HTTPException(status_code=400, detail="Uploaded file is empty")
 
+    # Outlook's own format, from here on everything works with the .eml
+    if is_msg(content):
+        try:
+            content = msg_to_eml(content)
+        except MsgError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
     msg = _parse(content)
+
+    # The parser accepts any bytes, a PDF simply becomes a mail without
+    # headers. Every real mail has a From header (RFC 5322)
+    if not str(msg.get("From", "")).strip():
+        raise HTTPException(status_code=422, detail="Die Datei ist keine E-Mail")
+
     storage_key = await store_eml(content)
 
     try:

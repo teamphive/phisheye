@@ -169,7 +169,7 @@ Keine eigene Adresse, kein Router-Eintrag: Suchfenster (`Cmd/Strg + K`), Glocken
 - Gemeldete Mails landen über die Domain der meldenden Adresse im Team. Eine Domain gehört höchstens einem Team, Subdomains zählen mit, ein Nachweis des Domainbesitzes ist nicht vorgesehen. Die Liste sehen alle Rollen, ändern dürfen sie nur Admins.
 - Das Monitoring zeigt systemweite Werte über alle Teams hinweg. Der Endpunkt ist deshalb nicht unter einem Team eingehängt, sondern `GET /monitoring`, und die Fehlerliste enthält keine Mailinhalte.
 - **Der Team-Kontext kommt aus der Sitzung, nicht aus dem Pfad.** Die Endpunkte heißen `/analyses`, nicht `/teams/{id}/analyses`. Der Umschalter ändert den serverseitigen Kontext, nicht die Adresse.
-- **Hochgeladen werden nur `.eml`-Dateien.** Outlooks `.msg` ist ein anderes Format, das Backend liest nur MIME.
+- **Hochgeladen werden `.eml`- und `.msg`-Dateien.** Outlooks `.msg` ist ein Binärformat, das Backend wandelt es beim Upload in eine `.eml` um. Ein nie verschickter Entwurf ohne Absender wird abgelehnt.
 - **Löschen ist immer weich.** Teams und Analysen werden als gelöscht markiert und erst nach 10 Tagen endgültig entfernt. Dafür braucht es einen Aufräum-Job.
 - **Zeiten liefert die API als ISO 8601 in UTC.** Das Frontend formatiert in die Zeitzone des Browsers.
 - **Fehler kommen als einheitliches Objekt**, nicht als FastAPIs Standard-`detail`.

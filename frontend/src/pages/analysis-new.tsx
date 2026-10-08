@@ -20,7 +20,7 @@ import { errorMessage } from "@/lib/api"
 import { formatFileSize } from "@/lib/format"
 
 // The backend parses MIME only, Outlook's .msg is a different format
-const acceptedTypes = [".eml"]
+const acceptedTypes = [".eml", ".msg"]
 const maxBytes = 25 * 1024 * 1024
 
 function rejectionReason(files: FileList) {
@@ -32,7 +32,7 @@ function rejectionReason(files: FileList) {
   const name = file.name.toLowerCase()
 
   if (!acceptedTypes.some((type) => name.endsWith(type))) {
-    return "Nur .eml wird unterstützt."
+    return "Nur .eml und .msg werden unterstützt."
   }
 
   if (file.size > maxBytes) {
@@ -164,7 +164,7 @@ export function AnalysisNewPage() {
                 </button>
               </p>
               <p className="mt-1.5 font-mono text-[11px] text-faint">
-                .eml · eine Datei · max. 25 MB
+                .eml oder .msg · eine Datei · max. 25 MB
               </p>
             </div>
           )}

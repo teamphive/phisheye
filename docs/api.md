@@ -48,7 +48,7 @@ Instanz-Rollen: Das **Standard-Team** ist das Instanz-Team. Dort gibt es nur die
 | Methode | Pfad | Zweck |
 |---|---|---|
 | GET | `/analyses` | Liste für das aktive Team (umgesetzt) |
-| POST | `/analyses` | Upload einer `.eml` als Feld `file` (multipart), max. 25 MB (413 bei mehr), antwortet mit dem Listeneintrag (umgesetzt, die Analyse läuft danach als arq-Job) |
+| POST | `/analyses` | Upload einer `.eml` oder Outlook-`.msg` als Feld `file` (multipart), max. 25 MB (413 bei mehr), antwortet mit dem Listeneintrag (umgesetzt, die Analyse läuft danach als arq-Job). Eine `.msg` wird beim Upload in eine `.eml` umgewandelt, gespeichert wird nur die `.eml`. 422, wenn die Datei keine E-Mail ist (kein `From`-Header) oder die `.msg` nicht lesbar ist |
 | GET | `/analyses/{id}` | Detail (umgesetzt, `criteria` und `links` noch leer, `ai_assessment` fehlt noch) |
 | DELETE | `/analyses/{id}` | Weich löschen, nur Admin (umgesetzt) |
 | POST | `/analyses/{id}/decision` | Verdikt bestätigen oder als falsch-positiv melden, Body `verdict`, antwortet mit `{ verdict, by, at }` (umgesetzt) |
