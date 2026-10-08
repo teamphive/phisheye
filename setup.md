@@ -16,6 +16,7 @@ Colima (oder Docker Desktop) muss laufen. `git-cliff` braucht nur, wer Releases 
 ```bash
 cp .env.example .env
 # Passwörter in .env anpassen
+# optional: VT_API_KEY für Anhänge, TYPESAFE_API_KEY für die KI-Einschätzung
 just dev
 ```
 
