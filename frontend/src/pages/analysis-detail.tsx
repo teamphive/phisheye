@@ -58,11 +58,13 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import {
+  claimAnalysis,
   decideAnalysis,
   deleteAnalysis,
   fetchAnalysis,
   fetchEml,
   fetchQueue,
+  releaseAnalysis,
   revokeDecision,
 } from "@/lib/analyses"
 import { ApiError, errorMessage } from "@/lib/api"
@@ -142,7 +144,7 @@ const aiText = {
 export function AnalysisDetailPage() {
   const { id = "" } = useParams()
   const navigate = useNavigate()
-  const { permissions } = useSession()
+  const { permissions, user } = useSession()
   const [loaded, setLoaded] = useState<{
     id: string
     data: AnalysisDetail
@@ -155,10 +157,15 @@ export function AnalysisDetailPage() {
     id: string
     value: Decision | null
   } | null>(null)
+  const [handlerOverride, setHandlerOverride] = useState<{
+    id: string
+    value: string | null
+  } | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
-  const [pending, setPending] = useState<"decide" | "revoke" | "delete" | null>(
-    null
-  )
+  const [takeOverOpen, setTakeOverOpen] = useState(false)
+  const [pending, setPending] = useState<
+    "decide" | "revoke" | "delete" | "claim" | "release" | null
+  >(null)
 
   useEffect(() => {
     let active = true
@@ -198,8 +205,17 @@ export function AnalysisDetailPage() {
   const decision =
     override?.id === id ? override.value : (analysis?.decision ?? null)
 
+  const handler =
+    handlerOverride?.id === id
+      ? handlerOverride.value
+      : (analysis?.handler ?? null)
+
   function setDecision(value: Decision | null) {
     setOverride({ id, value })
+  }
+
+  function setHandler(value: string | null) {
+    setHandlerOverride({ id, value })
   }
 
   if (!analysis && error) {
@@ -239,11 +255,16 @@ export function AnalysisDetailPage() {
   }
 
   const text = decisionText[analysis.score === null ? "unrated" : "rated"]
+  // handler is the same name GET /me hands out
+  const ownCase = handler !== null && handler === user.name
 
   async function decide(verdict: Decision["verdict"]) {
     setPending("decide")
     try {
-      setDecision(await decideAnalysis(id, verdict))
+      const stored = await decideAnalysis(id, verdict)
+      setDecision(stored)
+      // The backend assigns whoever decides, if nobody had taken it on
+      if (!handler) setHandler(stored.by)
       toast.success(text.done[verdict])
     } catch (error) {
       toast.error("Entscheidung konnte nicht gespeichert werden", {
@@ -261,6 +282,39 @@ export function AnalysisDetailPage() {
       setDecision(null)
     } catch (error) {
       toast.error("Entscheidung konnte nicht zurückgenommen werden", {
+        description: errorMessage(error),
+      })
+    } finally {
+      setPending(null)
+    }
+  }
+
+  async function claim() {
+    setPending("claim")
+    try {
+      setHandler((await claimAnalysis(id)).handler)
+    } catch (error) {
+      toast.error("Analyse konnte nicht übernommen werden", {
+        description: errorMessage(error),
+      })
+    } finally {
+      setPending(null)
+    }
+  }
+
+  function takeOn() {
+    // Taking it away from someone else asks first
+    if (handler) setTakeOverOpen(true)
+    else claim()
+  }
+
+  async function release() {
+    setPending("release")
+    try {
+      await releaseAnalysis(id)
+      setHandler(null)
+    } catch (error) {
+      toast.error("Analyse konnte nicht abgegeben werden", {
         description: errorMessage(error),
       })
     } finally {
@@ -300,8 +354,8 @@ export function AnalysisDetailPage() {
         </BreadcrumbList>
       </Breadcrumb>
 
-      <div className="mb-5 flex items-start justify-between gap-6">
-        <div>
+      <div className="mb-5 flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+        <div className="min-w-0 flex-[1_1_20rem]">
           <h1 className="max-w-[60ch] text-xl font-semibold tracking-tight text-balance">
             {analysis.subject}
           </h1>
@@ -314,13 +368,13 @@ export function AnalysisDetailPage() {
                 · gemeldet von <span className="">{analysis.reportedBy}</span>
               </>
             ) : null}
-            {analysis.handler ? ` · ${analysis.handler}` : null}
+            {handler ? ` · ${handler}` : null}
           </p>
         </div>
 
         {analysis.status === "completed" ? (
           decision ? (
-            <div className="flex shrink-0 items-center gap-2 rounded-md border border-clean/25 bg-clean-soft px-3 py-1.5 text-sm font-semibold text-clean">
+            <div className="flex items-center gap-2 rounded-md border border-clean/25 bg-clean-soft px-3 py-1.5 text-sm font-semibold text-clean">
               <CheckIcon className="size-4" />
               {text.done[decision.verdict]} von {decision.by} ·{" "}
               {formatRelativeTime(decision.at)}
@@ -338,7 +392,7 @@ export function AnalysisDetailPage() {
               ) : null}
             </div>
           ) : (
-            <div className="flex shrink-0 gap-2">
+            <div className="flex flex-wrap gap-2">
               {permissions.analyze ? (
                 <>
                   <Button
@@ -432,19 +486,39 @@ export function AnalysisDetailPage() {
                 </Row>
               ) : null}
               <Row label="Zugewiesen">
-                {analysis.handler ? (
-                  <span className="flex items-center gap-1.5">
-                    <Avatar className="size-6">
-                      <AvatarFallback className="text-[10px]">
-                        {initialsOf(analysis.handler)}
-                      </AvatarFallback>
-                    </Avatar>
-                    {analysis.handler}
-                  </span>
-                ) : (
-                  <span className="text-faint">Niemand</span>
-                )}
+                <span className="flex min-w-0 items-center gap-2">
+                  {handler ? (
+                    <Person name={handler} />
+                  ) : (
+                    <span className="text-faint">Niemand</span>
+                  )}
+                  {/* A decided case is closed, it keeps whoever had it */}
+                  {permissions.analyze && !decision ? (
+                    <Button
+                      variant="outline"
+                      size="xs"
+                      className="shrink-0"
+                      disabled={pending !== null}
+                      onClick={ownCase ? release : takeOn}
+                    >
+                      {pending === "claim" || pending === "release" ? (
+                        <Spinner />
+                      ) : null}
+                      {ownCase ? "Abgeben" : "Übernehmen"}
+                    </Button>
+                  ) : null}
+                </span>
               </Row>
+              {decision ? (
+                <Row label="Bearbeitet von">
+                  <span className="flex min-w-0 items-center gap-1.5">
+                    <Person name={decision.by} />
+                    <span className="shrink-0 text-muted-foreground">
+                      · {formatRelativeTime(decision.at)}
+                    </span>
+                  </span>
+                </Row>
+              ) : null}
               <Row label="Analyse-ID">
                 <span className="text-xs text-muted-foreground">
                   #{analysis.id}
@@ -483,6 +557,29 @@ export function AnalysisDetailPage() {
           ) : null}
         </div>
       </div>
+
+      <AlertDialog open={takeOverOpen} onOpenChange={setTakeOverOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Analyse übernehmen</AlertDialogTitle>
+            <AlertDialogDescription>
+              {handler} bearbeitet diese Mail gerade. Wenn du sie übernimmst,
+              ist sie nur noch dir zugewiesen.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setTakeOverOpen(false)
+                claim()
+              }}
+            >
+              Übernehmen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
@@ -537,7 +634,7 @@ function OriginalMailCard({ id }: { id: string }) {
           onClick={download}
         >
           {downloading ? <Spinner /> : <DownloadIcon className="size-4" />}
-          .eml herunterladen
+          Mail herunterladen
         </Button>
       </CardContent>
     </Card>
@@ -563,6 +660,21 @@ function EmptyRow({
         {children}
       </TableCell>
     </TableRow>
+  )
+}
+
+function Person({ name }: { name: string }) {
+  return (
+    <span className="flex min-w-0 items-center gap-1.5">
+      <Avatar className="size-6">
+        <AvatarFallback className="text-[10px]">
+          {initialsOf(name)}
+        </AvatarFallback>
+      </Avatar>
+      <span className="truncate" title={name}>
+        {name}
+      </span>
+    </span>
   )
 }
 
@@ -878,8 +990,8 @@ function CompletedCards({ analysis }: { analysis: AnalysisDetail }) {
                 {score}
                 <span className="text-2xl font-medium"> %</span>
               </span>
-              <div className="pt-1.5">
-                <div className="flex items-center gap-2">
+              <div className="min-w-0 pt-1.5">
+                <div className="flex flex-wrap items-center gap-2">
                   <VerdictBadge
                     status={analysis.status}
                     verdict={analysis.verdict}

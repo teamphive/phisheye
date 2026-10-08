@@ -83,8 +83,9 @@ def extract_eml(raw_mail: bytes) -> bytes:
 
                 return payload[0].as_bytes()
 
-        # some clients attach the forwarded mail as a plain file
-        elif (part.get_filename() or "").lower().endswith(".eml"):
+        # some clients attach the forwarded mail as a plain file, Outlook
+        # as .msg
+        elif (part.get_filename() or "").lower().endswith((".eml", ".msg")):
             content = part.get_payload(decode=True)
 
             if content:

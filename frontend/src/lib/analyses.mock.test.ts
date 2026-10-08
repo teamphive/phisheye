@@ -40,6 +40,32 @@ describe("without a backend", () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
+  it("assigns and releases in the detail and in the list", async () => {
+    const { claimAnalysis, fetchAnalyses, fetchAnalysis, releaseAnalysis } =
+      await loadAnalyses()
+    const handlerInList = async () =>
+      (await fetchAnalyses("itsec")).find((item) => item.id === "a-2026-0132")
+        ?.handler
+
+    await claimAnalysis("a-2026-0132")
+    expect((await fetchAnalysis("a-2026-0132")).handler).toBe("M. Sandmann")
+    expect(await handlerInList()).toBe("M. Sandmann")
+
+    await releaseAnalysis("a-2026-0132")
+    expect((await fetchAnalysis("a-2026-0132")).handler).toBeNull()
+    expect(await handlerInList()).toBeNull()
+  })
+
+  it("assigns whoever decides, unless someone has it already", async () => {
+    const { decideAnalysis, fetchAnalysis } = await loadAnalyses()
+
+    await decideAnalysis("a-2026-0132", "clean")
+    expect((await fetchAnalysis("a-2026-0132")).handler).toBe("M. Sandmann")
+
+    await decideAnalysis("a-2026-0131", "phishing")
+    expect((await fetchAnalysis("a-2026-0131")).handler).toBe("T. Özdemir")
+  })
+
   it("drops a deleted analysis from the team's list", async () => {
     const { deleteAnalysis, fetchAnalyses } = await loadAnalyses()
     const [first] = await fetchAnalyses("itsec")

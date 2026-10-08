@@ -5,7 +5,7 @@
 
 **Problem:** Wer eine verdächtige Mail bekommt, muss Header, Links und Anhänge von Hand prüfen. Das dauert und fällt vielen schwer.
 
-**Lösung:** `.eml` hochladen oder mail an passende E-Mail-Adresse weiterleiten, phisheye prüft mit Regeln, VirusTotal und KI (JEV) und liefert ein Verdikt (sauber, verdächtig, Phishing) mit Score und Gründen. Für Teams mit Rollen und Zwei-Faktor.
+**Lösung:** `.eml` oder `.msg` hochladen oder mail an passende E-Mail-Adresse weiterleiten, phisheye prüft mit Regeln, VirusTotal und KI (JEV) und liefert ein Verdikt (sauber, verdächtig, Phishing) mit Score und Gründen. Für Teams mit Rollen und Zwei-Faktor.
 
 ![phisheye Analyse](docs/img/analyse.gif)
 

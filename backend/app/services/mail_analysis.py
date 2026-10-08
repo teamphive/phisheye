@@ -16,11 +16,18 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from ..models.mail_analysis import MailAnalysis
 from ..models.mail_attachment import MailAttachment
 from ..models.mail_link import MailLink
+from . import eml_validation
 from .detection import detect
+from .msg_convert import is_msg, msg_to_eml
 from .notifications import enqueue_analysis_ready, redis_settings
 from .object_storage import ObjectStorageError, delete_object, load_eml, store_eml
 
 logger = logging.getLogger(__name__)
+
+
+def _db_text(value: str) -> str:
+    """Postgres refuses NUL bytes in text, Outlook files carry them."""
+    return value.replace("\x00", "")
 
 
 # vt returns its own dict wrapper, which the JSON column cannot store
@@ -50,7 +57,13 @@ async def submit_analysis(
     if not content:
         raise HTTPException(status_code=400, detail="Uploaded file is empty")
 
+    # an Outlook .msg is turned into the same bytes a .eml has, from here on
+    # the analysis does not know the difference
+    if is_msg(content):
+        content = msg_to_eml(content)
+
     msg = _parse(content)
+    eml_validation.check_eml(content, msg)
     storage_key = await store_eml(content)
 
     try:
@@ -58,12 +71,14 @@ async def submit_analysis(
             analysis = MailAnalysis(
                 team_id=team_id,
                 submitted_by=submitted_by,
-                subject=str(msg.get("Subject", "")),
-                sender=str(msg.get("From", "")),
+                subject=_db_text(str(msg.get("Subject", ""))),
+                sender=_db_text(str(msg.get("From", ""))),
                 status="pending",
                 storage_key=storage_key,
                 reported_by=reported_by,
-                raw_headers="\n".join(f"{key}: {value}" for key, value in msg.items()),
+                raw_headers=_db_text(
+                    "\n".join(f"{key}: {value}" for key, value in msg.items())
+                ),
             )
             db.add(analysis)
     except SQLAlchemyError:
@@ -118,9 +133,9 @@ def _attachments_of(msg: EmailMessage) -> list[dict]:
 
         attachments.append(
             {
-                "filename": part.get_filename() or "unnamed",
+                "filename": _db_text(part.get_filename() or "unnamed"),
                 "sha256": hashlib.sha256(file_bytes).hexdigest(),
-                "mime_type": part.get_content_type(),
+                "mime_type": _db_text(part.get_content_type()),
                 "size": len(file_bytes),
             }
         )

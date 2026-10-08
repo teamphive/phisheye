@@ -14,6 +14,7 @@ from ..models.mail_attachment import MailAttachment
 from ..models.mail_link import MailLink
 from ..models.team_membership import TeamMembership
 from ..models.user import User
+from ..services import eml_validation
 from ..services.auth import get_current_user
 from ..services.mail_analysis import submit_analysis
 from ..services.teams import get_active_membership, require_role
@@ -194,7 +195,9 @@ async def create_analysis(
     # audit may only read
     require_role(membership, "admin", "analyst")
 
-    content = await file.read()
+    # one byte more than the limit is enough to see that it is too large
+    content = await file.read(eml_validation.MAX_EML_BYTES + 1)
+    eml_validation.check_upload(file.filename, len(content))
 
     # Answers at once with status running, the worker analyzes in the background
     analysis = await submit_analysis(

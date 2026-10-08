@@ -29,9 +29,8 @@ export function LoginAside() {
         </p>
       </div>
 
-      <p className="text-xs text-muted-foreground">
-        Interne Anwendung der Hansa Logistik GmbH
-      </p>
+      {/* keeps the claim in the middle of the column */}
+      <div />
     </>
   )
 }
