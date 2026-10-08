@@ -13,7 +13,9 @@ export function AppLayout() {
       <NotificationsProvider>
         <SidebarProvider>
           <AppSidebar />
-          <SidebarInset>
+          {/* without min-w-0 the column never gets narrower than its widest
+              content and the whole page scrolls sideways */}
+          <SidebarInset className="min-w-0">
             <AppTopbar />
             <main className="px-7 pt-6 pb-16">
               <div className="mx-auto max-w-[1180px]">

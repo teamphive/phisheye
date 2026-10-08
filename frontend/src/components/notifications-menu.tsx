@@ -30,7 +30,7 @@ export function NotificationsMenu() {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="relative grid size-[34px] place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground">
+      <DropdownMenuTrigger className="relative grid size-[34px] shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground">
         <BellIcon className="size-[18px]" />
         {unreadCount > 0 ? (
           <span className="absolute top-0.5 right-0 grid h-4 min-w-4 place-items-center rounded-full border-2 border-background bg-phishing px-1 text-[9px] font-semibold text-background">
