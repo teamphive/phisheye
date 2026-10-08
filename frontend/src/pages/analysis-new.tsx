@@ -16,11 +16,11 @@ import {
 } from "@/components/ui/item"
 import { Spinner } from "@/components/ui/spinner"
 import { createAnalysis } from "@/lib/analyses"
-import { errorMessage } from "@/lib/api"
+import { ApiError, errorMessage } from "@/lib/api"
 import { formatFileSize } from "@/lib/format"
 
-// The backend parses MIME only, Outlook's .msg is a different format
-const acceptedTypes = [".eml"]
+// The backend turns Outlook's .msg into an .eml before the analysis
+const acceptedTypes = [".eml", ".msg"]
 const maxBytes = 25 * 1024 * 1024
 
 function rejectionReason(files: FileList) {
@@ -32,7 +32,7 @@ function rejectionReason(files: FileList) {
   const name = file.name.toLowerCase()
 
   if (!acceptedTypes.some((type) => name.endsWith(type))) {
-    return "Nur .eml wird unterstützt."
+    return "Nur .eml und .msg werden unterstützt."
   }
 
   if (file.size > maxBytes) {
@@ -40,6 +40,19 @@ function rejectionReason(files: FileList) {
   }
 
   return null
+}
+
+// The backend explains in English, and FastAPI's own 422 carries a list
+function uploadErrorMessage(error: unknown) {
+  if (error instanceof ApiError && error.status === 422) {
+    return "Die Datei ist keine lesbare Mail. Erwartet wird eine .eml oder eine .msg aus Outlook."
+  }
+
+  if (error instanceof ApiError && error.status === 413) {
+    return "Die Datei ist größer als 25 MB."
+  }
+
+  return errorMessage(error)
 }
 
 export function AnalysisNewPage() {
@@ -75,7 +88,7 @@ export function AnalysisNewPage() {
       const analysis = await createAnalysis(file)
       navigate(`/analysen/${analysis.id}`)
     } catch (uploadError) {
-      setError(errorMessage(uploadError))
+      setError(uploadErrorMessage(uploadError))
       setUploading(false)
     }
   }
@@ -164,7 +177,7 @@ export function AnalysisNewPage() {
                 </button>
               </p>
               <p className="mt-1.5 text-xs text-muted-foreground">
-                .eml · eine Datei · max. 25 MB
+                .eml oder .msg · eine Datei · max. 25 MB
               </p>
             </div>
           )}

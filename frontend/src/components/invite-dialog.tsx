@@ -112,7 +112,7 @@ export function InviteDialog({ team, onInvited }: InviteDialogProps) {
               <Input
                 id="invite-mail"
                 type="email"
-                placeholder="name@hansa-logistik.de"
+                placeholder="name@firma.de"
                 value={email}
                 onChange={(event) => {
                   setEmail(event.target.value)

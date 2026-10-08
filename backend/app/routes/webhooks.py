@@ -7,6 +7,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ..database import get_db
 from ..services.domains import team_for_address
+from ..services.eml_validation import InvalidEmlError
 from ..services.mail_analysis import analyze_and_store
 from ..services.mailgun import verify_mailgun_signature
 from ..services.pop3_poller import extract_eml, extract_reporter
@@ -59,12 +60,16 @@ async def inbound_mail(
     # the team that owns the reporter's domain, otherwise the default
     team_id = await team_for_address(extract_reporter(outer_content), db)
 
-    analysis, results = await analyze_and_store(
-        content=content,
-        team_id=team_id or default_team.id,
-        submitted_by=system_user.id,
-        db=db,
-    )
+    try:
+        analysis, results = await analyze_and_store(
+            content=content,
+            team_id=team_id or default_team.id,
+            submitted_by=system_user.id,
+            db=db,
+        )
+    except InvalidEmlError as error:
+        # 406 tells Mailgun not to deliver the same payload again
+        raise HTTPException(status_code=406, detail=error.detail) from error
 
     return {
         "id": analysis.id,

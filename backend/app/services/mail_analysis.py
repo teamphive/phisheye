@@ -12,10 +12,17 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ..models.mail_analysis import MailAnalysis
 from ..models.mail_attachment import MailAttachment
+from . import eml_validation
+from .msg_convert import is_msg, msg_to_eml
 from .notifications import enqueue_analysis_ready
 from .object_storage import ObjectStorageError, delete_object, store_eml
 
 logger = logging.getLogger(__name__)
+
+
+def _db_text(value: str) -> str:
+    """Postgres refuses NUL bytes in text, Outlook files carry them."""
+    return value.replace("\x00", "")
 
 
 # vt returns its own dict wrapper, which the JSON column cannot store
@@ -37,7 +44,13 @@ async def analyze_and_store(
     if not content:
         raise HTTPException(status_code=400, detail="Uploaded file is empty")
 
+    # an Outlook .msg is turned into the same bytes a .eml has, from here on
+    # the analysis does not know the difference
+    if is_msg(content):
+        content = msg_to_eml(content)
+
     msg = BytesParser(policy=policy.default).parsebytes(content)
+    eml_validation.check_eml(content, msg)
     attachments = []
 
     for part in msg.iter_attachments():
@@ -48,9 +61,9 @@ async def analyze_and_store(
 
         attachments.append(
             {
-                "filename": part.get_filename() or "unnamed",
+                "filename": _db_text(part.get_filename() or "unnamed"),
                 "sha256": hashlib.sha256(file_bytes).hexdigest(),
-                "mime_type": part.get_content_type(),
+                "mime_type": _db_text(part.get_content_type()),
                 "size": len(file_bytes),
             }
         )
@@ -100,12 +113,14 @@ async def analyze_and_store(
             analysis = MailAnalysis(
                 team_id=team_id,
                 submitted_by=submitted_by,
-                subject=str(msg.get("Subject", "")),
-                sender=str(msg.get("From", "")),
+                subject=_db_text(str(msg.get("Subject", ""))),
+                sender=_db_text(str(msg.get("From", ""))),
                 status="completed",
                 storage_key=storage_key,
                 reported_by=reported_by,
-                raw_headers="\n".join(f"{key}: {value}" for key, value in msg.items()),
+                raw_headers=_db_text(
+                    "\n".join(f"{key}: {value}" for key, value in msg.items())
+                ),
             )
 
             db.add(analysis)

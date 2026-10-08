@@ -225,6 +225,8 @@ function AnalysesList({
             }}
             variant="outline"
             size="sm"
+            // scrolls on its own instead of pushing the page wider
+            className="max-w-full overflow-x-auto"
           >
             {filters.map((entry) => (
               <ToggleGroupItem key={entry.value} value={entry.value}>

@@ -35,7 +35,10 @@ export function AppTopbar() {
               {user.initials}
             </AvatarFallback>
           </Avatar>
-          <span className="text-sm leading-tight font-medium">{user.name}</span>
+          {/* Only the initials while the bar is short of room */}
+          <span className="text-sm leading-tight font-medium max-lg:hidden">
+            {user.name}
+          </span>
           <ChevronsUpDownIcon className="size-3.5 text-muted-foreground" />
         </DropdownMenuTrigger>
 

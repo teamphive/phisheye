@@ -186,4 +186,11 @@
   html {
     @apply font-sans;
     }
+  /* Tailwind 4 leaves buttons with the arrow, clickable things get the hand back */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="checkbox"]:not([data-disabled]),
+  [role="switch"]:not([data-disabled]) {
+    cursor: pointer;
+    }
 }
