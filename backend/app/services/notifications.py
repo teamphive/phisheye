@@ -166,8 +166,12 @@ def is_notifiable(address: str) -> bool:
 def send_analysis_mail(to: str, analysis: MailAnalysis) -> None:
     """Sends the result mail once a verdict exists, the receipt mail before."""
     if analysis.verdict in _TONES:
-        # TODO: pass the triggered checks once they are stored
-        subject, text, html = render_result(analysis, [])
+        reasons = [
+            {"name": criterion["name"], "finding": criterion["finding"]}
+            for criterion in analysis.criteria or []
+            if criterion.get("weight", 0) > 0
+        ]
+        subject, text, html = render_result(analysis, reasons)
     else:
         subject, text, html = render_received(analysis)
 
