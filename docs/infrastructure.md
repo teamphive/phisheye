@@ -23,7 +23,7 @@ JEV: Der Key liegt als `TYPESAFE_API_KEY` in der `.env` auf dem Server. Der IAM-
 
 1. `git fetch` und `git merge --ff-only` auf genau den Commit des Laufs. Liegen auf der VM eigene Änderungen, bricht der Deploy ab.
 2. `docker compose --profile app up -d --build`. Compose erneuert nur, was sich geändert hat. Postgres, Redis, MinIO und Keycloak laufen beim Deploy weiter.
-3. Danach fragt der Runner bis zu 30-mal im Abstand von 5 Sekunden `https://phisheye.neumann-it.org/api/health` ab, über die öffentliche Domain, damit DNS, Proxy und TLS mitgeprüft sind. Bleibt die Antwort aus, schlägt der Lauf fehl und zeigt Containerstatus und die letzten Backend-Logs.
+3. Danach fragt der Runner bis zu 30-mal im Abstand von 5 Sekunden `https://phisheye.neumann-it.org/api/health/ready` ab und wartet auf `ok` (Postgres, Redis, MinIO, Worker und Keycloak antworten), über die öffentliche Domain, damit DNS, Proxy und TLS mitgeprüft sind. Bleibt die Antwort aus, schlägt der Lauf fehl und zeigt Containerstatus und die letzten Backend-Logs.
 
 Es läuft immer nur ein Deploy gleichzeitig, ein neuer Push wartet.
 

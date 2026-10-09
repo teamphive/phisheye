@@ -10,6 +10,20 @@ Was das Frontend braucht. Die Feldnamen stammen aus den Typen in `frontend/src/m
 - Fehler kommen als FastAPI-Objekt `{ "detail": "..." }`, das Frontend liest `detail` (oder `message`).
 - Löschen ist weich (`deleted_at`, sofort unsichtbar). Analysen entfernt ein Cron-Job nach 10 Tagen endgültig, nachts um 3:30, samt Anhängen, Links, Einträgen der Glocke und `.eml` in MinIO. Scheitert MinIO, bleibt die Analyse bis zur nächsten Nacht. Teams werden nie endgültig entfernt.
 
+## Gesundheit
+
+| Pfad | Frage | Antwort |
+| --- | --- | --- |
+| `GET /health` | Läuft der Prozess? | immer `{ "status": "ok" }`, prüft nichts, wofür Docker und die Blackbox-Probe in Grafana ihn nutzen |
+| `GET /health/ready` | Kann die App arbeiten? | `{ "status": "ok" \| "degraded" \| "down" }`, bei `down` Statuscode 503 |
+
+- `down`: PostgreSQL, Redis oder MinIO antworten nicht, die App kann nicht arbeiten.
+- `degraded` (200): der Worker läuft nicht (Analysen warten) oder Keycloak antwortet nicht (niemand kann sich anmelden).
+- VirusTotal und JEV zählen nicht mit. Sie anzufragen kostet Kontingent oder Geld, und ein fehlender Schlüssel ist eine Entscheidung und kein Ausfall.
+- Die Antwort ist öffentlich und nennt nur das eine Wort, nie die Namen der Dienste. Der Zustand pro Dienst steht in `GET /monitoring`, hinter dem Login.
+- Das Ergebnis bleibt fünf Sekunden im Speicher, damit Proben die Datenbank nicht jedes Mal anfragen.
+- Der Deploy-Workflow wartet auf `ok` (bis zu 30 Versuche im Abstand von 5 Sekunden).
+
 ## Swagger
 
 Die API beschreibt sich selbst. Im Betrieb unter `https://phisheye.neumann-it.org/api/docs` (Swagger) und `/api/redoc`, das Schema unter `/api/openapi.json`. Lokal ohne Proxy unter `http://localhost:8000/docs`.

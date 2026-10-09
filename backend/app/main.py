@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import start_http_server
 from prometheus_fastapi_instrumentator import Instrumentator
 
-from .routes import analyze, bell, me, monitoring, stats, team, webhooks
+from .routes import analyze, bell, health, me, monitoring, stats, team, webhooks
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ def docs_settings() -> dict:
 app = FastAPI(title="phisheye", lifespan=lifespan, **docs_settings())
 
 # health checks would drown the real traffic
-Instrumentator(excluded_handlers=["/health"]).instrument(app)
+Instrumentator(excluded_handlers=["/health", "/health/ready"]).instrument(app)
 
 # Only for the Vite dev server on its own port. In compose nginx serves the
 # frontend and the API under one origin, the browser asks nothing there.
@@ -55,6 +55,7 @@ app.add_middleware(
 
 app.include_router(analyze.router)
 app.include_router(bell.router)
+app.include_router(health.router)
 app.include_router(me.router)
 app.include_router(monitoring.router)
 app.include_router(stats.router)
