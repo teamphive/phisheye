@@ -73,13 +73,13 @@ jobs:
           docker compose --profile app up -d --build
           EOF
 
-      # through the public domain, so DNS, proxy and TLS are checked as well
-      - name: Wait until the app answers
+      - name: Wait until the app is ready
         run: |
           for attempt in $(seq 1 30); do
-            if curl -fsS --max-time 10 https://phisheye.neumann-it.org/api/health; then
-              echo
-              echo "Healthy after $attempt attempts"
+            answer=$(curl -fsS --max-time 10 https://phisheye.neumann-it.org/api/health/ready || true)
+            echo "$answer"
+            if echo "$answer" | grep -q '"status":"ok"'; then
+              echo "Ready after $attempt attempts"
               exit 0
             fi
             sleep 5
