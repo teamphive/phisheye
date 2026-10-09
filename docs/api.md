@@ -10,6 +10,13 @@ Was das Frontend braucht. Die Feldnamen stammen aus den Typen in `frontend/src/m
 - Fehler kommen als FastAPI-Objekt `{ "detail": "..." }`, das Frontend liest `detail` (oder `message`).
 - Löschen ist weich (`deleted_at`, sofort unsichtbar). Analysen entfernt ein Cron-Job nach 10 Tagen endgültig, nachts um 3:30, samt Anhängen, Links, Einträgen der Glocke und `.eml` in MinIO. Scheitert MinIO, bleibt die Analyse bis zur nächsten Nacht. Teams werden nie endgültig entfernt.
 
+## Swagger
+
+Die API beschreibt sich selbst. Im Betrieb unter `https://phisheye.neumann-it.org/api/docs` (Swagger) und `/api/redoc`, das Schema unter `/api/openapi.json`. Lokal ohne Proxy unter `http://localhost:8000/docs`.
+
+- Das Backend läuft hinter nginx, der `/api` abschneidet. `ROOT_PATH=/api` (in `docker-compose.yml` gesetzt) sagt FastAPI davon, sonst lädt Swagger `/openapi.json`, bekommt die Startseite der App und zeigt "Failed to load API definition".
+- Die Seiten sind öffentlich, die Endpunkte brauchen weiter ein Token. `DOCS_ENABLED=false` in der `.env` schaltet Swagger, ReDoc und das Schema ganz ab.
+
 ## Anmeldung
 
 Die Anmeldung läuft über Keycloak, nicht über die API. Das Frontend holt sich dort ein Token und schickt es bei jedem Aufruf mit:

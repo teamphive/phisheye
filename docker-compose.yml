@@ -148,6 +148,9 @@ services:
       S3_ENDPOINT_URL: http://minio:9000
       KEYCLOAK_URL: "http://keycloak:8080"
       KEYCLOAK_PUBLIC_URL: "${KEYCLOAK_PUBLIC_URL:-http://localhost:8080}"
+      # nginx serves the API under /api, so Swagger finds /api/openapi.json
+      ROOT_PATH: /api
+      DOCS_ENABLED: "${DOCS_ENABLED:-true}"
     restart: unless-stopped
     profiles: [app]
     depends_on:

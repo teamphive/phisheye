@@ -23,7 +23,23 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title="phisheye", lifespan=lifespan)
+def docs_settings() -> dict:
+    """Where the API docs live and whether they exist at all.
+
+    Behind nginx the API answers under /api, which nginx strips. ROOT_PATH
+    tells FastAPI, so Swagger loads /api/openapi.json and its requests go to
+    /api. Without a proxy it stays empty and /docs works as it is.
+    DOCS_ENABLED=false removes Swagger, ReDoc and the schema.
+    """
+    settings: dict = {"root_path": os.getenv("ROOT_PATH", "")}
+
+    if os.getenv("DOCS_ENABLED", "true").lower() in ("0", "false", "no", "off"):
+        settings |= {"docs_url": None, "redoc_url": None, "openapi_url": None}
+
+    return settings
+
+
+app = FastAPI(title="phisheye", lifespan=lifespan, **docs_settings())
 
 # health checks would drown the real traffic
 Instrumentator(excluded_handlers=["/health"]).instrument(app)
