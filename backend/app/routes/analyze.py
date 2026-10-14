@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from typing import Literal
 
@@ -21,6 +22,8 @@ from ..services.mail_analysis import submit_analysis
 from ..services.notifications import enqueue_decision_mail
 from ..services.object_storage import ObjectStorageError, load_eml
 from ..services.teams import get_active_membership, require_role
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["analyses"])
 
@@ -263,17 +266,23 @@ async def create_analysis(
 
     # one byte more than the limit is enough to see that it is too large
     content = await file.read(eml_validation.MAX_EML_BYTES + 1)
-    eml_validation.check_upload(file.filename, len(content))
 
-    # Answers at once with status running, the worker analyzes in the background
-    analysis = await submit_analysis(
-        content=content,
-        team_id=membership.team_id,
-        submitted_by=user.id,
-        db=db,
-        # whoever uploads works on it
-        handled_by=user.id,
-    )
+    try:
+        eml_validation.check_upload(file.filename, len(content))
+
+        # Answers at once with status running, the worker analyzes in the background
+        analysis = await submit_analysis(
+            content=content,
+            team_id=membership.team_id,
+            submitted_by=user.id,
+            db=db,
+            # whoever uploads works on it
+            handled_by=user.id,
+        )
+    except eml_validation.InvalidEmlError as error:
+        # the Grafana panel for dropped reports counts this line too
+        logger.warning("Upload rejected for user %s: %s", user.id, error.detail)
+        raise
 
     return _list_item(analysis, user.name, None, user.id)
 

@@ -496,3 +496,18 @@ async def test_nul_bytes_never_reach_the_database(db, api, monkeypatch):
 
     (attachment,) = (await db.exec(select(MailAttachment))).all()
     assert attachment.filename == "a.png"
+
+
+@pytest.mark.asyncio
+async def test_a_rejected_upload_is_logged_with_the_user(db, api, caplog):
+    _, _, anna, _, _ = await two_teams(db)
+    login_as(anna)
+
+    with caplog.at_level("WARNING"):
+        response = await api.post(
+            "/analyses",
+            files={"file": ("archive.eml", b"PK\x03\x04\x14\x00", "message/rfc822")},
+        )
+
+    assert response.status_code == 422
+    assert f"Upload rejected for user {anna.id}: The file is not a mail" in caplog.text

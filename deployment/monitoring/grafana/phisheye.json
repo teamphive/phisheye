@@ -1661,7 +1661,7 @@
         "x": 12,
         "y": 61
       },
-      "title": "Verworfene Meldungen (keine Mail, kaputt)",
+      "title": "Verworfene Meldungen und Uploads (keine Mail, kaputt)",
       "type": "timeseries",
       "fieldConfig": {
         "defaults": {
@@ -1693,11 +1693,20 @@
             "uid": "loki"
           },
           "expr": "sum(count_over_time({job=\"docker\", container=\"worker\"} |~ `POP3 mail .* dropped` [15m]))",
-          "legendFormat": "verworfen (15 min)",
+          "legendFormat": "Postfach (15 min)",
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "expr": "sum(count_over_time({job=\"docker\", container=\"backend\"} |= `Upload rejected` [15m]))",
+          "legendFormat": "Upload (15 min)",
+          "refId": "B"
         }
       ],
-      "description": "Meldungen im Postfach, die keine lesbare Mail enthielten. Der Worker hat sie gelöscht und die meldende Person informiert."
+      "description": "Meldungen im Postfach ohne lesbare Mail (Worker hat sie gelöscht und die meldende Person informiert) und abgelehnte Uploads in der Oberfläche."
     },
     {
       "datasource": {
