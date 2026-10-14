@@ -313,3 +313,79 @@ async def test_poller_tells_the_reporter_that_the_report_held_no_mail(db, monkey
     # dropped from the mailbox, told only as often as the limit allows
     assert deleted == [{"1"}]
     assert sent == ["anna@firma.de"] * tasks.MAX_REJECTIONS_PER_HOUR
+
+
+@pytest.mark.asyncio
+async def test_poller_drops_a_mail_that_breaks_the_parser_and_goes_on(db, monkeypatch):
+    from app.services.pop3_poller import OversizedMail
+    from app.worker import tasks
+
+    async def session():
+        yield db
+
+    broken = (
+        b"From: anna@firma.de\nSubject: x\nMIME-Version: 1.0\n"
+        b"Content-Type: multipart/mixed; boundary=B\n\n--B\n"
+        b"Content-Type: message/rfc822\nContent-Transfer-Encoding: base64\n\n"
+        b"QUJDR\n--B--\n"
+    )
+    big = OversizedMail(b"From: max@fremd.de\nSubject: big\n")
+    good = b"From: eva@firma.de\nSubject: Fwd\n\nhi\n"
+
+    analyzed = []
+    deleted = []
+    told = []
+
+    async def analyze(**kwargs):
+        analyzed.append(kwargs["reported_by"])
+
+    monkeypatch.setattr(
+        tasks, "fetch_new_mails", lambda: [("1", broken), ("2", big), ("3", good)]
+    )
+    monkeypatch.setattr(tasks, "submit_analysis", analyze)
+    monkeypatch.setattr(tasks, "delete_mails", lambda uids: deleted.append(uids))
+    monkeypatch.setattr(tasks, "get_session", session)
+    monkeypatch.setattr(tasks, "send_rejection_mail", told.append)
+
+    await tasks._poll_report_mailbox()
+
+    # the two bad mails leave the mailbox and their senders hear of it
+    assert analyzed == ["eva@firma.de"]
+    assert deleted == [{"1", "2", "3"}]
+    assert sorted(told) == ["anna@firma.de", "max@fremd.de"]
+
+
+@pytest.mark.asyncio
+async def test_poller_drops_a_mail_that_breaks_the_parser_and_goes_on(db, monkeypatch):
+    from app.worker import tasks
+
+    async def session():
+        yield db
+
+    broken = (
+        b"From: anna@firma.de\nSubject: x\nMIME-Version: 1.0\n"
+        b"Content-Type: multipart/mixed; boundary=B\n\n--B\n"
+        b"Content-Type: message/rfc822\nContent-Transfer-Encoding: base64\n\n"
+        b"QUJDR\n--B--\n"
+    )
+    good = b"From: eva@firma.de\nSubject: Fwd\n\nhi\n"
+
+    analyzed = []
+    deleted = []
+    told = []
+
+    async def analyze(**kwargs):
+        analyzed.append(kwargs["reported_by"])
+
+    monkeypatch.setattr(tasks, "fetch_new_mails", lambda: [("1", broken), ("2", good)])
+    monkeypatch.setattr(tasks, "submit_analysis", analyze)
+    monkeypatch.setattr(tasks, "delete_mails", lambda uids: deleted.append(uids))
+    monkeypatch.setattr(tasks, "get_session", session)
+    monkeypatch.setattr(tasks, "send_rejection_mail", told.append)
+
+    await tasks._poll_report_mailbox()
+
+    # the broken mail leaves the mailbox, its sender hears of it, the run goes on
+    assert analyzed == ["eva@firma.de"]
+    assert deleted == [{"1", "2"}]
+    assert told == ["anna@firma.de"]

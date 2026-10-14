@@ -81,6 +81,22 @@ async def _tell_rejected(redis, reporter: str | None) -> None:
         logger.exception("Rejection mail to %s failed", reporter)
 
 
+def _reporter_of(raw_mail: bytes) -> str | None:
+    try:
+        return extract_reporter(raw_mail)
+    except Exception:
+        return None
+
+
+def _unpack(raw_mail: bytes) -> bytes:
+    """The mail inside a report. A mail that breaks the parser must not stop
+    the run, it would come back on every run, so it counts as no mail."""
+    try:
+        return extract_eml(raw_mail)
+    except Exception as error:
+        raise InvalidEmlError("The mail cannot be read") from error
+
+
 async def _poll_report_mailbox(redis=None) -> None:
     try:
         mails = fetch_new_mails()
@@ -102,10 +118,11 @@ async def _poll_report_mailbox(redis=None) -> None:
         system_user_id = system_user.id
 
         for uid, raw_mail in mails:
-            content = extract_eml(raw_mail)
-            reporter = extract_reporter(raw_mail)
+            reporter = _reporter_of(raw_mail)
 
             try:
+                content = _unpack(raw_mail)
+
                 # the team that owns the reporter's domain, otherwise the default
                 team_id = await team_for_address(reporter, db) or default_team_id
 
