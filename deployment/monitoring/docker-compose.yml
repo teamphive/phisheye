@@ -40,7 +40,11 @@ services:
     container_name: postgres-exporter
     restart: unless-stopped
     environment:
-      DATA_SOURCE_NAME: "postgresql://phisheye_monitor:${POSTGRES_MONITOR_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable"
+      # user and password stay apart from the address: in one URL a "/" or "@" in the
+      # password breaks the parsing ("invalid port ... after host")
+      DATA_SOURCE_URI: "db:5432/${POSTGRES_DB}?sslmode=disable"
+      DATA_SOURCE_USER: phisheye_monitor
+      DATA_SOURCE_PASS: "${POSTGRES_MONITOR_PASSWORD}"
     ports:
       - "${METRICS_BIND:-127.0.0.1}:9187:9187"
     networks:

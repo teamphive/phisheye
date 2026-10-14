@@ -18,6 +18,8 @@ METRICS_BIND=192.168.178.225
 POSTGRES_MONITOR_PASSWORD=<openssl rand -base64 24>
 ```
 
+Das Passwort darf Sonderzeichen enthalten (`/`, `+`, `=`), der Exporter bekommt Benutzer, Passwort und Adresse getrennt (`DATA_SOURCE_USER`, `DATA_SOURCE_PASS`, `DATA_SOURCE_URI`). Früher stand alles in einer URL, und ein `/` im Passwort ließ den Exporter mit "invalid port" scheitern.
+
 Benutzer für Postgres anlegen:
 
 ```bash

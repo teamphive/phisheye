@@ -21,6 +21,13 @@
       "targetBlank": false,
       "title": "Dashboards",
       "type": "dashboards"
+    },
+    {
+      "title": "Alarme",
+      "type": "link",
+      "icon": "bolt",
+      "url": "/alerting/list?search=label%3Aapp%3Dphisheye",
+      "targetBlank": false
     }
   ],
   "liveNow": false,
@@ -92,7 +99,7 @@
       "options": {
         "colorMode": "background",
         "graphMode": "none",
-        "textMode": "auto",
+        "textMode": "value",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -112,6 +119,383 @@
           "refId": "A",
           "range": true
         }
+      ],
+      "description": "Antwortet GET /api/health? Das ist nur der Lebenszeichen-Test. Ob die App wirklich arbeitet, zeigt Bereit."
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "id": 30,
+      "title": "Bereit",
+      "description": "GET /api/health/ready: Postgres, Redis, MinIO, Worker und Keycloak antworten, der Body sagt \"ok\". Rot auch bei \"degraded\" (Worker oder Keycloak aus), dann antwortet die App noch mit 200.",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Keine Daten",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "NICHT OK",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "OK",
+                  "color": "green"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "probe_success{instance=\"https://phisheye.neumann-it.org/api/health/ready\"}",
+          "legendFormat": "",
+          "refId": "A",
+          "range": true
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "id": 31,
+      "title": "Login (Keycloak)",
+      "description": "Antwortet Keycloak unter /auth? Ohne ihn kann sich niemand anmelden.",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Keine Daten",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "DOWN",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "OK",
+                  "color": "green"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "probe_success{instance=\"https://phisheye.neumann-it.org/auth/realms/phisheye/.well-known/openid-configuration\"}",
+          "legendFormat": "",
+          "refId": "A",
+          "range": true
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "id": 32,
+      "title": "Container laufen (von 7)",
+      "description": "db, keycloak, redis, minio, backend, worker und frontend. Rot, wenn einer fehlt (pgadmin und migrate zählen nicht).",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "0",
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 7
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "count(count by (container_label_com_docker_compose_service) (container_last_seen{job=\"phis1c-cadvisor\", container_label_com_docker_compose_service=~\"db|keycloak|redis|minio|backend|worker|frontend\"} > time() - 60)) or vector(0)",
+          "legendFormat": "",
+          "refId": "A",
+          "range": true
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "id": 33,
+      "title": "Postgres",
+      "description": "Erreicht der Postgres-Exporter die Datenbank (pg_up)? Rot heißt: Datenbank weg oder der Exporter-Benutzer phisheye_monitor fehlt.",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Keine Daten",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "DOWN",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "OK",
+                  "color": "green"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "pg_up{job=\"phis1c-postgres\"}",
+          "legendFormat": "",
+          "refId": "A",
+          "range": true
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "id": 34,
+      "title": "Redis",
+      "description": "Erreicht der Redis-Exporter Redis? Ohne Redis steht die Queue und kein Postfach wird abgeholt.",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Keine Daten",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "DOWN",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "OK",
+                  "color": "green"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "redis_up{job=\"phis1c-redis\"}",
+          "legendFormat": "",
+          "refId": "A",
+          "range": true
+        }
       ]
     },
     {
@@ -123,8 +507,8 @@
       "gridPos": {
         "h": 4,
         "w": 4,
-        "x": 4,
-        "y": 1
+        "x": 0,
+        "y": 5
       },
       "title": "TLS-Zertifikat läuft ab in",
       "type": "stat",
@@ -158,7 +542,7 @@
       "options": {
         "colorMode": "background",
         "graphMode": "none",
-        "textMode": "auto",
+        "textMode": "value",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -189,8 +573,8 @@
       "gridPos": {
         "h": 4,
         "w": 4,
-        "x": 8,
-        "y": 1
+        "x": 4,
+        "y": 5
       },
       "title": "Jobs in der Queue",
       "type": "stat",
@@ -217,14 +601,15 @@
           },
           "color": {
             "mode": "thresholds"
-          }
+          },
+          "noValue": "0"
         },
         "overrides": []
       },
       "options": {
         "colorMode": "background",
         "graphMode": "none",
-        "textMode": "auto",
+        "textMode": "value",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -239,12 +624,13 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "redis_key_size{key=\"arq:queue\"} or vector(0)",
+          "expr": "max(redis_key_size{key=\"arq:queue\"} or vector(0))",
           "legendFormat": "",
           "refId": "A",
           "range": true
         }
-      ]
+      ],
+      "description": "Aufträge, die auf den Worker warten (arq:queue). Gelb ab 10, rot ab 50. Dauerhaft über 20 löst den Alarm Queue hängt aus."
     },
     {
       "datasource": {
@@ -255,8 +641,8 @@
       "gridPos": {
         "h": 4,
         "w": 4,
-        "x": 12,
-        "y": 1
+        "x": 8,
+        "y": 5
       },
       "title": "5xx-Anteil (5 min)",
       "type": "stat",
@@ -290,7 +676,7 @@
       "options": {
         "colorMode": "background",
         "graphMode": "none",
-        "textMode": "auto",
+        "textMode": "value",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -321,8 +707,8 @@
       "gridPos": {
         "h": 4,
         "w": 4,
-        "x": 16,
-        "y": 1
+        "x": 12,
+        "y": 5
       },
       "title": "Requests pro Sekunde",
       "type": "stat",
@@ -348,7 +734,7 @@
       "options": {
         "colorMode": "background",
         "graphMode": "none",
-        "textMode": "auto",
+        "textMode": "value",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -379,8 +765,8 @@
       "gridPos": {
         "h": 4,
         "w": 4,
-        "x": 20,
-        "y": 1
+        "x": 16,
+        "y": 5
       },
       "title": "Disk belegt",
       "type": "stat",
@@ -414,7 +800,7 @@
       "options": {
         "colorMode": "background",
         "graphMode": "none",
-        "textMode": "auto",
+        "textMode": "value",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -437,12 +823,111 @@
       ]
     },
     {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "id": 35,
+      "title": "Arbeitsspeicher belegt",
+      "description": "Belegter Arbeitsspeicher der VM. Orange ab 80 %, rot ab 92 % (dann kommt der Alarm).",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "noValue": "Keine Daten",
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.8
+              },
+              {
+                "color": "red",
+                "value": 0.92
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "1 - node_memory_MemAvailable_bytes{instance=\"neuserphis1c\"} / node_memory_MemTotal_bytes{instance=\"neuserphis1c\"}",
+          "legendFormat": "",
+          "refId": "A",
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 36,
+      "type": "alertlist",
+      "title": "Aktive Alarme (phisheye)",
+      "description": "Alle Alarme mit dem Label app=phisheye, die gerade feuern oder bald feuern. Leer heißt: alles ruhig.",
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 9
+      },
+      "options": {
+        "viewMode": "list",
+        "groupMode": "default",
+        "groupBy": [],
+        "maxItems": 20,
+        "sortOrder": 3,
+        "showInstances": true,
+        "dashboardAlerts": false,
+        "alertName": "",
+        "folder": null,
+        "alertInstanceLabelFilter": "{app=\"phisheye\"}",
+        "stateFilter": {
+          "firing": true,
+          "pending": true,
+          "noData": false,
+          "normal": false,
+          "error": true
+        }
+      }
+    },
+    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 5
+        "y": 15
       },
       "id": 8,
       "panels": [],
@@ -459,7 +944,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 6
+        "y": 16
       },
       "title": "Requests pro Sekunde nach Status",
       "type": "timeseries",
@@ -511,7 +996,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 6
+        "y": 16
       },
       "title": "Latenz",
       "type": "timeseries",
@@ -565,7 +1050,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 14
+        "y": 24
       },
       "id": 11,
       "panels": [],
@@ -582,7 +1067,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 15
+        "y": 25
       },
       "title": "Jobs in der Queue",
       "type": "timeseries",
@@ -630,7 +1115,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 15
+        "y": 25
       },
       "title": "Redis",
       "type": "timeseries",
@@ -674,7 +1159,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 23
+        "y": 33
       },
       "id": 14,
       "panels": [],
@@ -691,7 +1176,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 24
+        "y": 34
       },
       "title": "Verbindungen",
       "type": "timeseries",
@@ -702,7 +1187,8 @@
             "lineWidth": 1,
             "fillOpacity": 10,
             "showPoints": "never"
-          }
+          },
+          "noValue": "Keine Daten. Postgres-Exporter prüfen (Kachel Postgres oben)"
         },
         "overrides": []
       },
@@ -739,7 +1225,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 24
+        "y": 34
       },
       "title": "Größe der Datenbank",
       "type": "timeseries",
@@ -750,7 +1236,8 @@
             "lineWidth": 1,
             "fillOpacity": 10,
             "showPoints": "never"
-          }
+          },
+          "noValue": "Keine Daten. Postgres-Exporter prüfen (Kachel Postgres oben)"
         },
         "overrides": []
       },
@@ -783,7 +1270,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 32
+        "y": 42
       },
       "id": 17,
       "panels": [],
@@ -800,7 +1287,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 33
+        "y": 43
       },
       "title": "CPU pro Dienst",
       "type": "timeseries",
@@ -848,7 +1335,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 33
+        "y": 43
       },
       "title": "Arbeitsspeicher pro Dienst",
       "type": "timeseries",
@@ -892,7 +1379,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 41
+        "y": 51
       },
       "id": 20,
       "panels": [],
@@ -909,7 +1396,7 @@
         "h": 8,
         "w": 6,
         "x": 0,
-        "y": 42
+        "y": 52
       },
       "title": "CPU",
       "type": "timeseries",
@@ -957,7 +1444,7 @@
         "h": 8,
         "w": 6,
         "x": 6,
-        "y": 42
+        "y": 52
       },
       "title": "Arbeitsspeicher",
       "type": "timeseries",
@@ -1005,7 +1492,7 @@
         "h": 8,
         "w": 6,
         "x": 12,
-        "y": 42
+        "y": 52
       },
       "title": "Disk",
       "type": "timeseries",
@@ -1053,7 +1540,7 @@
         "h": 8,
         "w": 6,
         "x": 18,
-        "y": 42
+        "y": 52
       },
       "title": "Netz",
       "type": "timeseries",
@@ -1107,7 +1594,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 50
+        "y": 60
       },
       "id": 25,
       "panels": [],
@@ -1124,7 +1611,7 @@
         "h": 6,
         "w": 24,
         "x": 0,
-        "y": 51
+        "y": 61
       },
       "title": "Fehler in den Logs (pro Container)",
       "type": "timeseries",
@@ -1172,7 +1659,7 @@
         "h": 12,
         "w": 24,
         "x": 0,
-        "y": 57
+        "y": 67
       },
       "title": "Logs",
       "type": "logs",
