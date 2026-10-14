@@ -285,6 +285,19 @@ def render_failed(analysis: MailAnalysis) -> tuple[str, str, str]:
     return _subject_line("Nicht geprüft", mail["subject"]), text, html
 
 
+def render_rejected() -> tuple[str, str, str]:
+    """Returns subject, plain text and html of the mail for a report without a mail."""
+    html = _render("rejected.html")
+    text = (
+        "Das war keine Mail.\n\n"
+        "In deiner Meldung steckt keine Mail, die wir prüfen können. Der Anhang "
+        "ist eine andere Datei oder beschädigt. Melde die Mail bitte noch einmal "
+        "direkt als Anlage aus deinem Mailprogramm. Bis dahin: keine Links "
+        "öffnen, keine Anhänge öffnen.\n"
+    )
+    return "Meldung nicht gelesen: keine Mail", text, html
+
+
 def render_result(
     analysis: MailAnalysis,
     reasons: list[dict[str, str]],
@@ -357,6 +370,12 @@ def send_receipt_mail(to: str, analysis: MailAnalysis) -> None:
 def send_failure_mail(to: str, analysis: MailAnalysis) -> None:
     """Tells the reporter that the analysis did not finish."""
     subject, text, html = render_failed(analysis)
+    _send(to, subject, text, html)
+
+
+def send_rejection_mail(to: str) -> None:
+    """Tells the reporter that the report held no mail, nothing was analyzed."""
+    subject, text, html = render_rejected()
     _send(to, subject, text, html)
 
 

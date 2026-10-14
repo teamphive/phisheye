@@ -23,6 +23,7 @@ from ..services.keycloak_admin import KeycloakAdminError
 from ..services.mail_analysis import record_failure, run_analysis, submit_analysis
 from ..services.notifications import (
     is_notifiable,
+    send_rejection_mail,
     send_verdict_mail,
 )
 from ..services.notifications import (
@@ -42,6 +43,8 @@ from ..services.system_defaults import ensure_system_defaults
 logger = logging.getLogger(__name__)
 
 MAX_MAILS_PER_HOUR = 10
+# a rejection has no analysis to count on, so Redis counts per address
+MAX_REJECTIONS_PER_HOUR = 3
 POLL_LOCK_KEY = "lock:poll_report_mailbox"
 
 
@@ -51,12 +54,34 @@ async def poll_report_mailbox(ctx) -> None:
         return
 
     try:
-        await _poll_report_mailbox()
+        await _poll_report_mailbox(ctx["redis"])
     finally:
         await ctx["redis"].delete(POLL_LOCK_KEY)
 
 
-async def _poll_report_mailbox() -> None:
+async def _tell_rejected(redis, reporter: str | None) -> None:
+    """Tells the reporter that the report held no mail. Never raises."""
+    if not reporter or not is_notifiable(reporter):
+        return
+
+    try:
+        # the address comes from a foreign mail, cap what one address gets
+        if redis is not None:
+            key = f"rejected:{reporter}"
+            count = await redis.incr(key)
+
+            if count == 1:
+                await redis.expire(key, 3600)
+
+            if count > MAX_REJECTIONS_PER_HOUR:
+                return
+
+        await asyncio.to_thread(send_rejection_mail, reporter)
+    except Exception:
+        logger.exception("Rejection mail to %s failed", reporter)
+
+
+async def _poll_report_mailbox(redis=None) -> None:
     try:
         mails = fetch_new_mails()
     except Exception:
@@ -94,6 +119,7 @@ async def _poll_report_mailbox() -> None:
             except InvalidEmlError as error:
                 # it would fail the same way on every run, so it goes
                 logger.warning("POP3 mail %s dropped: %s", uid, error.detail)
+                await _tell_rejected(redis, reporter)
             except Exception:
                 logger.exception("Analysis of POP3 mail failed")
                 continue

@@ -272,3 +272,44 @@ async def test_poller_drops_a_mail_that_is_no_mail(db, monkeypatch):
 
     # it would fail on every run, so it leaves the mailbox
     assert deleted == [{"1"}]
+
+
+@pytest.mark.asyncio
+async def test_poller_tells_the_reporter_that_the_report_held_no_mail(db, monkeypatch):
+    from app.services.eml_validation import InvalidEmlError
+    from app.worker import tasks
+
+    async def refuse(**kwargs):
+        raise InvalidEmlError("The file is not a mail")
+
+    async def session():
+        yield db
+
+    sent = []
+    deleted = []
+
+    class FakeRedis:
+        def __init__(self):
+            self.counts = {}
+
+        async def incr(self, key):
+            self.counts[key] = self.counts.get(key, 0) + 1
+            return self.counts[key]
+
+        async def expire(self, key, seconds):
+            pass
+
+    redis = FakeRedis()
+    report = b"From: anna@firma.de\nSubject: Fwd\n\nhi\n"
+
+    monkeypatch.setattr(tasks, "fetch_new_mails", lambda: [("1", report)] * 5)
+    monkeypatch.setattr(tasks, "submit_analysis", refuse)
+    monkeypatch.setattr(tasks, "delete_mails", lambda uids: deleted.append(uids))
+    monkeypatch.setattr(tasks, "get_session", session)
+    monkeypatch.setattr(tasks, "send_rejection_mail", sent.append)
+
+    await tasks._poll_report_mailbox(redis)
+
+    # dropped from the mailbox, told only as often as the limit allows
+    assert deleted == [{"1"}]
+    assert sent == ["anna@firma.de"] * tasks.MAX_REJECTIONS_PER_HOUR
