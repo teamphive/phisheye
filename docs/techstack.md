@@ -44,7 +44,7 @@ flowchart TB
 
 ## Ablauf einer Analyse
 
-Zielbild. Stand heute läuft die Analyse als arq-Job im Worker, Regeln und KI kommen nach, siehe [API](api.md).
+Die Analyse läuft als arq-Job im Worker: erst die Regeln, dann VirusTotal für die Anhänge, zuletzt die KI-Einschätzung von JEV. Details in der [API](api.md).
 
 ```mermaid
 sequenceDiagram

@@ -50,6 +50,10 @@ React, FastAPI, PostgreSQL, Redis, MinIO, Keycloak und Docker Compose. Details i
 
 Konzept, API, Datenmodell und Betrieb stehen in [`docs/`](docs/).
 
+## Monitoring
+
+[Grafana-Dashboard](https://monitoring.neumann-it.org/public-dashboards/e9850289f0b04b848d87ed35522dbf8f) ohne Anmeldung: Erreichbarkeit, VM, Container, Queue, Datenbank und Logs. Technik und Alarme: [`docs/infrastructure.md`](docs/infrastructure.md#monitoring).
+
 ## Team
 
 phisheye ist ein Teamprojekt von **teamphive**: Adrijus Lazdauskas, Tom Lammers und Oliver Neumann.

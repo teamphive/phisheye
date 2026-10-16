@@ -23,6 +23,7 @@ Was das Frontend braucht. Die Feldnamen stammen aus den Typen in `frontend/src/m
 - Die Antwort ist öffentlich und nennt nur das eine Wort, nie die Namen der Dienste. Der Zustand pro Dienst steht in `GET /monitoring`, hinter dem Login.
 - Das Ergebnis bleibt fünf Sekunden im Speicher, damit Proben die Datenbank nicht jedes Mal anfragen.
 - Der Deploy-Workflow wartet auf `ok` (bis zu 30 Versuche im Abstand von 5 Sekunden).
+- Bekannte Lücke: Der MinIO-Check fragt den Bucket mit `head_bucket` ab, und den legt erst der erste Upload an. Auf einer frischen Installation steht MinIO deshalb auf `down` (und `/health/ready` auf 503), bis die erste Mail gespeichert ist. Fix: `list_buckets` statt `head_bucket`.
 
 ## Swagger
 
@@ -69,7 +70,7 @@ Instanz-Rollen: Das **Standard-Team** ist das Instanz-Team. Dort gibt es nur die
 | Methode | Pfad | Zweck |
 |---|---|---|
 | GET | `/analyses` | Liste für das aktive Team (umgesetzt) |
-| POST | `/analyses` | Upload einer `.eml` oder `.msg` als Feld `file` (multipart), antwortet mit dem Listeneintrag (umgesetzt, die Analyse läuft danach als arq-Job). Eine `.msg` wandelt das Backend vor dem Speichern in eine `.eml` um, gespeichert wird die umgewandelte Mail. Das Backend lehnt ab: andere Endungen (422), Dateien ohne Mail-Header oder mit Binär-Signatur (422), eine kaputte `.msg` (422), mehr als 25 MB (413) |
+| POST | `/analyses` | Upload einer `.eml` oder `.msg` als Feld `file` (multipart), antwortet mit dem Listeneintrag (umgesetzt, die Analyse läuft danach als arq-Job). Eine `.msg` wandelt das Backend vor dem Speichern in eine `.eml` um, gespeichert wird die umgewandelte Mail. Das Backend lehnt ab: andere Endungen (422), Dateien ohne Mail-Header oder mit Binär-Signatur (422), eine kaputte `.msg` (422), mehr als 25 MB (413). Jede 422 landet als Warnung im Log (`Upload rejected for user <id>`) |
 | GET | `/analyses/{id}` | Detail (umgesetzt) |
 | DELETE | `/analyses/{id}` | Weich löschen, nur Admin (umgesetzt) |
 | POST | `/analyses/{id}/decision` | Verdikt bestätigen oder als falsch-positiv melden, Body `verdict`, antwortet mit `{ verdict, by, at }` (umgesetzt). Bei einer Outlook-Meldung geht zwei Minuten später die Mail an die meldende Person, siehe unten. Eine freie Analyse bekommt die entscheidende Person im selben Schritt zugewiesen, jemand anderes zugewiesen 403 |
@@ -176,7 +177,8 @@ Der letzte Admin kann sich weder herabstufen noch entfernen. Das Verlassen des l
 Mitarbeiter melden eine verdächtige Mail in Outlook, die Meldung geht an ein gemeinsames phisheye-Postfach. Das Backend holt es per POP3 ab und legt für jede Meldung eine Analyse an.
 
 - Die gemeldete Mail darf als `.eml` (`message/rfc822`) oder als `.msg`-Anhang kommen.
-- Was keine Mail ist, bekommt keine Analyse. Der Abruf verwirft es mit einer Warnung im Log und löscht es aus dem Postfach, sonst käme es bei jedem Lauf wieder.
+- Was keine Mail ist, bekommt keine Analyse. Dazu zählt ein Anhang, den der Parser nicht lesen kann (zum Beispiel kaputtes base64). Der Abruf verwirft die Meldung, schreibt eine Warnung ins Log (`POP3 mail <uid> dropped`) und löscht sie aus dem Postfach. Sonst käme sie bei jedem Lauf wieder und hielte alle folgenden auf.
+- Die meldende Person bekommt dazu eine kurze Mail ("Meldung nicht gelesen: keine Mail"). Limit: 3 pro Stunde und Adresse, gezählt in Redis (`rejected:<adresse>`). Auto-Antworten und Systemadressen bekommen nichts.
 
 - Welches Team die Meldung bekommt, entscheidet die Domain der meldenden Adresse, nicht die des ursprünglichen Absenders.
 - Kennt kein Team die Domain, geht die Meldung ans Standard-Team. Sie wird nicht verworfen.
