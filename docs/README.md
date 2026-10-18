@@ -22,3 +22,4 @@
 - [Release und Changelog](release.md)
 - [VM-Zugriff](vm-access.md)
 - [Monitoring-Exporter](../deployment/monitoring/README.md)
+- [Outlook-Add-in](outlook-addin.md)
