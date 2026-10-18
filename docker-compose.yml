@@ -61,6 +61,10 @@ services:
     # the rendered realm goes here, an older volume has this folder owned by root
     tmpfs:
       - /opt/keycloak/data/import:mode=1777
+      # Keycloak keeps gzipped theme files in data/tmp/kc-gzip-cache, keyed by
+      # its own version only. In the volume a rebuilt theme kept serving the
+      # old favicon.svg, so the cache starts empty with every container.
+      - /opt/keycloak/data/tmp:mode=1777
     volumes:
       - keycloak-data:/opt/keycloak/data
       - ./docker/keycloak/realm-export.json:/opt/keycloak/template/realm-export.json:ro
