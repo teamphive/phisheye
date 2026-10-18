@@ -21,8 +21,8 @@ Ziel sind 4 Punkte pro Mitglied, bei drei Mitgliedern also 12.
 - Backend und web-basiertes Frontend
 - Datenbankanbindung
 - Nutzerverwaltung
-- Tests der Kernfunktionen
-- CI/CD-Pipeline für Tests und Deployment
+- Tests der Kernfunktionen, siehe [ci-cd.md](ci-cd.md#tests)
+- CI/CD-Pipeline für Tests und Deployment, siehe [ci-cd.md](ci-cd.md)
 - Betrieb unter öffentlich erreichbarer Domain
 
 Welche Oberflächen es dafür gibt, steht in [site-structure.md](site-structure.md).
