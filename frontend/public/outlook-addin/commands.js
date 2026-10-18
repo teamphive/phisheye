@@ -32,6 +32,8 @@ function report(event) {
   event.completed()
 }
 
-Office.onReady(() => {
-  Office.actions.associate("report", report)
-})
+// registered right away like in Microsoft's template: Outlook can call the
+// function before Office.onReady fires, and then the click does nothing
+Office.actions.associate("report", report)
+
+Office.onReady()
