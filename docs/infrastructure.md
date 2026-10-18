@@ -122,6 +122,10 @@ Das Backend legt für Eingeladene ein Konto ohne Passwort an. Keycloak mailt den
 
 Die Vorlage `docker/keycloak/realm-export.json` gilt nur für einen neuen Realm. Auf einem bestehenden Server (Prod) stellst du die Dauer einmal in der Admin-Console um: Realm settings, Tokens, "User-Initiated Action Lifespan" auf 30 Minuten. Der Standard von Keycloak sind 5 Minuten, das ist knapp, wenn die Mail bei Exchange ein paar Minuten hängt.
 
+### Sitzungsdauer
+
+Ohne Aktivität endet die Anmeldung nach 2 Stunden, spätestens nach 10 Stunden (`ssoSessionIdleTimeout` 7200, `ssoSessionMaxLifespan` 36000). Danach zeigt die App „Sitzung abgelaufen“. Auf einem bestehenden Server: Realm settings, Sessions, "SSO Session Idle" auf 2 Stunden.
+
 ## Standard-Team und Instanz-Admin
 
 - Das Standard-Team gibt es immer. Name fest (`Standard-Team`), nicht umbenennbar, nicht löschbar.
