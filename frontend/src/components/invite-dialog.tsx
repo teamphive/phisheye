@@ -126,7 +126,8 @@ export function InviteDialog({ team, onInvited }: InviteDialogProps) {
                 <FieldError>{error}</FieldError>
               ) : (
                 <FieldDescription>
-                  Nur Adressen der Unternehmensdomain sind erlaubt.
+                  Die Person bekommt per Mail einen Link, um ihr Konto
+                  einzurichten.
                 </FieldDescription>
               )}
             </Field>
