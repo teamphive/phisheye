@@ -286,3 +286,18 @@ async def test_team_shows_unknown_when_keycloak_does_not_answer(db, api, monkeyp
         "u1@example.com": None,
         "u2@example.com": False,
     }
+
+
+@pytest.mark.asyncio
+async def test_no_other_team_takes_the_default_name(db, api):
+    # the default team is found by its name, so the name must stay with it
+    _, (admin,) = await team_with(db, "admin")
+    login_as(admin)
+
+    for name in ("Standard-Team", "standard-team"):
+        assert (await api.patch("/team", json={"name": name})).status_code == 409
+
+    _, (boss,) = await instance_team(db, "admin")
+    login_as(boss)
+
+    assert (await api.post("/teams", json={"name": "Standard-Team"})).status_code == 409
