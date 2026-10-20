@@ -200,12 +200,19 @@ async def create_team(
         if await instance_role(user.id, db) != "admin":
             raise HTTPException(status_code=403, detail="Your role cannot do this")
 
+        _refuse_default_name(payload.name)
         team = Team(name=payload.name)
         db.add(team)
         await db.flush()
         db.add(TeamMembership(team_id=team.id, user_id=user.id, role="admin"))
 
     return {"id": team.id, "name": team.name, "member_count": 1, "role": "admin"}
+
+
+def _refuse_default_name(name: str) -> None:
+    # the default team is found by its name, no other team may carry it
+    if name.casefold() == DEFAULT_TEAM_NAME.casefold():
+        raise HTTPException(status_code=409, detail="Der Name ist vergeben.")
 
 
 @router.patch("/team")
@@ -225,6 +232,7 @@ async def rename_team(
                 detail="Das Standard-Team lässt sich nicht umbenennen.",
             )
 
+        _refuse_default_name(payload.name)
         team.name = payload.name
         db.add(team)
         member_count = await _member_count(team.id, db)

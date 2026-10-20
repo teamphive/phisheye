@@ -69,6 +69,7 @@ Eigene Marken, weil Keycloak `${env.SMTP_USERNAME}` im Block `smtpServer` nicht 
 - `FRONTEND_URL` mit Schema, ohne Slash am Ende: `https://phisheye.neumann-it.org`.
 - Nach einem Neuexport aus der Admin-Console die Werte wieder durch Marken ersetzen.
 - Der Import läuft nur beim ersten Start mit leerem Volume. Bei bestehendem Realm in der Admin-Console nachziehen oder das Volume `keycloak-data` neu anlegen.
+- Der Schutz gegen Durchprobieren ist in der Vorlage an (`bruteForceProtected`). Auf Prod einmal von Hand: Realm settings, Security defenses, Brute force detection.
 
 ### Öffentlich unter `/auth`
 
