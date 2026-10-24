@@ -4,7 +4,7 @@ React + TypeScript + Vite Frontend für phisheye.
 
 ## Voraussetzungen
 
-Node muss installiert sein (siehe `setup.md` im Root).
+Node 22, dieselbe Version wie in der CI (siehe `setup.md` im Root).
 
 ## Installieren
 
@@ -34,11 +34,30 @@ Läuft dann unter `http://localhost:5173`.
 npm run build
 ```
 
-## Lint
+## Prüfen
 
 ```bash
 npm run lint
+npm run typecheck
+npm test
 ```
+
+Dieselben Schritte und der Build laufen in der CI, siehe [ci-cd.md](../docs/ci-cd.md). `npm run format` formatiert mit Prettier.
+
+## Aufbau
+
+| Ordner oder Datei | Inhalt |
+| --- | --- |
+| `src/pages` | eine Datei pro Seite, die Routen stehen in `src/routes.tsx` |
+| `src/layouts` | Rahmen mit Sidebar und Kopfleiste, Rahmen für Seiten ohne Login |
+| `src/components` | eigene Komponenten, in `ui/` die von shadcn |
+| `src/lib` | API-Client, Keycloak, Rechte, Formatierung, die Tests liegen daneben |
+| `src/mocks` | Beispieldaten für den Betrieb ohne Backend |
+| `src/keycloak-theme` | Login-Seiten für Keycloak, siehe unten |
+| `email-theme` | Mails, die Keycloak verschickt |
+| `public` | Favicons, Web-Manifest, Logos für die Mails |
+| `Dockerfile` | App mit nginx, dazu die Stage `keycloak` (Keycloak mit Login-Theme) |
+| `nginx.conf` | liefert die App aus, reicht `/api` ans Backend und `/auth` an Keycloak weiter |
 
 ## Keycloak-Theme
 

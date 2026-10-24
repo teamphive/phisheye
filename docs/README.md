@@ -19,6 +19,7 @@
 ## Betrieb
 
 - [Infrastruktur-Entscheidungen](infrastructure.md)
+- [CI/CD und Tests](ci-cd.md)
 - [Release und Changelog](release.md)
 - [VM-Zugriff](vm-access.md)
 - [Monitoring-Exporter](../deployment/monitoring/README.md)

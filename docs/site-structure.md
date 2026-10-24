@@ -52,19 +52,19 @@ flowchart LR
 
   detail --> laeuft["Läuft<br>Schritt und Warteschlange"]
   detail --> fertig["Fertig<br>Verdikt, Kriterien, Links, Anhänge"]
-  detail --> fehler["Fehlgeschlagen<br>Ursache, erneut starten"]
+  detail --> fehler["Fehlgeschlagen<br>Ursache, Neustart im Monitoring"]
   fertig -->|bestätigen oder falsch-positiv| ents["Entschieden<br>zurücknehmbar"]
 
   liste -.->|leeres Team| keine["Noch keine Analysen"]
   glocke -.->|Filter ohne Treffer| keineN["Keine Benachrichtigungen"]
-  mon -.->|ohne Adminrecht| e403["403 Kein Zugriff"]
+  mon -.->|ohne Operator-Recht| e403["403 Kein Zugriff"]
   liste -.->|unbekannte Adresse| e404["404 Nicht gefunden"]
 
   classDef fehlerhaft fill:#FBE4E6,stroke:#C42E3B,color:#0F1724
   class e403,e404,fehler fehlerhaft
 ```
 
-Gestrichelte Pfeile führen zu Sonderfällen, nicht zu regulären Seiten. Overlays haben keine eigene Adresse und stehen nicht im Diagramm: Suchfenster, Glocken-Menü, Team-Umschalter sowie die Dialoge für Einladen, Team erstellen, Mitglied entfernen, Domain entfernen, Team verlassen und löschen, Analyse übernehmen, Analyse löschen und aktive Sitzungen. Passwort, 2FA und Backup-Codes ändert man auf den Seiten von Keycloak.
+Gestrichelte Pfeile führen zu Sonderfällen, nicht zu regulären Seiten. Overlays stehen nicht im Diagramm, sondern unter [Overlays](#overlays).
 
 ## Angemeldet
 
@@ -80,8 +80,8 @@ Sidebar und Kopfleiste sind auf allen Seiten gleich.
 | Monitoring | `/monitoring` | Sidebar unten, systemweit über alle Teams |
 | Benachrichtigungen | `/benachrichtigungen` | Glocke |
 | Einstellungen | `/einstellungen` | Profil oben rechts |
-| Kein Zugriff | 403 | Aufruf ohne Berechtigung |
-| Nicht gefunden | 404 | unbekannte Adresse, gelöschte Analyse |
+| Kein Zugriff | Adresse bleibt | Aufruf ohne Berechtigung, zum Beispiel `/monitoring` ohne Operator-Recht |
+| Nicht gefunden | jede andere | unbekannte Adresse, gelöschte Analyse |
 
 ## Ohne Login
 
@@ -137,7 +137,7 @@ In fremden Teams hat der Instanz-Admin die Rolle Admin und der Auditor die Rolle
 
 Das Monitoring steuert das Merkmal `is_operator`. Es gilt für Instanz-Admins automatisch und lässt sich zusätzlich über die Keycloak-Rolle `operator` vergeben.
 
-In der Oberfläche zeigt der Team-Umschalter oben die eigenen Teams und darunter unter „Weitere Teams“ alle, in denen das Instanz-Mitglied selbst nicht Mitglied ist (`via_instance`), mit gestricheltem Kürzel. In einem solchen Team nennt die Kopfleiste die Instanz-Rolle, die Team-Seite weist darauf hin, dass das Betreten protokolliert wird, und „Team verlassen“ fehlt. Im Standard-Team fehlen Umbenennen und Löschen. Einladen und Rollenwahl bieten dort nur Audit (vorausgewählt) und Admin, mit dem Hinweis, dass beide die Mails aller Teams sehen. „Team erstellen“ erscheint nur bei `can_create_teams`.
+In der Oberfläche zeigt der Team-Umschalter oben die eigenen Teams und darunter unter „Weitere Teams“ alle, in denen das Instanz-Mitglied selbst nicht Mitglied ist (`via_instance`), jeweils mit „du bist kein Mitglied“. In einem solchen Team nennt die Kopfleiste die Instanz-Rolle, die Team-Seite weist darauf hin, dass das Betreten protokolliert wird, und „Team verlassen“ fehlt. Im Standard-Team fehlen Umbenennen und Löschen. Einladen und Rollenwahl bieten dort nur Audit (vorausgewählt) und Admin, mit dem Hinweis, dass beide die Mails aller Teams sehen. „Team erstellen“ erscheint nur bei `can_create_teams`.
 
 Durchgesetzt wird all das im Backend. Die Oberfläche blendet nur aus.
 
@@ -174,11 +174,7 @@ Keine eigene Adresse, kein Router-Eintrag: Suchfenster (`Cmd/Strg + K`), Glocken
 - **Eine Analyse ist höchstens einer Person zugewiesen, und nur diese Person entscheidet.** In der Karte „Fall“ steht unter „Zugewiesen“ niemand oder ein Name, mit „Übernehmen“ oder bei der eigenen „Abgeben“. Eine freie Analyse entscheidet man mit einem Klick, sie ist danach der entscheidenden Person zugewiesen. Hat sie jemand anderes, sind „Als Phishing bestätigen“, „Falsch-positiv melden“ und „Rückgängig“ gesperrt, darüber steht „Übernimm die Analyse zuerst“ mit dem Knopf „Übernehmen“. Ob eine Analyse die eigene ist, sagt das Feld `mine` der API, nicht der Name. Übernehmen geht immer, auch bei einer schon entschiedenen Analyse. Wer einer anderen Person eine Analyse abnimmt, bestätigt das in einem Dialog. Nach der Entscheidung kommt die Zeile „Bearbeitet von“ mit Name und Zeitpunkt dazu, abgeben lässt sich die Analyse erst nach dem Zurücknehmen.
 - **Löschen ist immer weich.** Teams und Analysen werden als gelöscht markiert. Analysen entfernt ein nächtlicher Job nach 10 Tagen endgültig, Teams bleiben für immer als gelöscht markiert.
 - **Zeiten liefert die API als ISO 8601 in UTC.** Das Frontend formatiert in die Zeitzone des Browsers.
-- **Fehler kommen als einheitliches Objekt**, nicht als FastAPIs Standard-`detail`.
-- **Der erste Admin wird beim Initialisieren des Backends angelegt**, nicht über die Oberfläche.
-
-## Offen
-
-- Authentifizierung: Cookie oder Bearer-Token. Betrifft jeden Endpunkt und den gesamten API-Client.
-- IDs: UUID oder laufende Nummer. Betrifft das Datenmodell, nicht das Routing.
-- Ladezustände für Detailseite, Team und Monitoring. Entstehen beim Bau in React.
+- **Fehler kommen im Format von FastAPI**, als `detail`. Das Frontend zeigt den Text, für abgelehnte Uploads (413, 422) eigene Meldungen.
+- **Den ersten Admin legt ein Skript an** (`scripts.bootstrap_admin`), nicht die Oberfläche, siehe [Infrastruktur](infrastructure.md#standard-team-und-instanz-admin).
+- **Anmeldung über Keycloak mit PKCE.** Das Frontend schickt das Token als `Authorization: Bearer`, Cookies nutzt die API nicht.
+- **IDs sind laufende Nummern.**

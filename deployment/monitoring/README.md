@@ -2,6 +2,8 @@
 
 Die Exporter für die VM. Prometheus, Grafana, Loki und die Alarme liegen im Repo `monitoring-stack` und holen die Werte hier ab. Was in Grafana liegt und was in der App, steht in [infrastructure.md](../../docs/infrastructure.md).
 
+Dashboard (öffentlich, ohne Anmeldung): https://monitoring.neumann-it.org/public-dashboards/e9850289f0b04b848d87ed35522dbf8f
+
 | Was | Port |
 | --- | --- |
 | Backend (Requests, Latenz, 5xx) | 9101 |

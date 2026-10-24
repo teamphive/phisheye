@@ -2,6 +2,7 @@
 
 - Datum: 2026-09-18
 - Beteiligte: Oliver Neumann
+- Stand: umgesetzt. Die Detailseite lädt die Datei über das Backend (`GET /analyses/{id}/eml`), gelöscht wird sie 10 Tage nach dem Löschen der Analyse.
 
 ## Kontext
 
