@@ -77,7 +77,7 @@ Instanz-Rollen: Das **Standard-Team** ist das Instanz-Team. Dort gibt es nur die
 | POST | `/analyses/{id}/assignment` | Analyse übernehmen, antwortet mit `{ handler }` (umgesetzt, siehe Zuweisung) |
 | DELETE | `/analyses/{id}/assignment` | Analyse abgeben, antwortet mit 204 (umgesetzt, siehe Zuweisung) |
 | GET | `/analyses/{id}/eml` | Original-`.eml` aus MinIO herunterladen, geht über das Backend (MinIO ist von außen nicht erreichbar). Antwort mit `Content-Disposition: attachment` und `application/octet-stream`, dazu `X-Content-Type-Options: nosniff`, die Datei kann Schadcode enthalten. Jede Rolle des Teams. 404 für fremde, gelöschte oder Analysen ohne gespeicherte Datei, 503 wenn MinIO nicht antwortet (umgesetzt) |
-| GET | `/analyses/search?q=` | Suche über Betreff, Absender, Link-Domain und Anhang-Hash, siehe unten (umgesetzt, ohne Link-Hosts) |
+| GET | `/analyses/search?q=` | Suche über Betreff, Absender und Anhang-Hash, siehe unten (umgesetzt). Die Hosts der Links fehlen noch, siehe Offen |
 | GET | `/queue` | Wartende Jobs und Worker-Auslastung, für die Fortschrittsanzeige (umgesetzt) |
 
 ### Zuweisung
@@ -97,7 +97,7 @@ Datenmodell:
 - Nur Admin und Analyst, Audit bekommt 403 wie bei der Entscheidung (`require_role(membership, "admin", "analyst")`).
 - Analyse eines anderen Teams oder gelöscht: 404, wie überall über `_team_analysis`.
 - Setzt `handled_by` auf die anfragende Person, auch wenn schon jemand anderes zugewiesen ist. Die Oberfläche fragt in dem Fall vorher nach, das Backend nicht.
-- Schon entschieden (`decided_verdict` gesetzt): 409. Erst die Entscheidung zurücknehmen, die Oberfläche zeigt dann keinen Knopf.
+- Geht auch bei einer schon entschiedenen Analyse (`decided_verdict` gesetzt). Die Entscheidung bleibt dabei unverändert stehen, nur die Zuweisung wechselt. Danach darf die neue Person sie zurücknehmen oder ändern.
 - Ist man schon selbst zugewiesen, einfach noch einmal 200.
 - Antwort 200 mit `{ "handler": "<name>" }`.
 
@@ -105,7 +105,7 @@ Datenmodell:
 
 - Rollen und 404 wie bei `POST`.
 - Nur die zugewiesene Person darf abgeben. Wer jemand anderem eine Analyse abnehmen will, nimmt `POST`. Ist eine andere Person zugewiesen: 403.
-- Schon entschieden: 409, wie bei `POST`.
+- Schon entschieden: 409 "Analysis is already decided". Anders als beim Übernehmen: Eine entschiedene Analyse soll immer jemandem gehören. Wer sie loswerden will, nimmt zuerst die Entscheidung zurück.
 - Setzt `handled_by` auf null, Antwort 204. Ist niemand zugewiesen, ebenfalls 204.
 
 Zusammenspiel mit der Entscheidung:
@@ -148,7 +148,7 @@ Gezählt werden abgeschlossene, nicht gelöschte Analysen des aktiven Teams mit 
 | Methode | Pfad | Zweck |
 |---|---|---|
 | GET | `/team` | Mitglieder und offene Einladungen des aktiven Teams (umgesetzt) |
-| POST | `/teams` | Team anlegen, Body `name`, nur Instanz-Admin, der Nutzer wird Admin. Antwortet mit dem Team wie in `GET /me` (umgesetzt) |
+| POST | `/teams` | Team anlegen, Body `name`, nur Instanz-Admin, der Nutzer wird Admin. Antwortet mit 201 und `id`, `name`, `member_count` (1) und `role` (`admin`), also wie ein Team in `GET /me`, nur ohne `via_instance` (umgesetzt) |
 | PATCH | `/team` | Umbenennen, Body `name`, nur Admin (umgesetzt) |
 | DELETE | `/team` | Weich löschen, nur Admin (umgesetzt) |
 | POST | `/team/invitations` | Einladen, Body `email` und `role`, antwortet mit der Einladung wie in `GET /team`. 409, wenn die Adresse schon Mitglied oder eingeladen ist (umgesetzt, nur Admin) |
@@ -200,6 +200,48 @@ Die meldende Person bekommt bei jeder Meldung per Mail sofort eine Eingangsbest�
 - Empfänger ist die Adresse aus `reported_by`, sie stammt aus dem `From` der weitergeleiteten Mail. Pro Adresse gehen höchstens 10 Mails pro Stunde raus, Eingangsbestätigung und Entscheidung zählen beide.
 - Auto-Antworten (`Auto-Submitted`), die eigene Absenderadresse und Systemadressen wie `mailer-daemon` bekommen nichts.
 - Manuelle Uploads lösen keine Mail aus.
+
+### Meldungen über den Mailgun-Webhook
+
+Neben dem POP3-Abruf gibt es einen zweiten Weg herein: Mailgun nimmt die Meldung an und schickt sie per HTTP an das Backend. Das Frontend nutzt diesen Endpunkt nicht.
+
+| Methode | Pfad | Zweck |
+|---|---|---|
+| POST | `/webhooks/inbound-mail` | Eingehende Meldung von Mailgun, legt eine Analyse an (umgesetzt). Von außen `https://phisheye.neumann-it.org/api/webhooks/inbound-mail` |
+
+Anmeldung:
+
+- Kein Keycloak-Token. Der Endpunkt ist öffentlich, Mailgun weist sich über eine Signatur aus.
+- Mailgun schickt die Felder `timestamp`, `token` und `signature`. Das Backend bildet HMAC-SHA256 über `timestamp` und `token` hintereinander, mit `MAILGUN_WEBHOOK_SIGNING_KEY` als Schlüssel, und vergleicht das Ergebnis in konstanter Zeit mit `signature`.
+- Fehlt eines der drei Felder: 400. Passt die Signatur nicht: 401. Ist `MAILGUN_WEBHOOK_SIGNING_KEY` leer, passt keine Signatur und jede Anfrage bekommt 401. Der Weg ist damit ohne Schlüssel einfach zu.
+- Wie alt `timestamp` ist und ob ein `token` schon einmal kam, prüft das Backend nicht. Eine mitgeschnittene Anfrage ließe sich also wiederholen und legte jedes Mal eine neue Analyse an.
+
+Ablauf:
+
+1. Die Felder kommen als Formular (`multipart/form-data` oder `application/x-www-form-urlencoded`). Die ganze Meldung als MIME steht in `body-mime`, als Text oder als Datei. Fehlt `body-mime`: 400.
+2. Die gemeldete Mail wird herausgelöst wie beim POP3-Abruf (`extract_eml`): ein Anhang `message/rfc822`, sonst eine angehängte `.eml`, sonst eine `.msg`, die in eine `.eml` umgewandelt wird. Findet sich nichts davon, gilt die ganze Meldung als die Mail.
+3. Das Team kommt wie beim POP3-Abruf aus der Domain der meldenden Adresse, also aus dem `From` der Meldung, nicht der gemeldeten Mail. Subdomains zählen mit, gelöschte Teams nicht. Kennt kein Team die Domain oder ist die Meldung eine Auto-Antwort (`Auto-Submitted`), geht sie ans Standard-Team. Standard-Team und System-Nutzer legt das Backend bei Bedarf an.
+4. `submit_analysis` speichert die Mail in MinIO, legt die Analyse mit `status` `pending` an und reiht den arq-Job ein, genau wie bei einem Upload.
+
+Antworten:
+
+| Status | Wann |
+|---|---|
+| 200 | Analyse angelegt. Body `{ "id", "sender_domain", "status" }`: die ID der Analyse, die Domain des ursprünglichen Absenders (klein geschrieben, null ohne Adresse) und `pending`. Mailgun braucht davon nichts, es hilft beim Lesen der Mailgun-Logs |
+| 400 | Signaturfelder oder `body-mime` fehlen, oder die Mail ist leer |
+| 401 | Signatur falsch oder kein Schlüssel gesetzt |
+| 406 | Keine Mail: Binärdatei oder keiner der Header `From`, `Date`, `Message-ID`. 406 sagt Mailgun, dieselbe Anfrage nicht noch einmal zu schicken. Beim POP3-Abruf entspricht das dem Löschen aus dem Postfach |
+| 413 | Größer als 30 MB, abgelehnt schon von nginx (`client_max_body_size`). Die Grenze von 25 MB gilt nur für Uploads |
+| 500 | Alles andere, zum Beispiel MinIO oder die Datenbank antworten nicht. Mailgun stellt dann später erneut zu |
+
+Unterschiede zur Meldung per POP3, und sie sind gewollt oder zumindest bekannt:
+
+- Das Backend speichert keine meldende Person, `reported_by` bleibt null. Deshalb gehen weder Eingangsbestätigung noch Entscheidung noch die Mail bei einem Fehlschlag raus.
+- In Liste und Detail steht die Analyse deshalb mit `source` `upload` und ohne `reported_by`, obwohl sie gemeldet wurde. In `GET /queue` ist `submitted_by` der Name des System-Nutzers ("PhishEye System").
+- `handled_by` bleibt null wie bei jeder Meldung. Ist die Analyse fertig, bekommen alle Admins und Analysten des Teams den Eintrag in der Glocke.
+- Kommt dieselbe Meldung zweimal an, entstehen zwei Analysen. Doppelte erkennt das Backend nicht.
+
+Getestet ist bisher nur die Signaturprüfung (`tests/test_mailgun.py`), nicht der Endpunkt selbst.
 
 ## Benachrichtigungen
 
@@ -294,17 +336,20 @@ Solange `status` `running` ist, fragt das Frontend `GET /analyses/{id}` und `GET
 
 - Durchsucht nur die Analysen des aktiven Teams, ohne Groß- und Kleinschreibung.
 - Das Frontend fragt erst ab 2 Zeichen und wartet 250 ms nach dem letzten Tastendruck. Eine überholte Anfrage bricht es ab.
-- Gesucht wird im Betreff, in der Absenderadresse, in den Hosts der Links (Domain oder IP) und in den SHA-256-Hashes der Anhänge. Beim Hash zählt der Anfang, ab 8 Zeichen.
-- Pro Analyse höchstens ein Treffer. Passt der Text auf mehrere Felder, gilt die Reihenfolge Hash, Absender, Link, Betreff.
+- Gesucht wird im Betreff und im Absender, jeweils irgendwo im Text, und in den SHA-256-Hashes der Anhänge. Beim Hash zählt nur der Anfang, und erst ab 8 Zeichen, kürzer wäre Raten.
+- `%` und `_` im Suchtext sind normale Zeichen, keine Platzhalter.
+- Kürzer als 2 Zeichen (nach dem Abschneiden von Leerzeichen): leere Liste, auch wenn das Frontend so gar nicht erst fragt.
+- Pro Analyse höchstens ein Treffer. Passt der Text auf mehrere Felder, gilt die Reihenfolge Hash, Absender, Betreff.
 - Höchstens 20 Treffer, neueste zuerst.
+- Die Hosts der Links durchsucht das Backend noch nicht, obwohl sie seit der Linkliste in `mail_links.host` stehen. Das Frontend hat dafür schon die Gruppe „Links“ (`field` `domain`), sie bleibt bis dahin leer.
 
 Je Treffer:
 
 | Feld | Typ | Beschreibung |
 |---|---|---|
-| id, subject, sender, status, verdict, received_at | wie in `GET /analyses` | |
-| field | `hash`, `sender`, `domain` oder `subject` | wo der Text gefunden wurde, danach gruppiert das Frontend |
-| match | string | der gefundene Wert: voller Hash, Adresse, Host oder Betreff |
+| alle Felder aus `GET /analyses` | wie dort | also auch `handler`, `mine` und `decision` |
+| field | `hash`, `sender` oder `subject` | wo der Text gefunden wurde, danach gruppiert das Frontend. `domain` kommt erst mit der Suche über Link-Hosts |
+| match | string | der gefundene Wert: voller Hash, Absender oder Betreff |
 
 `GET /queue`:
 
@@ -347,5 +392,6 @@ Je Treffer:
 ## Offen
 
 - Spam-Testskript, das viele Mails auf einmal hochlädt und prüft, ob Warteschlange und Worker mithalten.
+- Suche über die Hosts der Links (`field` `domain`), siehe Suche.
 - Abbrechen einer laufenden Analyse. Ein Endpunkt fehlt, bis dahin zeigt die Detailseite keinen Knopf dafür.
 - Erneut starten einer fehlgeschlagenen Analyse durch Analysten. `POST /monitoring/jobs/{id}/retry` ist nur für Operatoren. Bis es einen Endpunkt für Analysten gibt, zeigt die Detailseite keinen Knopf und schickt Operatoren ins Monitoring.
