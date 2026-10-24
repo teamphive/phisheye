@@ -60,7 +60,7 @@ Stand: Modelle in `backend/app/models`. Geplantes steht unten unter "Geplant".
 | added_by | FK -> users | |
 | created_at | timestamp | |
 
-Outlook-Meldungen landen im Team, das die Domain des Absenders eingetragen hat. Sonst nimmt sie das Standard-Team.
+Outlook-Meldungen landen im Team, das die Domain der meldenden Adresse eingetragen hat, also der Person, die die Mail weitergeleitet hat. Der Absender der gemeldeten Mail spielt dafür keine Rolle, er ist meist fremd. Kennt kein Team die Domain, nimmt sie das Standard-Team. Bei mehreren Treffern (nur über Subdomains möglich, gleiche Domains verhindert der Unique-Index) gewinnt die längste Domain.
 
 ## mail_analyses
 
@@ -169,6 +169,7 @@ erDiagram
   TEAMS ||--o{ MAIL_ANALYSES : owns
   USERS ||--o{ MAIL_ANALYSES : submits
   USERS |o--o{ MAIL_ANALYSES : handles
+  USERS |o--o{ MAIL_ANALYSES : decides
   MAIL_ANALYSES ||--o{ MAIL_ATTACHMENTS : has
   MAIL_ANALYSES ||--o{ MAIL_LINKS : has
   USERS ||--o{ NOTIFICATIONS : sees
@@ -219,6 +220,9 @@ erDiagram
     string sender
     string reported_by
     string storage_key
+    timestamp received_at
+    timestamp notified_at
+    string notified_verdict
     text raw_headers
     string status
     string step

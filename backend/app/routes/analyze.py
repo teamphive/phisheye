@@ -88,7 +88,8 @@ def _search_hit(
 ) -> dict:
     """One hit per analysis, the most specific field wins: hash, sender, subject.
 
-    Link hosts belong between sender and subject, but links are not stored yet.
+    Link hosts belong between sender and subject. They are stored in
+    mail_links.host, but not searched yet.
     """
     if matching_hash:
         field, match = "hash", matching_hash
